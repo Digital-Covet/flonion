@@ -1,5 +1,5 @@
 import DashboardPage from "~/features/dashboard/DashboardPage";
 
-export default function Home() {
+export default function DashboardRoute() {
   return <DashboardPage />;
 }

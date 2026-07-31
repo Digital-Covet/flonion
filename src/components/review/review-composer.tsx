@@ -1,0 +1,149 @@
+import {
+  Check,
+  Link2,
+  Send,
+  Sparkles,
+  Star,
+} from "lucide-solid";
+import { For, Show } from "solid-js";
+import { Field } from "@ark-ui/solid/field";
+import type { Rating, ReviewDraft } from "@/features/reviews/review-types";
+
+interface ReviewComposerActions {
+  setRating: (rating: Rating) => void;
+  setText: (text: string) => void;
+  fetchSuggestions: () => void;
+  shareReview: () => void;
+  submitReview: () => void;
+}
+
+interface ReviewComposerProps {
+  draft: ReviewDraft;
+  actions: ReviewComposerActions;
+  logo?: string | null;
+  businessName?: string;
+  aiLoading?: boolean;
+}
+
+const ratings: Rating[] = [1, 2, 3, 4, 5];
+
+export function ReviewComposer(props: ReviewComposerProps) {
+  const characterCount = () => props.draft.text.length;
+
+  const handleInput = (event: Event) => {
+    const target = event.currentTarget as HTMLTextAreaElement;
+    props.actions.setText(target.value);
+  };
+
+  return (
+    <section
+      aria-labelledby="draft-review-heading"
+      class="rounded-lg border border-border bg-card p-5 shadow-sm"
+    >
+      <Show when={props.logo}>
+        <div class="mb-4 flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-3">
+          <img
+            src={props.logo!}
+            alt="Company logo"
+            class="h-10 w-10 shrink-0 rounded object-contain"
+          />
+          <span class="text-base font-medium text-foreground">{props.businessName || "Your review"}</span>
+        </div>
+      </Show>
+
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="draft-review-heading" class="text-lg font-semibold text-foreground">
+          Draft Review
+        </h2>
+
+        <button
+          type="button"
+          onClick={props.actions.shareReview}
+          class="inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+        >
+          <Link2 class="size-4" aria-hidden="true" />
+          Share Review
+        </button>
+      </div>
+
+      <fieldset class="mt-6">
+        <legend class="text-sm font-medium text-foreground">Rating</legend>
+        <div class="mt-2 flex gap-1" role="radiogroup" aria-label="Review rating">
+          <For each={ratings}>
+            {(rating) => {
+              const selected = () => rating <= props.draft.rating;
+
+              return (
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={selected()}
+                  aria-label={`${rating} out of 5 stars`}
+                  onClick={() => props.actions.setRating(rating)}
+                  class={`inline-flex size-9 items-center justify-center rounded-md transition-colors ${selected()
+                    ? "text-primary"
+                    : "text-slate-300 hover:bg-muted hover:text-primary"
+                    }`}
+                >
+                  <Star
+                    class="size-6"
+                    fill={selected() ? "currentColor" : "none"}
+                    aria-hidden="true"
+                  />
+                </button>
+              );
+            }}
+          </For>
+        </div>
+      </fieldset>
+
+      <Field.Root class="mt-5">
+        <Field.Label class="text-sm font-medium text-foreground">
+          Review message
+        </Field.Label>
+
+        <div class="relative mt-2">
+          <Field.Textarea
+            id="review-text"
+            value={props.draft.text}
+            onInput={handleInput}
+            placeholder="Write your review here..."
+            autoresize
+            class="w-full resize-none overflow-hidden rounded-md border border-input bg-background px-3 py-3 pr-20 text-sm leading-6 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+          <span class="pointer-events-none absolute bottom-3 right-3 text-xs text-muted-foreground">
+            {characterCount()} chars
+          </span>
+        </div>
+      </Field.Root>
+
+      <div class="mt-5 flex flex-wrap justify-end gap-2 border-t border-border pt-4">
+        <button
+          type="button"
+          onClick={props.actions.fetchSuggestions}
+          disabled={props.aiLoading}
+          class="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <Sparkles class="size-4" aria-hidden="true" />
+          {props.aiLoading ? "Thinking..." : "AI Suggest"}
+        </button>
+
+        <button
+          type="button"
+          onClick={props.actions.submitReview}
+          class="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
+        >
+          <Send class="size-4" aria-hidden="true" />
+          Send Review
+        </button>
+      </div>
+
+      <p class="sr-only">
+        AI Suggest sends your draft to an AI service and returns improved review
+        suggestions in different tones.
+      </p>
+
+      <Check class="sr-only" aria-hidden="true" />
+    </section>
+  );
+}
