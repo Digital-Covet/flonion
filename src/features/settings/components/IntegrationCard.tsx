@@ -62,10 +62,7 @@ export function IntegrationCard(props: IntegrationCardProps) {
             disabled={props.connecting}
             class="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-medium leading-5 text-foreground transition-all hover:bg-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
           >
-            <Show
-              when={!props.connecting}
-              fallback={<Loader2 size={16} class="animate-spin" />}
-            />
+            {props.connecting && <Loader2 size={16} class="animate-spin" />}
             {props.connecting ? "Connecting..." : "Connect Google Business Profile"}
             <Show when={!props.connecting}>
               <ExternalLink size={14} class="text-muted-foreground" />
