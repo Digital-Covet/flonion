@@ -8,6 +8,8 @@ import Clock from 'lucide-solid/icons/clock'
 import Camera from 'lucide-solid/icons/camera'
 import Tag from 'lucide-solid/icons/tag'
 import PenLine from 'lucide-solid/icons/pen-line'
+import ListChecks from 'lucide-solid/icons/list-checks'
+import Zap from 'lucide-solid/icons/zap'
 import type {
   BusinessInfo,
   KeywordSuggestion,
@@ -196,3 +198,37 @@ export const VOLUME_COLORS: Record<string, { bg: string; text: string }> = {
   medium: { bg: 'bg-amber-100', text: 'text-amber-700' },
   low: { bg: 'bg-slate-100', text: 'text-slate-600' },
 }
+
+export function scoreColor(score: number): string {
+  if (score >= 80) return 'bg-emerald-600'
+  if (score >= 60) return 'bg-emerald-400'
+  if (score >= 40) return 'bg-amber-400'
+  return 'bg-rose-500'
+}
+
+export function scoreTextColor(score: number): string {
+  if (score >= 80) return 'text-emerald-700'
+  if (score >= 60) return 'text-emerald-600'
+  if (score >= 40) return 'text-amber-600'
+  return 'text-rose-600'
+}
+
+export interface KpiTrend {
+  value: string
+  direction: 'positive' | 'negative' | 'neutral'
+}
+
+export interface KpiStat {
+  label: string
+  value: string | number
+  icon: typeof Camera
+  accent?: string
+  trend?: KpiTrend
+}
+
+export const seoKpiStats: KpiStat[] = [
+  { label: 'Photos', value: photoStatus.total, icon: Camera, accent: 'bg-emerald-50 text-emerald-600', trend: { value: '+2', direction: 'positive' } },
+  { label: 'Avg Rating', value: businessInfo.rating, icon: Star, accent: 'bg-amber-50 text-amber-600', trend: { value: '+0.1', direction: 'positive' } },
+  { label: 'Actions Open', value: seoActionItems.filter((a) => a.status !== 'completed').length, icon: ListChecks, accent: 'bg-rose-50 text-rose-600', trend: { value: '+2', direction: 'negative' } },
+  { label: 'Reviews', value: businessInfo.reviewCount, icon: Zap, accent: 'bg-violet-50 text-violet-600', trend: { value: '+12', direction: 'positive' } },
+]

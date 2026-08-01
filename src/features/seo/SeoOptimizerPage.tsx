@@ -1,10 +1,8 @@
 import { Title } from '@solidjs/meta'
-import { For, Show, createSignal } from 'solid-js'
+import { For, Show } from 'solid-js'
 import Activity from 'lucide-solid/icons/activity'
-import Camera from 'lucide-solid/icons/camera'
-import Star from 'lucide-solid/icons/star'
-import ListChecks from 'lucide-solid/icons/list-checks'
-import Zap from 'lucide-solid/icons/zap'
+import TrendingUp from 'lucide-solid/icons/trending-up'
+import TrendingDown from 'lucide-solid/icons/trending-down'
 import PageHeader from '~/components/seo/PageHeader'
 import ProgressTracker from '~/components/seo/ProgressTracker'
 import ActionList from '~/components/seo/ActionList'
@@ -12,7 +10,6 @@ import BusinessInfoCard from '~/components/seo/BusinessInfoCard'
 import KeywordRecommendations from '~/components/seo/KeywordRecommendations'
 import CompetitorCard from '~/components/seo/CompetitorCard'
 import PhotoStatusCard from '~/components/seo/PhotoStatusCard'
-import QuickLinksCard from '~/components/seo/QuickLinksCard'
 import {
   SEO_PAGE_HEADER,
   businessInfo,
@@ -20,21 +17,22 @@ import {
   competitors,
   photoStatus,
   seoScore,
-  quickLinks,
+  seoKpiStats,
   seoActionItems,
+  scoreColor,
+  type KpiStat,
 } from './seo-data'
-import { ProgressRoot, ProgressCircle, ProgressCircleTrack, ProgressCircleRange } from '~/components/ui/progress'
 
 function ScoreBreakdown() {
   return (
-    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
       <div class="mb-4 flex items-center gap-3">
-        <div class="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+        <div class="flex size-10 items-center justify-center rounded-xl bg-slate-200 text-slate-600">
           <Activity size={20} />
         </div>
         <div>
           <h3 class="text-lg font-bold text-slate-900">Score Breakdown</h3>
-          <p class="text-xs text-slate-500">How each factor impacts your ranking</p>
+          <p class="text-xs text-slate-500">Individual category scores (unweighted)</p>
         </div>
       </div>
       <div class="space-y-3">
@@ -49,7 +47,7 @@ function ScoreBreakdown() {
               </div>
               <div class="h-2 overflow-hidden rounded-full bg-slate-100">
                 <div
-                  class="h-full rounded-full bg-emerald-500 transition-all"
+                  class={`h-full rounded-full transition-all ${scoreColor(cat.score)}`}
                   style={{ width: `${cat.score}%` }}
                 />
               </div>
@@ -61,15 +59,33 @@ function ScoreBreakdown() {
   )
 }
 
-function StatCard(props: { icon: typeof Camera; label: string; value: string | number; accent?: string }) {
+function StatCard(props: { stat: KpiStat }) {
   return (
     <div class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div class={`flex size-12 items-center justify-center rounded-xl ${props.accent ?? 'bg-slate-100 text-slate-600'}`}>
-        <props.icon size={22} />
+      <div class={`flex size-12 items-center justify-center rounded-xl ${props.stat.accent ?? 'bg-slate-100 text-slate-600'}`}>
+        <props.stat.icon size={22} />
       </div>
       <div>
-        <p class="text-2xl font-bold text-slate-900">{props.value}</p>
-        <p class="text-xs text-slate-500">{props.label}</p>
+        <p class="text-2xl font-bold text-slate-900">{props.stat.value}</p>
+        <p class="text-xs text-slate-500">{props.stat.label}</p>
+        <Show when={props.stat.trend}>
+          <span
+            class={`flex items-center gap-1 text-[11px] font-semibold ${props.stat.trend!.direction === 'positive'
+                ? 'text-emerald-600'
+                : props.stat.trend!.direction === 'negative'
+                  ? 'text-rose-600'
+                  : 'text-slate-500'
+              }`}
+          >
+            <Show
+              when={props.stat.trend!.direction === 'positive'}
+              fallback={<TrendingDown size={11} />}
+            >
+              <TrendingUp size={11} />
+            </Show>
+            {props.stat.trend!.value}
+          </span>
+        </Show>
       </div>
     </div>
   )
@@ -85,50 +101,28 @@ export function SeoOptimizerPage() {
           subtitle={SEO_PAGE_HEADER.subtitle}
         />
 
+        <ProgressTracker
+          value={seoScore.overall}
+          title="Overall SEO Score"
+          description="Weighted composite of all ranking factors below. Completing the recommended actions will increase your visibility."
+        />
+
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <For each={seoKpiStats}>
+            {(stat) => <StatCard stat={stat} />}
+          </For>
+        </div>
+
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-5">
           <div class="lg:col-span-3">
-            <ProgressTracker
-              value={seoScore.overall}
-              title="Profile Optimization Strength"
-              description="Your profile is missing key information that could boost local rankings. Completing the recommended actions below will increase your visibility."
-            />
+            <BusinessInfoCard info={businessInfo} />
           </div>
-          <div class="grid grid-cols-2 gap-4 lg:col-span-2 lg:grid-cols-2">
-            <StatCard
-              icon={Camera}
-              label="Photos"
-              value={photoStatus.total}
-              accent="bg-emerald-50 text-emerald-600"
-            />
-            <StatCard
-              icon={Star}
-              label="Avg Rating"
-              value={businessInfo.rating}
-              accent="bg-amber-50 text-amber-600"
-            />
-            <StatCard
-              icon={ListChecks}
-              label="Actions Open"
-              value={seoActionItems.filter((a) => a.status !== 'completed').length}
-              accent="bg-rose-50 text-rose-600"
-            />
-            <StatCard
-              icon={Zap}
-              label="Reviews"
-              value={businessInfo.reviewCount}
-              accent="bg-violet-50 text-violet-600"
-            />
-          </div>
-        </div>
-
-        <BusinessInfoCard info={businessInfo} />
-
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div class="lg:col-span-2">
-            <KeywordRecommendations keywords={keywordSuggestions} />
+            <PhotoStatusCard status={photoStatus} />
           </div>
-          <PhotoStatusCard status={photoStatus} />
         </div>
+
+        <KeywordRecommendations keywords={keywordSuggestions} />
 
         <CompetitorCard competitors={competitors} />
 
@@ -138,8 +132,6 @@ export function SeoOptimizerPage() {
           </div>
           <ScoreBreakdown />
         </div>
-
-        <QuickLinksCard links={quickLinks} />
       </div>
     </>
   )
