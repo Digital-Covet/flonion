@@ -161,7 +161,7 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
         setName('');
         setEmail('');
         setPassword('');
-        setTouchedFields(new Set());
+        setTouchedFields(new Set<string>());
       }, SUCCESS_RESET_DELAY_MS);
     } catch (e: any) {
       setError(e?.message ?? 'Sign up failed. Please try again.');
