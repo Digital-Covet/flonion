@@ -27,6 +27,7 @@ export interface ReviewSuggestion {
   id: string;
   tone: SuggestionTone;
   text: string;
+  recommended?: boolean;
 }
 
 export interface TrendPoint {
@@ -45,4 +46,5 @@ export interface SharedReview {
   text: string;
   rating: number;
   createdAt: number;
+  reviewerName?: string;
 }

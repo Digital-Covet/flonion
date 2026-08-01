@@ -1,7 +1,37 @@
+import Briefcase from "lucide-solid/icons/briefcase";
 import Check from "lucide-solid/icons/check";
-import Sparkles from "lucide-solid/icons/sparkles";
+import Coffee from "lucide-solid/icons/coffee";
+import MessageSquare from "lucide-solid/icons/message-square";
+import Star from "lucide-solid/icons/star";
 import X from "lucide-solid/icons/x";
-import type { ReviewSuggestion } from "@/features/reviews/review-types";
+import { Show } from "solid-js";
+import type { Component } from "solid-js";
+import type { LucideProps } from "lucide-solid";
+import type { ReviewSuggestion, SuggestionTone } from "@/features/reviews/review-types";
+
+interface ToneConfig {
+  icon: Component<LucideProps>;
+  colorClass: string;
+  bgClass: string;
+}
+
+const toneConfig: Record<SuggestionTone, ToneConfig> = {
+  Simple: {
+    icon: MessageSquare,
+    colorClass: "text-info",
+    bgClass: "bg-info-muted",
+  },
+  Professional: {
+    icon: Briefcase,
+    colorClass: "text-purple",
+    bgClass: "bg-purple-muted",
+  },
+  Casual: {
+    icon: Coffee,
+    colorClass: "text-orange",
+    bgClass: "bg-orange-muted",
+  },
+};
 
 interface SuggestionCardProps {
   suggestion: ReviewSuggestion;
@@ -11,16 +41,33 @@ interface SuggestionCardProps {
 }
 
 export function SuggestionCard(props: SuggestionCardProps) {
+  const config = () => toneConfig[props.suggestion.tone];
+  const ToneIcon = () => config().icon;
+
   return (
     <article
-      class="rounded-lg border border-border bg-card p-4 shadow-sm animate-[fade-in-up_0.3s_ease-out_both]"
+      class="rounded-xl border border-border bg-card p-4 shadow-md animate-[fade-in-up_0.3s_ease-out_both]"
       style={props.style}
     >
       <div class="flex items-center justify-between gap-3">
-        <span class="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-primary">
-          <Sparkles class="size-3.5" aria-hidden="true" />
-          {props.suggestion.tone}
-        </span>
+        <div class="flex items-center gap-2">
+          <span
+            class={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${config().colorClass} ${config().bgClass}`}
+          >
+            {(() => {
+              const Icon = ToneIcon();
+              return <Icon class="size-3.5" aria-hidden="true" />;
+            })()}
+            {props.suggestion.tone}
+          </span>
+
+          <Show when={props.suggestion.recommended}>
+            <span class="inline-flex items-center gap-1 rounded-full bg-positive-muted px-2 py-0.5 text-xs font-semibold text-positive">
+              <Star class="size-3" aria-hidden="true" fill="currentColor" />
+              Recommended
+            </span>
+          </Show>
+        </div>
 
         <button
           type="button"

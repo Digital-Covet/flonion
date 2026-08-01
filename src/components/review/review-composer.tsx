@@ -24,6 +24,7 @@ interface ReviewComposerProps {
 }
 
 const ratings: Rating[] = [1, 2, 3, 4, 5];
+const MAX_CHARS = 500;
 
 export function ReviewComposer(props: ReviewComposerProps) {
   const characterCount = () => props.draft.text.length;
@@ -36,7 +37,7 @@ export function ReviewComposer(props: ReviewComposerProps) {
   return (
     <section
       aria-labelledby="draft-review-heading"
-      class="rounded-lg border border-border bg-card p-5 shadow-sm"
+      class="rounded-xl border border-border bg-card p-5 shadow-md"
     >
       <Show when={props.logo}>
         <div class="mb-4 flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-3">
@@ -66,7 +67,7 @@ export function ReviewComposer(props: ReviewComposerProps) {
 
       <fieldset class="mt-6">
         <legend class="text-sm font-medium text-foreground">Rating</legend>
-        <div class="mt-2 flex gap-1" role="radiogroup" aria-label="Review rating">
+        <div class="mt-2 flex items-center gap-1" role="radiogroup" aria-label="Review rating">
           <For each={ratings}>
             {(rating) => {
               const selected = () => rating <= props.draft.rating;
@@ -92,6 +93,9 @@ export function ReviewComposer(props: ReviewComposerProps) {
               );
             }}
           </For>
+          <span class="ml-1.5 text-sm font-medium text-muted-foreground">
+            {props.draft.rating}/5
+          </span>
         </div>
       </fieldset>
 
@@ -109,8 +113,14 @@ export function ReviewComposer(props: ReviewComposerProps) {
             autoresize
             class="w-full resize-none overflow-hidden rounded-md border border-input bg-background px-3 py-3 pr-20 text-sm leading-6 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
-          <span class="pointer-events-none absolute bottom-3 right-3 text-xs text-muted-foreground">
-            {characterCount()} chars
+          <span
+            class={`pointer-events-none absolute bottom-3 right-3 text-xs ${
+              characterCount() > MAX_CHARS * 0.9
+                ? "text-orange font-semibold"
+                : "text-muted-foreground"
+            }`}
+          >
+            {characterCount()}/{MAX_CHARS}
           </span>
         </div>
       </Field.Root>
