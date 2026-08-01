@@ -22,6 +22,8 @@
   --color-info-muted: #eff6ff;
   --color-purple: #7c3aed;
   --color-purple-muted: #f5f3ff;
+  --color-orange: #f97316;
+  --color-orange-muted: #fff7ed;
 
   --font-sans: 'Rubik Variable', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
@@ -33,6 +35,7 @@
   --radius-lg: 0.5rem;
 
   --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06);
+  --shadow-md: 0 4px 6px -1px rgb(15 23 42 / 0.07), 0 2px 4px -2px rgb(15 23 42 / 0.05);
 }
 
 @keyframes fade-in-up {
