@@ -54,6 +54,7 @@
   html {
     font-family: var(--font-sans);
     background: var(--color-background);
+    overscroll-behavior: none;
   }
 
   body {

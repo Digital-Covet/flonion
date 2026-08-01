@@ -1,5 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { runReviewPipeline } from "~/lib/agents/pipeline";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 function getApiKey(): string {
   const key = process.env.OPENROUTER_API_KEY;
@@ -10,6 +11,11 @@ function getApiKey(): string {
 }
 
 export async function POST(event: APIEvent) {
+  const session = await getSessionFromHeaders(event.request.headers);
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await event.request.json();
 

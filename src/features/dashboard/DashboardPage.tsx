@@ -1,5 +1,7 @@
 import { Select, createListCollection } from "@ark-ui/solid/select";
-import { CalendarDays, Check, ChevronDown } from "lucide-solid";
+import CalendarDays from "lucide-solid/icons/calendar-days";
+import Check from "lucide-solid/icons/check";
+import ChevronDown from "lucide-solid/icons/chevron-down";
 import { createMemo, createSignal, For } from "solid-js";
 import { Title } from "@solidjs/meta";
 import { metrics } from "~/features/reviews/review-data";
@@ -36,7 +38,7 @@ export default function DashboardPage() {
   return (
     <>
       <Title>Dashboard — Cognitive Enterprise</Title>
-      <div class="mx-auto max-w-7xl space-y-6">
+      <div class="mx-auto max-w-7xl space-y-6 pt-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">

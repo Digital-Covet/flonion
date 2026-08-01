@@ -1,12 +1,10 @@
 import { createSignal, onMount, Show } from "solid-js";
-import {
-  Building2,
-  Puzzle,
-  SlidersHorizontal,
-  Store,
-  Save,
-  Zap,
-} from "lucide-solid";
+import Building2 from "lucide-solid/icons/building-2";
+import Puzzle from "lucide-solid/icons/puzzle";
+import SlidersHorizontal from "lucide-solid/icons/sliders-horizontal";
+import Store from "lucide-solid/icons/store";
+import Save from "lucide-solid/icons/save";
+import Zap from "lucide-solid/icons/zap";
 import { SectionCard } from "./components/SectionCard";
 import { FormField } from "./components/FormField";
 import { ToggleRow } from "./components/ToggleRow";

@@ -1,5 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server"
 import { getValidAccessToken, hasValidTokens } from "~/lib/google-tokens"
+import { getSessionFromHeaders } from "~/lib/server-auth"
 import type { GoogleAccount, GoogleLocation } from "~/types/google"
 
 interface RawLocation {
@@ -95,6 +96,14 @@ async function fetchWithRetry(
 }
 
 export async function GET(_event: APIEvent) {
+  const session = await getSessionFromHeaders(_event.request.headers)
+  if (!session) {
+    return Response.json(
+      { error: "Unauthorized" },
+      { status: 401 },
+    )
+  }
+
   if (!hasValidTokens("default")) {
     return Response.json(
       { error: "Not authenticated", authUrl: "/api/google/auth" },

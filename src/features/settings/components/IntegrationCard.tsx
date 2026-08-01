@@ -1,6 +1,8 @@
 import { createSignal, For, Show } from "solid-js";
 import { Field } from "@ark-ui/solid/field";
-import { ExternalLink, CheckCircle, Loader2 } from "lucide-solid";
+import ExternalLink from "lucide-solid/icons/external-link";
+import CheckCircle from "lucide-solid/icons/check-circle";
+import Loader2 from "lucide-solid/icons/loader-2";
 import type { IntegrationData, GoogleLocationData } from "../types";
 
 interface IntegrationCardProps {

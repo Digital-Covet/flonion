@@ -1,5 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
 import type { SharedReview } from "@/features/reviews/review-types";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 const sharedReviews = new Map<string, SharedReview>();
 
@@ -13,6 +14,11 @@ function generateId(): string {
 }
 
 export async function POST(event: APIEvent) {
+  const session = await getSessionFromHeaders(event.request.headers);
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await event.request.json();
 

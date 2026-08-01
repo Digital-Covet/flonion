@@ -9,10 +9,11 @@ export default defineConfig(({ command }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "~": path.resolve(__dirname, "./src"),
+      "@generated": path.resolve(__dirname, "./generated")
     },
   },
   plugins: [
-    solidStart(),
+    solidStart({ middleware: "./src/middleware.ts" }),
     tailwindcss(),
     ...(command === 'build' ? [nitro()] : []),
   ],

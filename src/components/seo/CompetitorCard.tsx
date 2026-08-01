@@ -1,5 +1,6 @@
 import { type Component, For } from 'solid-js'
-import { Users, Star } from 'lucide-solid'
+import Users from 'lucide-solid/icons/users'
+import Star from 'lucide-solid/icons/star'
 import type { Competitor } from '~/features/seo/seo-types'
 
 interface CompetitorCardProps {

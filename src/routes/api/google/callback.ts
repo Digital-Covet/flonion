@@ -1,5 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server"
 import { storeTokens } from "~/lib/google-tokens"
+import { getSessionFromHeaders } from "~/lib/server-auth"
 
 function getEnv(key: string): string {
   const value = process.env[key]
@@ -14,6 +15,11 @@ function sanitizeReturnUrl(state: string | null): string {
 }
 
 export async function GET(event: APIEvent) {
+  const session = await getSessionFromHeaders(event.request.headers)
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   const url = new URL(event.request.url)
   const code = url.searchParams.get("code")
   const error = url.searchParams.get("error")

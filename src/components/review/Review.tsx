@@ -1,14 +1,12 @@
 import { For, Show, createMemo, createResource, createSignal, onMount } from "solid-js";
 import { isServer } from "solid-js/web";
-import {
-  CalendarDays,
-  RotateCcw,
-  Search,
-  Send,
-  SlidersHorizontal,
-  Sparkles,
-  Star,
-} from "lucide-solid";
+import CalendarDays from "lucide-solid/icons/calendar-days";
+import RotateCcw from "lucide-solid/icons/rotate-ccw";
+import Search from "lucide-solid/icons/search";
+import Send from "lucide-solid/icons/send";
+import SlidersHorizontal from "lucide-solid/icons/sliders-horizontal";
+import Sparkles from "lucide-solid/icons/sparkles";
+import Star from "lucide-solid/icons/star";
 import type { Review } from "~/types";
 import { googleStarRatingToNumber, type GoogleReview } from "~/types/google";
 

@@ -1,5 +1,5 @@
 import type { Component } from 'solid-js'
-import { Sparkles } from 'lucide-solid'
+import Sparkles from 'lucide-solid/icons/sparkles'
 import type { ProgressData } from '../../types'
 import { ProgressRoot, ProgressCircle, ProgressCircleTrack, ProgressCircleRange } from '../ui/progress'
 

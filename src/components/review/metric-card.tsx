@@ -1,4 +1,6 @@
-import { Plus, TrendingDown, TrendingUp } from "lucide-solid";
+import Plus from "lucide-solid/icons/plus";
+import TrendingDown from "lucide-solid/icons/trending-down";
+import TrendingUp from "lucide-solid/icons/trending-up";
 import { Show } from "solid-js";
 import type { Metric } from "@/features/reviews/review-types";
 

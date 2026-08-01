@@ -1,4 +1,5 @@
 import type { APIEvent } from "@solidjs/start/server"
+import { getSessionFromHeaders } from "~/lib/server-auth"
 
 function getEnv(key: string): string {
   const value = process.env[key]
@@ -6,7 +7,12 @@ function getEnv(key: string): string {
   return value
 }
 
-export function GET(event: APIEvent) {
+export async function GET(event: APIEvent) {
+  const session = await getSessionFromHeaders(event.request.headers)
+  if (!session) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   const clientId = getEnv("GOOGLE_CLIENT_ID")
   const redirectUri = getEnv("GOOGLE_REDIRECT_URI")
 

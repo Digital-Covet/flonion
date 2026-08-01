@@ -1,5 +1,10 @@
 import { type Component, For } from 'solid-js'
-import { Building2, Phone, Globe, MapPin, Star, Edit } from 'lucide-solid'
+import Building2 from 'lucide-solid/icons/building-2'
+import Phone from 'lucide-solid/icons/phone'
+import Globe from 'lucide-solid/icons/globe'
+import MapPin from 'lucide-solid/icons/map-pin'
+import Star from 'lucide-solid/icons/star'
+import Edit from 'lucide-solid/icons/edit'
 import type { BusinessInfo } from '~/features/seo/seo-types'
 
 interface BusinessInfoCardProps {

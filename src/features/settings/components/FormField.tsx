@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 import { Field } from "@ark-ui/solid/field";
-import { HelpCircle } from "lucide-solid";
+import HelpCircle from "lucide-solid/icons/help-circle";
 import type { FormFieldProps } from "../types";
 
 export function FormField(props: FormFieldProps) {

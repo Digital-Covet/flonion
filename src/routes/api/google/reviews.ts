@@ -1,8 +1,17 @@
 import type { APIEvent } from "@solidjs/start/server"
 import { getValidAccessToken, hasValidTokens } from "~/lib/google-tokens"
+import { getSessionFromHeaders } from "~/lib/server-auth"
 import type { GoogleReview, GoogleReviewsResponse } from "~/types/google"
 
 export async function GET(event: APIEvent) {
+  const session = await getSessionFromHeaders(event.request.headers)
+  if (!session) {
+    return Response.json(
+      { error: "Unauthorized" },
+      { status: 401 },
+    )
+  }
+
   if (!hasValidTokens("default")) {
     return Response.json(
       { error: "Not authenticated", authUrl: "/api/google/auth" },

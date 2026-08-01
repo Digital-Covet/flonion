@@ -1,5 +1,6 @@
 import { type Component, For, createSignal, createMemo } from 'solid-js'
-import { Sparkles, Check } from 'lucide-solid'
+import Sparkles from 'lucide-solid/icons/sparkles'
+import Check from 'lucide-solid/icons/check'
 import type { KeywordSuggestion, SearchVolume } from '~/features/seo/seo-types'
 import { VOLUME_COLORS } from '~/features/seo/seo-data'
 import { cn } from '~/lib/cn'

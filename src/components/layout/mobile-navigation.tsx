@@ -1,5 +1,6 @@
 import { Dialog } from "@ark-ui/solid/dialog";
-import { Menu, X } from "lucide-solid";
+import Menu from "lucide-solid/icons/menu";
+import X from "lucide-solid/icons/x";
 import { createSignal } from "solid-js";
 import {
   Brand,

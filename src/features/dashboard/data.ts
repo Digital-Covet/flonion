@@ -1,4 +1,7 @@
-import { Inbox, SearchCheck, ExternalLink, MessageSquareText } from "lucide-solid";
+import Inbox from "lucide-solid/icons/inbox";
+import SearchCheck from "lucide-solid/icons/search-check";
+import ExternalLink from "lucide-solid/icons/external-link";
+import MessageSquareText from "lucide-solid/icons/message-square-text";
 import type { QuickAction, RecentActivity } from "./types";
 
 export const recentActivity: RecentActivity[] = [

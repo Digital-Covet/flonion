@@ -1,15 +1,13 @@
-import {
-  ImagePlus,
-  CheckCircle2,
-  MapPin,
-  FileText,
-  Star,
-  Globe,
-  Clock,
-  Camera,
-  Tag,
-  PenLine,
-} from 'lucide-solid'
+import ImagePlus from 'lucide-solid/icons/image-plus'
+import CheckCircle2 from 'lucide-solid/icons/check-circle-2'
+import MapPin from 'lucide-solid/icons/map-pin'
+import FileText from 'lucide-solid/icons/file-text'
+import Star from 'lucide-solid/icons/star'
+import Globe from 'lucide-solid/icons/globe'
+import Clock from 'lucide-solid/icons/clock'
+import Camera from 'lucide-solid/icons/camera'
+import Tag from 'lucide-solid/icons/tag'
+import PenLine from 'lucide-solid/icons/pen-line'
 import type {
   BusinessInfo,
   KeywordSuggestion,

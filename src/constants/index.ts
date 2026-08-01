@@ -1,18 +1,16 @@
-import {
-  LayoutDashboard,
-  Inbox,
-  SearchCheck,
-  Settings,
-  Bell,
-  HelpCircle,
-  Sparkles,
-  ListChecks,
-  ImagePlus,
-  CheckCircle2,
-  MapPin,
-  BarChart3,
-  ExternalLink,
-} from 'lucide-solid'
+import LayoutDashboard from 'lucide-solid/icons/layout-dashboard'
+import Inbox from 'lucide-solid/icons/inbox'
+import SearchCheck from 'lucide-solid/icons/search-check'
+import Settings from 'lucide-solid/icons/settings'
+import Bell from 'lucide-solid/icons/bell'
+import HelpCircle from 'lucide-solid/icons/help-circle'
+import Sparkles from 'lucide-solid/icons/sparkles'
+import ListChecks from 'lucide-solid/icons/list-checks'
+import ImagePlus from 'lucide-solid/icons/image-plus'
+import CheckCircle2 from 'lucide-solid/icons/check-circle-2'
+import MapPin from 'lucide-solid/icons/map-pin'
+import BarChart3 from 'lucide-solid/icons/bar-chart-3'
+import ExternalLink from 'lucide-solid/icons/external-link'
 import type {
   NavItem,
   ActionItemData,

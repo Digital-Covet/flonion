@@ -1,5 +1,6 @@
 import { type Component, For } from 'solid-js'
-import { Camera, Sparkles } from 'lucide-solid'
+import Camera from 'lucide-solid/icons/camera'
+import Sparkles from 'lucide-solid/icons/sparkles'
 import type { PhotoStatus } from '~/features/seo/seo-types'
 import { cn } from '~/lib/cn'
 

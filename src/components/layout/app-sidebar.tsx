@@ -1,15 +1,14 @@
-import {
-  ChevronLeft,
-  Gauge,
-  Inbox,
-  Megaphone,
-  PenSquare,
-  SearchCheck,
-  Settings,
-} from "lucide-solid";
+import ChevronLeft from "lucide-solid/icons/chevron-left";
+import Gauge from "lucide-solid/icons/gauge";
+import Inbox from "lucide-solid/icons/inbox";
+import Megaphone from "lucide-solid/icons/megaphone";
+import PenSquare from "lucide-solid/icons/pen-square";
+import SearchCheck from "lucide-solid/icons/search-check";
+import Settings from "lucide-solid/icons/settings";
 import { A, useLocation } from "@solidjs/router";
-import { For, Show } from "solid-js";
+import { For, Show, createMemo } from "solid-js";
 import { useSettings } from "~/stores/settings-store";
+import { authClient } from "~/lib/auth-client";
 import LogoComponent from "~/assets/logo";
 
 interface NavigationItem {
@@ -62,17 +61,34 @@ export function Brand() {
 }
 
 export function ProfileSummary() {
+  const session = authClient.useSession();
+
+  const initials = createMemo(() => {
+    const name = session()?.data?.user?.name;
+    if (!name) return "?";
+    return name
+      .split(" ")
+      .map((part: string) => part[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  });
+
+  const displayName = createMemo(() => {
+    return session()?.data?.user?.name || session()?.data?.user?.email || "User";
+  });
+
   return (
     <div class="flex items-center gap-3">
       <div
         class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
-        aria-label="Harper Nelson initials"
+        aria-label={`${displayName()} initials`}
       >
-        HN
+        {initials()}
       </div>
       <div class="min-w-0">
-        <p class="truncate text-sm font-medium text-foreground">Harper Nelson</p>
-        <p class="truncate text-xs text-muted-foreground">Admin Manager</p>
+        <p class="truncate text-sm font-medium text-foreground">{displayName()}</p>
+        <p class="truncate text-xs text-muted-foreground">{session()?.data?.user?.email}</p>
       </div>
     </div>
   );

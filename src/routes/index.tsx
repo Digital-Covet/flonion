@@ -1,5 +1,5 @@
-import DashboardPage from "~/features/dashboard/DashboardPage";
+import { Navigate } from "@solidjs/router";
 
 export default function Home() {
-  return <DashboardPage />;
+  return <Navigate href="/dashboard" />;
 }

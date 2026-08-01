@@ -1,6 +1,6 @@
 import { createSignal, For, Show, onMount } from "solid-js";
 import { Title, Meta } from "@solidjs/meta";
-import { Star } from "lucide-solid";
+import Star from "lucide-solid/icons/star";
 import type { SharedReview } from "@/features/reviews/review-types";
 
 export default function SharedReviewPage() {

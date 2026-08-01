@@ -1,5 +1,5 @@
 import { For, Show } from "solid-js";
-import { Star } from "lucide-solid";
+import Star from "lucide-solid/icons/star";
 import { recentActivity } from "~/features/dashboard/data";
 
 const ratingColorClasses: Record<number, string> = {

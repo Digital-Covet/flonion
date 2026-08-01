@@ -1,5 +1,5 @@
 import { For, type Component } from 'solid-js'
-import { ListChecks } from 'lucide-solid'
+import ListChecks from 'lucide-solid/icons/list-checks'
 import type { ActionItemData } from '../../types'
 import ActionItemCard from './ActionItem'
 

@@ -1,4 +1,6 @@
-import { Check, Sparkles, X } from "lucide-solid";
+import Check from "lucide-solid/icons/check";
+import Sparkles from "lucide-solid/icons/sparkles";
+import X from "lucide-solid/icons/x";
 import type { ReviewSuggestion } from "@/features/reviews/review-types";
 
 interface SuggestionCardProps {

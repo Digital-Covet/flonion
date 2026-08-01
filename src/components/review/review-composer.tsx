@@ -1,10 +1,8 @@
-import {
-  Check,
-  Link2,
-  Send,
-  Sparkles,
-  Star,
-} from "lucide-solid";
+import Check from "lucide-solid/icons/check";
+import Link2 from "lucide-solid/icons/link-2";
+import Send from "lucide-solid/icons/send";
+import Sparkles from "lucide-solid/icons/sparkles";
+import Star from "lucide-solid/icons/star";
 import { For, Show } from "solid-js";
 import { Field } from "@ark-ui/solid/field";
 import type { Rating, ReviewDraft } from "@/features/reviews/review-types";
