@@ -2,6 +2,7 @@ import { type Component, For } from 'solid-js'
 import Users from 'lucide-solid/icons/users'
 import Star from 'lucide-solid/icons/star'
 import type { Competitor } from '~/features/seo/seo-types'
+import { scoreColor } from '~/features/seo/seo-data'
 
 interface CompetitorCardProps {
   competitors: Competitor[]
@@ -41,7 +42,7 @@ const CompetitorItem: Component<{ competitor: Competitor }> = (props) => (
       </div>
       <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
         <div
-          class="h-full rounded-full bg-emerald-500 transition-all"
+          class={`h-full rounded-full transition-all ${scoreColor(props.competitor.profileCompleteness)}`}
           style={{ width: `${props.competitor.profileCompleteness}%` }}
         />
       </div>

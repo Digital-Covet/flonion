@@ -11,8 +11,15 @@ interface PhotoStatusCardProps {
 const CATEGORY_COLORS: Record<string, string> = {
   Exterior: 'bg-emerald-500',
   Interior: 'bg-violet-500',
-  Products: 'bg-emerald-500',
-  Team: 'bg-amber-500',
+  Products: 'bg-amber-500',
+  Team: 'bg-sky-500',
+}
+
+function photoBarColor(count: number, max: number): string {
+  const ratio = max > 0 ? count / max : 0
+  if (ratio >= 0.7) return 'bg-emerald-500'
+  if (ratio >= 0.4) return 'bg-amber-400'
+  return 'bg-rose-400'
 }
 
 const PhotoStatusCard: Component<PhotoStatusCardProps> = (props) => {
@@ -35,12 +42,15 @@ const PhotoStatusCard: Component<PhotoStatusCardProps> = (props) => {
           {(item) => (
             <div>
               <div class="mb-1 flex items-center justify-between text-xs">
-                <span class="font-medium text-slate-700">{item.category}</span>
+                <span class="flex items-center gap-1.5 font-medium text-slate-700">
+                  <span class={`inline-block size-2 rounded-full ${CATEGORY_COLORS[item.category] ?? 'bg-slate-400'}`} />
+                  {item.category}
+                </span>
                 <span class="text-slate-500">{item.count}</span>
               </div>
               <div class="h-2 overflow-hidden rounded-full bg-slate-100">
                 <div
-                  class={cn('h-full rounded-full transition-all', CATEGORY_COLORS[item.category] ?? 'bg-slate-400')}
+                  class={cn('h-full rounded-full transition-all', photoBarColor(item.count, maxCount()))}
                   style={{ width: `${(item.count / maxCount()) * 100}%` }}
                 />
               </div>

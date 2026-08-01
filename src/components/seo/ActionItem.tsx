@@ -52,20 +52,32 @@ const ActionItemCard: Component<ActionItemProps> = (props) => {
           <p class="text-sm text-slate-500">{props.item.description}</p>
         </div>
       </div>
-      <ActionButton type={props.item.actionType} label={props.item.actionLabel} />
+      <ActionButton type={props.item.actionType} label={props.item.actionLabel} status={props.item.status} />
     </div>
   )
 }
 
-const ActionButton: Component<{ type: ActionType; label: string }> = (props) => (
-  <button class={cn(
-    'shrink-0 h-10 px-5 rounded-lg font-medium text-sm transition-all whitespace-nowrap',
-    props.type === 'primary'
+const ActionButton: Component<{ type: ActionType; label: string; status: ActionStatus }> = (props) => {
+  const buttonClass = createMemo(() => {
+    if (props.status === 'completed') {
+      return 'bg-slate-100 border border-slate-200 text-slate-400 cursor-default'
+    }
+    if (props.status === 'high-priority') {
+      return 'bg-rose-600 text-white hover:bg-rose-700'
+    }
+    return props.type === 'primary'
       ? 'bg-emerald-600 text-white hover:bg-emerald-700'
       : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
-  )}>
-    {props.label}
-  </button>
-)
+  })
+
+  return (
+    <button class={cn(
+      'shrink-0 h-10 px-5 rounded-lg font-medium text-sm transition-all whitespace-nowrap',
+      buttonClass()
+    )}>
+      {props.label}
+    </button>
+  )
+}
 
 export default ActionItemCard

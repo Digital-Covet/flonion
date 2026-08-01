@@ -5,6 +5,7 @@ import Globe from 'lucide-solid/icons/globe'
 import MapPin from 'lucide-solid/icons/map-pin'
 import Star from 'lucide-solid/icons/star'
 import Edit from 'lucide-solid/icons/edit'
+import ExternalLink from 'lucide-solid/icons/external-link'
 import type { BusinessInfo } from '~/features/seo/seo-types'
 
 interface BusinessInfoCardProps {
@@ -55,10 +56,21 @@ const BusinessInfoCard: Component<BusinessInfoCardProps> = (props) => {
             <p class="text-xs text-slate-500">Google Business Profile</p>
           </div>
         </div>
-        <button class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50">
-          <Edit size={12} />
-          Edit Profile
-        </button>
+        <div class="flex items-center gap-2">
+          <a
+            href="https://search.google.com/local/writereview?placeid=ChIJGblnVa655zsRtRfkePjHE8E"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+          >
+            <ExternalLink size={12} />
+            View on Google
+          </a>
+          <button class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50">
+            <Edit size={12} />
+            Edit Profile
+          </button>
+        </div>
       </div>
 
       <p class="mb-5 text-sm leading-relaxed text-slate-600">{props.info.description}</p>

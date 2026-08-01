@@ -1,6 +1,7 @@
-import { type Component, For, createSignal, createMemo } from 'solid-js'
+import { type Component, For, createSignal, createMemo, Show } from 'solid-js'
 import Sparkles from 'lucide-solid/icons/sparkles'
-import Check from 'lucide-solid/icons/check'
+import Square from 'lucide-solid/icons/square'
+import SquareCheck from 'lucide-solid/icons/square-check'
 import type { KeywordSuggestion, SearchVolume } from '~/features/seo/seo-types'
 import { VOLUME_COLORS } from '~/features/seo/seo-data'
 import { cn } from '~/lib/cn'
@@ -80,13 +81,15 @@ const KeywordRecommendations: Component<KeywordRecommendationsProps> = (props) =
               >
                 <span
                   class={cn(
-                    'flex size-5 shrink-0 items-center justify-center rounded-full border text-[10px] transition-all',
+                    'flex size-5 shrink-0 items-center justify-center rounded transition-all',
                     isActive()
-                      ? 'border-emerald-500 bg-emerald-500 text-white'
-                      : 'border-slate-300 text-transparent group-hover:border-slate-400'
+                      ? 'text-emerald-500'
+                      : 'text-slate-300 group-hover:text-slate-400'
                   )}
                 >
-                  <Check size={12} />
+                  <Show when={isActive()} fallback={<Square size={14} />}>
+                    <SquareCheck size={14} />
+                  </Show>
                 </span>
                 <span>{kw.keyword}</span>
                 <VolumeBadge volume={kw.searchVolume} />
