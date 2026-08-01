@@ -1,9 +1,19 @@
-import { createSignal, For, Show } from "solid-js";
+import CheckCircle from "lucide-solid/icons/check-circle";
+import AlertTriangle from "lucide-solid/icons/alert-triangle";
+import {
+  createEffect,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+} from "solid-js";
 import type {
   Rating,
   ReviewDraft,
   ReviewSuggestion,
+  SharedReview,
 } from "@/features/reviews/review-types";
+import { RecentReviewsWidget } from "~/components/review/recent-reviews-widget";
 import { ReviewComposer } from "~/components/review/review-composer";
 import { SuggestionCard } from "~/components/review/suggestion-card";
 import { useSettings } from "~/stores/settings-store";
@@ -15,6 +25,39 @@ const initialDraft: ReviewDraft = {
   text: "",
 };
 
+const mockRecentReviews: SharedReview[] = [
+  {
+    id: "r1",
+    text: "Absolutely love the service! The team went above and beyond to help me. Will definitely come back again.",
+    rating: 5,
+    createdAt: Date.now() - 3600_000,
+    reviewerName: "Sarah M.",
+  },
+  {
+    id: "r2",
+    text: "Good experience overall. The staff was friendly but the wait time was a bit long.",
+    rating: 4,
+    createdAt: Date.now() - 86400_000,
+    reviewerName: "James K.",
+  },
+  {
+    id: "r3",
+    text: "Decent quality for the price. Nothing special but got the job done.",
+    rating: 3,
+    createdAt: Date.now() - 172800_000,
+    reviewerName: "Alex T.",
+  },
+];
+
+function isSuccessMessage(msg: string): boolean {
+  return (
+    msg.includes("successfully") ||
+    msg.includes("copied") ||
+    msg.includes("applied") ||
+    msg.includes("marked ready")
+  );
+}
+
 export default function LeaveReviewPage() {
   const { logo, businessName } = useSettings();
   const [draft, setDraft] = createSignal<ReviewDraft>(initialDraft);
@@ -22,6 +65,18 @@ export default function LeaveReviewPage() {
     createSignal<ReviewSuggestion[]>([]);
   const [statusMessage, setStatusMessage] = createSignal("");
   const [loading, setLoading] = createSignal(false);
+
+  let dismissTimer: ReturnType<typeof setTimeout> | undefined;
+
+  createEffect(() => {
+    const msg = statusMessage();
+    if (msg) {
+      clearTimeout(dismissTimer);
+      dismissTimer = setTimeout(() => setStatusMessage(""), 4000);
+    }
+  });
+
+  onCleanup(() => clearTimeout(dismissTimer));
 
   const setRating = (rating: Rating) => {
     setDraft((current) => ({ ...current, rating }));
@@ -64,6 +119,7 @@ export default function LeaveReviewPage() {
         id: `ai-${Date.now()}-${i}`,
         tone: tones[i] ?? "Professional",
         text: t,
+        recommended: i === 0,
       }));
 
       setSuggestions(mapped);
@@ -134,6 +190,23 @@ export default function LeaveReviewPage() {
 
   return (
     <div class="mx-auto max-w-7xl">
+      <nav aria-label="Breadcrumb" class="mb-2 text-sm text-muted-foreground">
+        <ol class="flex items-center gap-1.5">
+          <li>
+            <a
+              href="/reviews/inbox"
+              class="hover:text-foreground transition-colors"
+            >
+              Reviews
+            </a>
+          </li>
+          <li aria-hidden="true">/</li>
+          <li aria-current="page" class="font-medium text-foreground">
+            Ask a Review
+          </li>
+        </ol>
+      </nav>
+
       <div class="mb-6">
         <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
           Ask a Review
@@ -191,20 +264,36 @@ export default function LeaveReviewPage() {
               </Show>
             </div>
           </section>
+
+          <div class="border-t border-border pt-6">
+            <RecentReviewsWidget reviews={mockRecentReviews} />
+          </div>
         </div>
       </div>
 
-      <div
-        aria-live="polite"
-        aria-atomic="true"
-        class="fixed bottom-4 left-4 right-4 z-30 mx-auto max-w-xl"
-      >
-        <Show when={statusMessage()}>
-          <p class="rounded-md border border-border bg-card px-4 py-3 text-sm text-foreground shadow-sm">
-            {statusMessage()}
-          </p>
-        </Show>
+      <div aria-live="polite" aria-atomic="true" class="sr-only">
+        {statusMessage()}
       </div>
+
+      <Show when={statusMessage()}>
+        <div class="fixed top-4 right-4 z-30 max-w-sm animate-[fade-in-up_0.2s_ease-out]">
+          <div
+            class={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-md ${
+              isSuccessMessage(statusMessage())
+                ? "border-positive/20 bg-positive-muted text-foreground"
+                : "border-destructive/20 bg-destructive-muted text-foreground"
+            }`}
+          >
+            <Show
+              when={isSuccessMessage(statusMessage())}
+              fallback={<AlertTriangle class="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden="true" />}
+            >
+              <CheckCircle class="mt-0.5 size-4 shrink-0 text-positive" aria-hidden="true" />
+            </Show>
+            <p class="flex-1">{statusMessage()}</p>
+          </div>
+        </div>
+      </Show>
     </div>
   );
 }
