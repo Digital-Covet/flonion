@@ -7,6 +7,7 @@ import {
   onCleanup,
   Show,
 } from "solid-js";
+import { Title } from "@solidjs/meta";
 import type {
   Rating,
   ReviewDraft,
@@ -190,6 +191,7 @@ export default function LeaveReviewPage() {
 
   return (
     <div class="mx-auto max-w-7xl">
+      <Title>Ask a Review — Cognitive Enterprise</Title>
       <nav aria-label="Breadcrumb" class="mb-2 text-sm text-muted-foreground">
         <ol class="flex items-center gap-1.5">
           <li>

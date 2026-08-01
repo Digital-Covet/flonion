@@ -1,4 +1,5 @@
 import { createSignal, onMount, Show } from "solid-js";
+import { Title } from "@solidjs/meta";
 import Building2 from "lucide-solid/icons/building-2";
 import Puzzle from "lucide-solid/icons/puzzle";
 import SlidersHorizontal from "lucide-solid/icons/sliders-horizontal";
@@ -119,6 +120,7 @@ export function SettingsPage() {
 
   return (
     <main class="flex-1 overflow-y-auto px-6 py-8">
+      <Title>Settings — Cognitive Enterprise</Title>
       <div class="mx-auto max-w-4xl space-y-8">
         <div class="mb-8">
           <h2 class="text-2xl font-semibold leading-10 tracking-tight text-foreground">

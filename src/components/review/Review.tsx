@@ -1,5 +1,6 @@
 import { For, Show, createMemo, createResource, createSignal, onMount } from "solid-js";
 import { isServer } from "solid-js/web";
+import { Title } from "@solidjs/meta";
 import CalendarDays from "lucide-solid/icons/calendar-days";
 import RotateCcw from "lucide-solid/icons/rotate-ccw";
 import Search from "lucide-solid/icons/search";
@@ -228,6 +229,7 @@ export default function ReviewInbox() {
 
   return (
     <div class="flex h-full min-w-0 flex-1 flex-col bg-background text-foreground">
+      <Title>Review Inbox — Cognitive Enterprise</Title>
       <main class="flex flex-1 flex-col overflow-hidden bg-background md:flex-row">
         <aside class="flex h-full w-full shrink-0 flex-col border-b border-border bg-card md:w-1/3 md:min-w-[320px] md:max-w-100 md:border-b-0 md:border-r">
           <div class="shrink-0 border-b border-border bg-card p-4">
