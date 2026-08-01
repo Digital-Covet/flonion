@@ -35,8 +35,8 @@ export const NAV_ITEMS: NavItem[] = [
 ]
 
 export const BRAND: BrandData = {
-  title: 'Cognitive Enterprise',
-  subtitle: 'Local Management',
+  title: 'Flonion',
+  subtitle: 'Grow Your Business with Better Reviews',
   icon: BarChart3,
 }
 

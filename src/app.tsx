@@ -10,7 +10,7 @@ export default function App() {
       <Router
         root={(props) => (
           <MetaProvider>
-            <Title>Cognitive Enterprise</Title>
+            <Title>Flonion - Grow Your Business with Better Reviews</Title>
             {props.children}
           </MetaProvider>
         )}
