@@ -27,4 +27,5 @@ gitignore
 .DS_Store
 Thumbs.db
 
-/generated/prisma
+generated/prisma
+.agents/
