@@ -47,6 +47,7 @@ export function SettingsPage() {
   const [emailNotifications, setEmailNotifications] = createSignal(true);
   const [aiSuggestions, setAiSuggestions] = createSignal(true);
   const [saving, setSaving] = createSignal(false);
+  const [saveSuccess, setSaveSuccess] = createSignal(false);
 
   const checkConnection = async () => {
     try {
@@ -113,9 +114,28 @@ export function SettingsPage() {
     if (loc.address) setAddress(loc.address);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
-    setTimeout(() => setSaving(false), 200);
+    setSaveSuccess(false);
+    try {
+      await fetch("/api/business", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          placeId: placeId(),
+          logo: logo(),
+          businessName: businessName(),
+          phone: phone(),
+          address: address(),
+        }),
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch {
+      // Save failed -- silently ignore for now
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -232,7 +252,7 @@ export function SettingsPage() {
             disabled={saving()}
           >
             <Save size={18} />
-            {saving() ? "Saving..." : "Save Changes"}
+            {saving() ? "Saving..." : saveSuccess() ? "Saved!" : "Save Changes"}
           </button>
         </div>
       </div>
