@@ -15,8 +15,7 @@ import {
   createSignal,
   onMount,
 } from "solid-js";
-
-import LogoComponent from "~/assets/logo";
+import InlineCombinationMark from "@/assets/inline-combination-mark"
 import { authClient } from "~/lib/auth-client";
 import { useSettings } from "~/stores/settings-store";
 
@@ -112,8 +111,8 @@ export function Brand(props: { collapsed?: boolean }) {
       <Show
         when={logo()}
         fallback={
-          <LogoComponent
-            class={`h-8 shrink-0 ${props.collapsed ? "w-8" : "w-auto"}`}
+          <InlineCombinationMark
+            class={`h-6 shrink-0 ${props.collapsed ? "w-8" : "w-auto"}`}
             aria-hidden="true"
           />
         }

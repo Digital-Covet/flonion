@@ -1,6 +1,5 @@
 import { navLinks } from "~/constants/landing";
-import FlonionLogo from "~/assets/logomark";
-import Wordmark from "~/assets/wordmark";
+import InlineCombinationMark from "~/assets/inline-combination-mark";
 
 export default function Footer() {
   const allLinks = [
@@ -17,8 +16,7 @@ export default function Footer() {
             class="mb-2 flex items-center gap-2"
             href="#"
           >
-            <FlonionLogo class="h-8" />
-            <Wordmark class="h-6" />
+            <InlineCombinationMark class="h-8" />
           </a>
           <p class="text-base text-slate-400">
             &copy; {date.getFullYear()} Flonion AI. Empowering Indian SMEs.

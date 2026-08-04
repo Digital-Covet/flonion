@@ -1,7 +1,7 @@
 import { Suspense } from "solid-js";
 import { AppSidebar } from "~/components/layout/app-sidebar";
 import { MobileNavigation } from "~/components/layout/mobile-navigation";
-import LogoComponent from "~/assets/logo";
+import LogoComponent from "~/assets/logomark";
 
 export default function AppLayout(props: { children: any }) {
   return (
