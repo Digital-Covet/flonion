@@ -71,7 +71,7 @@ function StatCard(props: { stat: KpiStat }) {
         <Show when={props.stat.trend}>
           <span
             class={`flex items-center gap-1 text-[11px] font-semibold ${props.stat.trend!.direction === 'positive'
-                ? 'text-emerald-600'
+                ? 'text-blue-600'
                 : props.stat.trend!.direction === 'negative'
                   ? 'text-rose-600'
                   : 'text-slate-500'

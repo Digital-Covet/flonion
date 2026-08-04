@@ -9,7 +9,7 @@ interface PhotoStatusCardProps {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  Exterior: 'bg-emerald-500',
+  Exterior: 'bg-blue-500',
   Interior: 'bg-violet-500',
   Products: 'bg-amber-500',
   Team: 'bg-sky-500',
@@ -17,7 +17,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 function photoBarColor(count: number, max: number): string {
   const ratio = max > 0 ? count / max : 0
-  if (ratio >= 0.7) return 'bg-emerald-500'
+  if (ratio >= 0.7) return 'bg-blue-500'
   if (ratio >= 0.4) return 'bg-amber-400'
   return 'bg-rose-400'
 }
@@ -28,7 +28,7 @@ const PhotoStatusCard: Component<PhotoStatusCardProps> = (props) => {
   return (
     <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm h-full">
       <div class="mb-5 flex items-center gap-3">
-        <div class="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+        <div class="flex size-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
           <Camera size={20} />
         </div>
         <div>
@@ -65,9 +65,9 @@ const PhotoStatusCard: Component<PhotoStatusCardProps> = (props) => {
         </p>
       </div>
 
-      <div class="mt-4 flex items-start gap-2 rounded-xl bg-emerald-50 p-3">
-        <Sparkles size={14} class="mt-0.5 shrink-0 text-emerald-500" />
-        <p class="text-xs leading-relaxed text-emerald-700">{props.status.recommendation}</p>
+      <div class="mt-4 flex items-start gap-2 rounded-xl bg-blue-50 p-3">
+        <Sparkles size={14} class="mt-0.5 shrink-0 text-blue-500" />
+        <p class="text-xs leading-relaxed text-blue-700">{props.status.recommendation}</p>
       </div>
     </div>
   )

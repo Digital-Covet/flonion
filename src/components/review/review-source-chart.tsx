@@ -8,7 +8,7 @@ const sourceColorClasses = {
 } as const;
 
 const sourceStrokeColors = {
-  primary: "#0f766e",
+  primary: "#0060ff",
   info: "#2563eb",
   purple: "#7c3aed",
 } as const;

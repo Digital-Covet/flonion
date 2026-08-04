@@ -24,9 +24,9 @@ export function SectionCard(props: SectionCardProps) {
           <h3 class="text-lg leading-7 font-semibold">{props.title}</h3>
         </div>
         <Show when={props.showAiBadge}>
-          <div class="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1">
-            <Sparkles size={16} class="text-emerald-700" />
-            <span class="text-xs leading-4 font-medium text-emerald-700">
+          <div class="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1">
+            <Sparkles size={16} class="text-blue-700" />
+            <span class="text-xs leading-4 font-medium text-blue-700">
               AI Ready
             </span>
           </div>

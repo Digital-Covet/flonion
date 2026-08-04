@@ -75,7 +75,7 @@ const KeywordRecommendations: Component<KeywordRecommendationsProps> = (props) =
                 class={cn(
                   'group flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all',
                   isActive()
-                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    ? 'border-blue-200 bg-blue-50 text-blue-700'
                     : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                 )}
               >
@@ -83,7 +83,7 @@ const KeywordRecommendations: Component<KeywordRecommendationsProps> = (props) =
                   class={cn(
                     'flex size-5 shrink-0 items-center justify-center rounded transition-all',
                     isActive()
-                      ? 'text-emerald-500'
+                      ? 'text-blue-500'
                       : 'text-slate-300 group-hover:text-slate-400'
                   )}
                 >

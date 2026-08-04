@@ -48,7 +48,7 @@ const BusinessInfoCard: Component<BusinessInfoCardProps> = (props) => {
     <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div class="mb-5 flex items-start justify-between">
         <div class="flex items-center gap-3">
-          <div class="flex size-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+          <div class="flex size-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
             <Building2 size={20} />
           </div>
           <div>
@@ -78,7 +78,7 @@ const BusinessInfoCard: Component<BusinessInfoCardProps> = (props) => {
       <div class="mb-5 flex flex-wrap gap-2">
         <For each={props.info.categories}>
           {(cat) => (
-            <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+            <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
               {cat}
             </span>
           )}

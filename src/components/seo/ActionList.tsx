@@ -9,7 +9,7 @@ const ActionList: Component<ActionListProps> = (props) => {
   return (
     <div class="mt-8">
       <h3 class="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-        <div class="p-2 bg-emerald-100 rounded-lg text-emerald-600">
+        <div class="p-2 bg-blue-100 rounded-lg text-blue-600">
           <ListChecks size={20} />
         </div>
         AI-Recommended Actions

@@ -10,7 +10,7 @@ const ProgressTracker: Component<ProgressData> = (props) => {
         <ProgressRoot value={props.value} min={0} max={100}>
           <ProgressCircle>
             <ProgressCircleTrack class="stroke-slate-100" />
-            <ProgressCircleRange class="stroke-emerald-600" stroke-linecap="round" />
+            <ProgressCircleRange class="stroke-blue-600" stroke-linecap="round" />
           </ProgressCircle>
         </ProgressRoot>
         <div class="absolute inset-0 flex items-center justify-center font-bold text-slate-900">
@@ -23,7 +23,7 @@ const ProgressTracker: Component<ProgressData> = (props) => {
         <p class="text-slate-600 mt-1 mb-3">{props.description}</p>
         <p class="text-xs text-slate-400 mb-3">Based on weighted analysis of category scores below</p>
 
-        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
           <Sparkles size={14} />
           AI Analysis Active
         </div>

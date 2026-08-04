@@ -194,21 +194,21 @@ export const seoActionItems: ActionItemData[] = [
 ]
 
 export const VOLUME_COLORS: Record<string, { bg: string; text: string }> = {
-  high: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  high: { bg: 'bg-blue-100', text: 'text-blue-700' },
   medium: { bg: 'bg-amber-100', text: 'text-amber-700' },
   low: { bg: 'bg-slate-100', text: 'text-slate-600' },
 }
 
 export function scoreColor(score: number): string {
-  if (score >= 80) return 'bg-emerald-600'
-  if (score >= 60) return 'bg-emerald-400'
+  if (score >= 80) return 'bg-blue-600'
+  if (score >= 60) return 'bg-blue-400'
   if (score >= 40) return 'bg-amber-400'
   return 'bg-rose-500'
 }
 
 export function scoreTextColor(score: number): string {
-  if (score >= 80) return 'text-emerald-700'
-  if (score >= 60) return 'text-emerald-600'
+  if (score >= 80) return 'text-blue-700'
+  if (score >= 60) return 'text-blue-600'
   if (score >= 40) return 'text-amber-600'
   return 'text-rose-600'
 }
@@ -227,7 +227,7 @@ export interface KpiStat {
 }
 
 export const seoKpiStats: KpiStat[] = [
-  { label: 'Photos', value: photoStatus.total, icon: Camera, accent: 'bg-emerald-50 text-emerald-600', trend: { value: '+2', direction: 'positive' } },
+  { label: 'Photos', value: photoStatus.total, icon: Camera, accent: 'bg-blue-50 text-blue-600', trend: { value: '+2', direction: 'positive' } },
   { label: 'Avg Rating', value: businessInfo.rating, icon: Star, accent: 'bg-amber-50 text-amber-600', trend: { value: '+0.1', direction: 'positive' } },
   { label: 'Actions Open', value: seoActionItems.filter((a) => a.status !== 'completed').length, icon: ListChecks, accent: 'bg-rose-50 text-rose-600', trend: { value: '+2', direction: 'negative' } },
   { label: 'Reviews', value: businessInfo.reviewCount, icon: Zap, accent: 'bg-violet-50 text-violet-600', trend: { value: '+12', direction: 'positive' } },

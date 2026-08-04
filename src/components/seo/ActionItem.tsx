@@ -66,7 +66,7 @@ const ActionButton: Component<{ type: ActionType; label: string; status: ActionS
       return 'bg-rose-600 text-white hover:bg-rose-700'
     }
     return props.type === 'primary'
-      ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+      ? 'bg-blue-600 text-white hover:bg-blue-700'
       : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
   })
 
