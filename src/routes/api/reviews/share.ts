@@ -1,17 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
-import type { SharedReview } from "@/features/reviews/review-types";
 import { getSessionFromHeaders } from "~/lib/server-auth";
-
-const sharedReviews = new Map<string, SharedReview>();
-
-function generateId(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let id = "";
-  for (let i = 0; i < 8; i++) {
-    id += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return id;
-}
+import { prisma } from "@/db/prisma";
 
 export async function POST(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -38,17 +27,16 @@ export async function POST(event: APIEvent) {
       );
     }
 
-    const id = generateId();
-    const review: SharedReview = {
-      id,
-      text: text.trim(),
-      rating,
-      createdAt: Date.now(),
-    };
+    const review = await prisma.sharedReview.create({
+      data: {
+        text: text.trim(),
+        rating,
+        reviewerName: session.user.name,
+        userId: session.session.userId,
+      },
+    });
 
-    sharedReviews.set(id, review);
-
-    return Response.json({ url: `/review/${id}` });
+    return Response.json({ url: `/review/${review.id}` });
   } catch {
     return Response.json(
       { error: "Invalid request body" },
@@ -65,7 +53,16 @@ export async function GET(event: APIEvent) {
     return Response.json({ error: "Missing id parameter" }, { status: 400 });
   }
 
-  const review = sharedReviews.get(id);
+  const review = await prisma.sharedReview.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      text: true,
+      rating: true,
+      reviewerName: true,
+      createdAt: true,
+    },
+  });
 
   if (!review) {
     return Response.json({ error: "Review not found" }, { status: 404 });

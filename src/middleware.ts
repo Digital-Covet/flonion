@@ -11,6 +11,7 @@ const PUBLIC_PATHS = [
 
 const PUBLIC_PREFIXES = [
   "/api/auth",
+  "/api/reviews/share",
   "/review/",
 ];
 
