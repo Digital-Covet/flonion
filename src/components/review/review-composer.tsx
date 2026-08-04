@@ -85,8 +85,8 @@ export function ReviewComposer(props: ReviewComposerProps) {
                     }`}
                 >
                   <Star
-                    class="size-6"
-                    fill={selected() ? "currentColor" : "none"}
+                    class="size-6 text-yellow-400"
+                    fill={selected() ? "#fcc800" : "none"}
                     aria-hidden="true"
                   />
                 </button>
@@ -114,11 +114,10 @@ export function ReviewComposer(props: ReviewComposerProps) {
             class="w-full resize-none overflow-hidden rounded-md border border-input bg-background px-3 py-3 pr-20 text-sm leading-6 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
           <span
-            class={`pointer-events-none absolute bottom-3 right-3 text-xs ${
-              characterCount() > MAX_CHARS * 0.9
-                ? "text-orange font-semibold"
-                : "text-muted-foreground"
-            }`}
+            class={`pointer-events-none absolute bottom-3 right-3 text-xs ${characterCount() > MAX_CHARS * 0.9
+              ? "text-orange font-semibold"
+              : "text-muted-foreground"
+              }`}
           >
             {characterCount()}/{MAX_CHARS}
           </span>
