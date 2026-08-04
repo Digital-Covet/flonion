@@ -1,6 +1,7 @@
 import { Show } from "solid-js";
 import X from "lucide-solid/icons/x";
 import { navLinks } from "~/constants/landing";
+import Wordmark from "~/assets/wordmark";
 
 interface MobileMenuProps {
   open: boolean;
@@ -14,11 +15,11 @@ export default function MobileMenu(props: MobileMenuProps) {
         <div class="flex h-full flex-col p-4">
           <div class="mb-10 flex items-center justify-between">
             <a
-              class="font-heading text-2xl font-bold text-primary"
+              class="flex items-center"
               href="#"
               onClick={props.onClose}
             >
-              Flonion
+              <Wordmark class="h-8" />
             </a>
             <button
               class="p-2 text-primary"

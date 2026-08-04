@@ -5,6 +5,7 @@ import TrendingUp from "lucide-solid/icons/trending-up";
 import User from "lucide-solid/icons/user";
 import Store from "lucide-solid/icons/store";
 import MessageSquareText from "lucide-solid/icons/message-square-text";
+import Wordmark from "~/assets/wordmark";
 
 interface HeroSectionProps {
   reducedMotion: boolean;
@@ -35,9 +36,9 @@ export default function HeroSection(props: HeroSectionProps) {
 
       <div class="relative z-10 mx-auto grid max-w-[1280px] items-center gap-12 md:grid-cols-2">
         <div class="pr-4 animate-[fade-in-up_0.6s_ease-out_both]">
-          <p class="mb-5 font-heading text-5xl font-extrabold tracking-tight text-primary md:text-7xl">
-            Flonion
-          </p>
+          <div class="mb-5">
+            <Wordmark class="h-12 md:h-16" />
+          </div>
           <h1 class="mb-2 font-heading text-[40px] font-extrabold leading-[1.1] tracking-tight text-foreground md:text-[72px] md:leading-[1.05]">
             Get More 5-Star Reviews for Your Business with{" "}
             <span class="accent-gradient">AI Precision</span>

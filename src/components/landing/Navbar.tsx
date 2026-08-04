@@ -1,6 +1,7 @@
 import Menu from "lucide-solid/icons/menu";
 import { A } from "@solidjs/router";
 import { navLinks } from "~/constants/landing";
+import Wordmark from "~/assets/wordmark";
 
 interface NavbarProps {
   mobileMenuOpen: boolean;
@@ -10,13 +11,13 @@ interface NavbarProps {
 export default function Navbar(props: NavbarProps) {
   return (
     <nav class="fixed top-0 z-50 w-full border-b border-border bg-card/80 shadow-sm backdrop-blur-md">
-      <div class="mx-auto flex max-w-[1280px] items-center justify-between px-4 py-4 md:px-16">
+      <div class="w-full flex items-center justify-between px-4 py-4 md:px-16">
         <a
-          class="font-heading text-2xl font-bold text-primary"
+          class="flex items-center"
           href="#"
           aria-label="Flonion home"
         >
-          Flonion
+          <Wordmark class="h-8" />
         </a>
 
         <div class="hidden items-center gap-6 md:flex">
