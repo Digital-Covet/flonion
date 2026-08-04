@@ -36,9 +36,6 @@ export default function HeroSection(props: HeroSectionProps) {
 
       <div class="relative z-10 mx-auto grid max-w-[1280px] items-center gap-12 md:grid-cols-2">
         <div class="pr-4 animate-[fade-in-up_0.6s_ease-out_both]">
-          <div class="mb-5">
-            <Wordmark class="h-12 md:h-16" />
-          </div>
           <h1 class="mb-2 font-heading text-[40px] font-extrabold leading-[1.1] tracking-tight text-foreground md:text-[72px] md:leading-[1.05]">
             Get More 5-Star Reviews for Your Business with{" "}
             <span class="accent-gradient">AI Precision</span>
@@ -170,11 +167,10 @@ export default function HeroSection(props: HeroSectionProps) {
             <div class="flex h-20 items-end gap-2.5">
               {[30, 45, 60, 50, 85].map((height, i) => (
                 <div
-                  class={`w-5 rounded-t transition-colors hover:bg-primary ${
-                    i === 4
+                  class={`w-5 rounded-t transition-colors hover:bg-primary ${i === 4
                       ? "bg-primary shadow-[0_0_10px_rgba(15,118,110,0.4)]"
                       : "bg-slate-300"
-                  }`}
+                    }`}
                   style={{ height: `${height}%` }}
                 />
               ))}
