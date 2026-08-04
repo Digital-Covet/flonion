@@ -1,5 +1,5 @@
 import { createSignal, onMount, onCleanup } from "solid-js";
-import { User } from "lucide-solid";
+import User from "lucide-solid/icons/user";
 import { testimonialItems } from "~/constants/landing";
 import AnimatedStarRating from "~/components/landing/AnimatedStarRating";
 

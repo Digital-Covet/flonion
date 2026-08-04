@@ -1,4 +1,10 @@
-import { ArrowRight, PlayCircle, Star, TrendingUp, User, Store, MessageSquareText } from "lucide-solid";
+import ArrowRight from "lucide-solid/icons/arrow-right";
+import PlayCircle from "lucide-solid/icons/play-circle";
+import Star from "lucide-solid/icons/star";
+import TrendingUp from "lucide-solid/icons/trending-up";
+import User from "lucide-solid/icons/user";
+import Store from "lucide-solid/icons/store";
+import MessageSquareText from "lucide-solid/icons/message-square-text";
 
 interface HeroSectionProps {
   reducedMotion: boolean;

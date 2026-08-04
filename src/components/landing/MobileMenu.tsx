@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { X } from "lucide-solid";
+import X from "lucide-solid/icons/x";
 import { navLinks } from "~/constants/landing";
 
 interface MobileMenuProps {

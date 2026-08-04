@@ -1,4 +1,4 @@
-import { Menu } from "lucide-solid";
+import Menu from "lucide-solid/icons/menu";
 import { A } from "@solidjs/router";
 import { navLinks } from "~/constants/landing";
 

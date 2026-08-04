@@ -1,5 +1,5 @@
 import { createSignal, For } from "solid-js";
-import { ChevronDown } from "lucide-solid";
+import ChevronDown from "lucide-solid/icons/chevron-down";
 import { faqItems } from "~/constants/landing";
 
 function FAQItem(props: { question: string; answer: string }) {

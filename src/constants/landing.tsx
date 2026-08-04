@@ -1,15 +1,13 @@
-import {
-  Store,
-  Smartphone,
-  LayoutDashboard,
-  Sparkles,
-  BellRing,
-  UtensilsCrossed,
-  Scissors,
-  Car,
-  MessageCircle,
-  Bell,
-} from "lucide-solid";
+import Store from "lucide-solid/icons/store";
+import Smartphone from "lucide-solid/icons/smartphone";
+import LayoutDashboard from "lucide-solid/icons/layout-dashboard";
+import Sparkles from "lucide-solid/icons/sparkles";
+import BellRing from "lucide-solid/icons/bell-ring";
+import UtensilsCrossed from "lucide-solid/icons/utensils-crossed";
+import Scissors from "lucide-solid/icons/scissors";
+import Car from "lucide-solid/icons/car";
+import MessageCircle from "lucide-solid/icons/message-circle";
+import Bell from "lucide-solid/icons/bell";
 import { FaqItem, FeatureItem, TestimonialItem, BusinessLogo, NavLink } from "~/types/landing";
 
 export const navLinks: NavLink[] = [

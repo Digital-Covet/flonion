@@ -1,5 +1,5 @@
 import { createSignal, onMount, onCleanup } from "solid-js";
-import { ArrowRight } from "lucide-solid";
+import ArrowRight from "lucide-solid/icons/arrow-right";
 
 export default function CTASection() {
   const [visible, setVisible] = createSignal(false);
