@@ -6,8 +6,9 @@ interface RecentReviewsWidgetProps {
   reviews: SharedReview[];
 }
 
-function timeAgo(timestamp: number): string {
-  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+function timeAgo(timestamp: string | number): string {
+  const date = typeof timestamp === "string" ? new Date(timestamp) : new Date(timestamp);
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
 
   if (seconds < 60) return "just now";
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;

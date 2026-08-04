@@ -45,6 +45,6 @@ export interface SharedReview {
   id: string;
   text: string;
   rating: number;
-  createdAt: number;
+  createdAt: string;
   reviewerName?: string;
 }
