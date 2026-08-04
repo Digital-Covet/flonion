@@ -16,12 +16,12 @@ export default createHandler(() => (
           <meta property="og:description" content="Flonion helps local businesses in India collect more customer reviews, manage online reputation, and prepare for AI-powered marketing from one simple platform. Start growing your business today." />
           <meta property="og:type" content="website" />
           <meta property="og:site_name" content="Flonion" />
-          <meta property="og:image" content="https://via.placeholder.com/1200x630?text=Flonion" />
+          <meta property="og:image" content="/flonion.jpg" />
           <meta name="twitter:card" content="summary_large_image" />
           <meta name="twitter:title" content="Flonion - Grow Your Business with Better Reviews" />
           <meta name="twitter:description" content="Flonion helps local businesses in India collect more customer reviews, manage online reputation, and prepare for AI-powered marketing from one simple platform. Start growing your business today." />
-          <meta name="twitter:image" content="https://via.placeholder.com/1200x630?text=Flonion" />
-          <link rel="icon" href="/favicon.ico" />
+          <meta name="twitter:image" content="/flonion.jpg" />
+          <link rel="icon" href="/favicon.svg" />
           <script type="application/ld+json">
             {JSON.stringify({
               "@context": "https://schema.org",
