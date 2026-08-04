@@ -2,6 +2,7 @@ import { createMiddleware } from "@solidjs/start/middleware";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 
 const PUBLIC_PATHS = [
+  "/",
   "/login",
   "/signup",
   "/forgot-password",

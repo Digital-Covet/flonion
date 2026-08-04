@@ -1,6 +1,7 @@
 import { For, Show, createMemo, createResource, createSignal, onMount } from "solid-js";
 import { isServer } from "solid-js/web";
 import { Title } from "@solidjs/meta";
+import { useLocation } from "@solidjs/router";
 import CalendarDays from "lucide-solid/icons/calendar-days";
 import RotateCcw from "lucide-solid/icons/rotate-ccw";
 import Search from "lucide-solid/icons/search";
@@ -198,6 +199,7 @@ function ReviewListItem(props: {
 }
 
 export default function ReviewInbox() {
+  const location = useLocation();
   const [selectedReviewId, setSelectedReviewId] = createSignal<string>("");
   const [trigger, setTrigger] = createSignal(0);
   const [isConnected, setIsConnected] = createSignal(false);
@@ -276,7 +278,7 @@ export default function ReviewInbox() {
                   Could not load reviews. Connect your Google Business Profile.
                 </p>
                 <a
-                  href="/api/google/auth"
+                  href={`/api/google/auth?returnTo=${encodeURIComponent(location.pathname)}`}
                   rel="external"
                   class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-body font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
                 >
@@ -291,7 +293,7 @@ export default function ReviewInbox() {
                   No reviews found. Connect your Google Business Profile to get started.
                 </p>
                 <a
-                  href="/api/google/auth"
+                  href={`/api/google/auth?returnTo=${encodeURIComponent(location.pathname)}`}
                   rel="external"
                   class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-body font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
                 >
