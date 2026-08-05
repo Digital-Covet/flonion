@@ -60,7 +60,7 @@ function isSuccessMessage(msg: string): boolean {
 }
 
 export default function LeaveReviewPage() {
-  const { logo, businessName } = useSettings();
+  const { logo, businessName, keywords } = useSettings();
   const [draft, setDraft] = createSignal<ReviewDraft>(initialDraft);
   const [suggestions, setSuggestions] =
     createSignal<ReviewSuggestion[]>([]);
@@ -157,7 +157,11 @@ export default function LeaveReviewPage() {
       const response = await fetch("/api/reviews/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: reviewText, rating: draft().rating }),
+        body: JSON.stringify({
+          text: reviewText,
+          rating: draft().rating,
+          keywords: keywords(),
+        }),
       });
 
       if (!response.ok) {

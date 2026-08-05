@@ -29,6 +29,7 @@ export async function suggestImprovedReview(params: {
   draftText: string;
   starRating: number;
   sentiment: SentimentAnalysis;
+  keywords?: string;
   apiKey: string;
 }): Promise<SuggestReviewResult> {
   const model = getModel(params.apiKey);
@@ -52,7 +53,9 @@ export async function suggestImprovedReview(params: {
 - Sentiment Score: ${params.sentiment.sentimentScore}
 - Key Topics: ${params.sentiment.keyTopics.join(", ")}
 - Sentiment Details: ${sentimentSummary || "none"}
-- Original Draft: "${params.draftText}"
+- Original Draft: "${params.draftText}"${params.keywords ? `
+- Business Keywords: ${params.keywords}
+  IMPORTANT: The business has highlighted specific keywords above. When generating suggestions, naturally weave these keywords/topics into the review text where they fit authentically. Do NOT force them — if they don't fit the draft's intent, focus on the original content. The keywords represent aspects the business cares about most.` : ""}
 
 ### CORE TASK
 

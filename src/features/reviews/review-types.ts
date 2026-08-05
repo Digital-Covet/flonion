@@ -44,7 +44,8 @@ export interface ReviewDraft {
 export interface SharedReview {
   id: string;
   text: string;
-  rating: number;
+  rating: Rating;
   createdAt: string;
   reviewerName?: string;
+  keywords?: string;
 }

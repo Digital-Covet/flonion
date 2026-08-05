@@ -7,6 +7,7 @@ export interface SettingsData {
   businessName: string;
   phone: string;
   address: string;
+  keywords: string;
 }
 
 export interface SettingsContextValue {
@@ -20,6 +21,8 @@ export interface SettingsContextValue {
   setPhone: Setter<string>;
   address: Accessor<string>;
   setAddress: Setter<string>;
+  keywords: Accessor<string>;
+  setKeywords: Setter<string>;
 }
 
 export const SettingsContext = createContext<SettingsContextValue>();

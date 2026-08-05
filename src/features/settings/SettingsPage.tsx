@@ -1,4 +1,4 @@
-import { createSignal, onMount, Show } from "solid-js";
+import { createSignal, For, onMount, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 import Building2 from "lucide-solid/icons/building-2";
 import Puzzle from "lucide-solid/icons/puzzle";
@@ -6,6 +6,8 @@ import SlidersHorizontal from "lucide-solid/icons/sliders-horizontal";
 import Store from "lucide-solid/icons/store";
 import Save from "lucide-solid/icons/save";
 import Zap from "lucide-solid/icons/zap";
+import X from "lucide-solid/icons/x";
+import Tags from "lucide-solid/icons/tags";
 import { SectionCard } from "./components/SectionCard";
 import { FormField } from "./components/FormField";
 import { ToggleRow } from "./components/ToggleRow";
@@ -33,6 +35,8 @@ export function SettingsPage() {
     setPhone,
     address,
     setAddress,
+    keywords,
+    setKeywords,
   } = useSettings();
 
   const [connected, setConnected] = createSignal(false);
@@ -46,6 +50,7 @@ export function SettingsPage() {
 
   const [emailNotifications, setEmailNotifications] = createSignal(true);
   const [aiSuggestions, setAiSuggestions] = createSignal(true);
+  const [keywordInput, setKeywordInput] = createSignal("");
   const [saving, setSaving] = createSignal(false);
   const [saveSuccess, setSaveSuccess] = createSignal(false);
 
@@ -103,6 +108,41 @@ export function SettingsPage() {
     window.location.href = `/api/google/auth?returnTo=${returnTo}`;
   };
 
+  const parsedKeywords = () =>
+    keywords()
+      .split(",")
+      .map((k) => k.trim())
+      .filter(Boolean);
+
+  const addKeyword = () => {
+    const raw = keywordInput().trim();
+    if (!raw) return;
+    const existing = parsedKeywords();
+    const newKeywords = raw
+      .split(",")
+      .map((k) => k.trim())
+      .filter((k) => k && !existing.includes(k));
+    if (newKeywords.length > 0) {
+      setKeywords(
+        existing.length > 0
+          ? existing.concat(newKeywords).join(", ")
+          : newKeywords.join(", "),
+      );
+    }
+    setKeywordInput("");
+  };
+
+  const removeKeyword = (keyword: string) => {
+    setKeywords(parsedKeywords().filter((k) => k !== keyword).join(", "));
+  };
+
+  const handleKeywordKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addKeyword();
+    }
+  };
+
   const handleLocationSelect = (index: number) => {
     setSelectedLocationIndex(index);
     const loc = locations()[index];
@@ -127,6 +167,7 @@ export function SettingsPage() {
           businessName: businessName(),
           phone: phone(),
           address: address(),
+          keywords: keywords(),
         }),
       });
       setSaveSuccess(true);
@@ -236,6 +277,47 @@ export function SettingsPage() {
               badgeIcon={Zap}
             />
           </div>
+        </SectionCard>
+
+        <SectionCard title="Review Keywords" icon={Tags}>
+          <p class="mb-3 text-sm text-muted-foreground">
+            Add keywords that guide AI suggestions when customers write reviews
+            about your business. These help the AI emphasize the topics that
+            matter most to you.
+          </p>
+          <div class="flex flex-wrap items-center gap-2">
+            <For each={parsedKeywords()}>
+              {(keyword) => (
+                <span class="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-sm text-foreground">
+                  {keyword}
+                  <button
+                    type="button"
+                    onClick={() => removeKeyword(keyword)}
+                    class="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    aria-label={`Remove keyword: ${keyword}`}
+                  >
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+            </For>
+            <input
+              type="text"
+              value={keywordInput()}
+              onInput={(e) => setKeywordInput((e.target as HTMLInputElement).value)}
+              onKeyDown={handleKeywordKeyDown}
+              onBlur={addKeyword}
+              placeholder={
+                parsedKeywords().length > 0
+                  ? "Add another keyword..."
+                  : "e.g. customer service, quality, fast delivery"
+              }
+              class="h-8 min-w-[160px] flex-1 rounded-lg border border-dashed border-border bg-transparent px-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+          <p class="mt-2 text-xs text-muted-foreground">
+            Press Enter or comma to add. Click X to remove.
+          </p>
         </SectionCard>
 
         <div class="flex justify-end gap-4 pt-6">

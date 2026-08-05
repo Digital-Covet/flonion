@@ -42,6 +42,7 @@ export interface SuggestionPipelineResult {
 export async function runSuggestionPipeline(params: {
   draftText: string;
   starRating: number;
+  keywords?: string;
   apiKey: string;
 }): Promise<SuggestionPipelineResult> {
   const sentiment = await analyzeSentiment({
@@ -54,6 +55,7 @@ export async function runSuggestionPipeline(params: {
     draftText: params.draftText,
     starRating: params.starRating,
     sentiment,
+    keywords: params.keywords,
     apiKey: params.apiKey,
   });
 

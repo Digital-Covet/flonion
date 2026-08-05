@@ -11,6 +11,7 @@ const EMPTY: SettingsData = {
   businessName: "",
   phone: "",
   address: "",
+  keywords: "",
 };
 
 async function fetchBusiness(): Promise<SettingsData> {
@@ -24,6 +25,7 @@ async function fetchBusiness(): Promise<SettingsData> {
       businessName: typeof data.businessName === "string" ? data.businessName : "",
       phone: typeof data.phone === "string" ? data.phone : "",
       address: typeof data.address === "string" ? data.address : "",
+      keywords: typeof data.keywords === "string" ? data.keywords : "",
     };
   } catch {
     return EMPTY;
@@ -36,6 +38,7 @@ export function SettingsProvider(props: ParentProps) {
   const [businessName, setBusinessNameSignal] = createSignal("");
   const [phone, setPhoneSignal] = createSignal("");
   const [address, setAddressSignal] = createSignal("");
+  const [keywords, setKeywordsSignal] = createSignal("");
 
   onMount(async () => {
     const initial = await fetchBusiness();
@@ -44,6 +47,7 @@ export function SettingsProvider(props: ParentProps) {
     setBusinessNameSignal(initial.businessName);
     setPhoneSignal(initial.phone);
     setAddressSignal(initial.address);
+    setKeywordsSignal(initial.keywords);
   });
 
   const setPlaceId: typeof setPlaceIdSignal = (value) => {
@@ -66,6 +70,10 @@ export function SettingsProvider(props: ParentProps) {
     return setAddressSignal(value);
   };
 
+  const setKeywords: typeof setKeywordsSignal = (value) => {
+    return setKeywordsSignal(value);
+  };
+
   const value: SettingsContextValue = {
     placeId,
     setPlaceId,
@@ -77,6 +85,8 @@ export function SettingsProvider(props: ParentProps) {
     setPhone,
     address,
     setAddress,
+    keywords,
+    setKeywords,
   };
 
   return (
