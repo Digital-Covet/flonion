@@ -3,7 +3,6 @@ import { emailOTPClient } from "better-auth/client/plugins";
 import { twoFactorClient } from "better-auth/client/plugins";
 
 export const authClient = createAuthClient({
-  baseURL: "http://localhost:5173",
   plugins: [
     emailOTPClient(),
     twoFactorClient({
