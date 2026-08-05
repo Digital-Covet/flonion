@@ -152,11 +152,6 @@ export default function LeaveReviewPage() {
   const shareReview = async () => {
     const reviewText = draft().text;
 
-    if (!reviewText.trim()) {
-      setStatusMessage("Add review text before sharing.");
-      return;
-    }
-
     try {
       const response = await fetch("/api/reviews/share", {
         method: "POST",

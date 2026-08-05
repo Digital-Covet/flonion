@@ -342,7 +342,6 @@ export default function PublicReviewPage() {
                       setRating,
                       setText,
                       fetchSuggestions,
-                      shareReview: () => {},
                       submitReview,
                     }}
                     logo={business()?.logo}

@@ -11,7 +11,7 @@ interface ReviewComposerActions {
   setRating: (rating: Rating) => void;
   setText: (text: string) => void;
   fetchSuggestions: () => void;
-  shareReview: () => void;
+  shareReview?: () => void;
   submitReview: () => void;
 }
 
@@ -56,14 +56,16 @@ export function ReviewComposer(props: ReviewComposerProps) {
           Draft Review
         </h2>
 
-        <button
-          type="button"
-          onClick={props.actions.shareReview}
-          class="inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
-        >
-          <Link2 class="size-4" aria-hidden="true" />
-          Share Review
-        </button>
+        <Show when={props.actions.shareReview}>
+          <button
+            type="button"
+            onClick={props.actions.shareReview}
+            class="inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+          >
+            <Link2 class="size-4" aria-hidden="true" />
+            Share Review
+          </button>
+        </Show>
       </div>
 
       <fieldset class="mt-6">
