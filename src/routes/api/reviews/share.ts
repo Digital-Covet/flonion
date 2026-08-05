@@ -87,6 +87,18 @@ export async function GET(event: APIEvent) {
       reviewerName: true,
       keywords: true,
       createdAt: true,
+      user: {
+        select: {
+          business: {
+            select: {
+              logo: true,
+              name: true,
+              phone: true,
+              address: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -94,5 +106,9 @@ export async function GET(event: APIEvent) {
     return Response.json({ error: "Review not found" }, { status: 404 });
   }
 
-  return Response.json(review);
+  return Response.json({
+    ...review,
+    business: review.user?.business ?? null,
+    user: undefined,
+  });
 }
