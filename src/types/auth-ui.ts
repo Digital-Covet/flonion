@@ -24,6 +24,7 @@ export interface SignUpFormProps {
 
 export interface SignInFormProps {
   onSubmit?: (email: string, password: string) => void | Promise<void>;
+  onError?: (message: string) => void;
   redirectTo?: string;
   redirectText?: string;
   redirectLabel?: string;
@@ -33,6 +34,15 @@ export interface SignInFormProps {
 
 export interface ForgotPasswordFormProps {
   onSubmit?: (email: string) => void | Promise<void>;
+  redirectTo?: string;
+  redirectText?: string;
+  redirectLabel?: string;
+  submitLabel?: string;
+}
+
+export interface ResendVerificationFormProps {
+  onSubmit?: (email: string) => void | Promise<void>;
+  initialEmail?: string;
   redirectTo?: string;
   redirectText?: string;
   redirectLabel?: string;

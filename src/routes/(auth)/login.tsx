@@ -19,7 +19,11 @@ export default function LoginPage() {
       callbackURL: '/dashboard',
     });
     if (error) {
-      console.error('[LoginPage] Sign in failed:', error.message);
+      const status = (error as any).status;
+      if (status === 403) {
+        throw new Error('Email is not verified. Please verify your email before signing in.');
+      }
+      throw new Error(error.message || 'Sign in failed. Please try again.');
     }
   };
 

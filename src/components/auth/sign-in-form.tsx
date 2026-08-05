@@ -18,6 +18,7 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
   const [status, setStatus] = createSignal<FormStatus>('idle');
   const [email, setEmail] = createSignal('');
   const [password, setPassword] = createSignal('');
+  const [errorMessage, setErrorMessage] = createSignal<string | null>(null);
 
   let successTimer: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => {
@@ -31,6 +32,7 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
     if (!isInteractive()) return;
 
     setStatus('loading');
+    setErrorMessage(null);
 
     try {
       await new Promise<void>((resolve) =>
@@ -43,7 +45,10 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
         setEmail('');
         setPassword('');
       }, SUCCESS_RESET_DELAY_MS);
-    } catch {
+    } catch (e: any) {
+      const message = e?.message ?? 'Sign in failed. Please try again.';
+      setErrorMessage(message);
+      props.onError?.(message);
       setStatus('idle');
     }
   };
@@ -82,6 +87,20 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
             class="w-full rounded-full border border-input bg-card px-6 py-4 text-base text-foreground outline-none transition-colors focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
           />
         </Field.Root>
+
+        {errorMessage() && (
+          <div class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
+            <p class="font-medium">{errorMessage()}</p>
+            {errorMessage()?.includes('not verified') && (
+              <a
+                href={`/verify-email?email=${encodeURIComponent(email())}`}
+                class="mt-1 inline-block font-semibold underline transition-colors hover:text-red-900 dark:hover:text-red-200"
+              >
+                Resend verification email
+              </a>
+            )}
+          </div>
+        )}
 
         <div class="flex justify-end">
           <a

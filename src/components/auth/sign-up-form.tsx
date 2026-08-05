@@ -64,9 +64,8 @@ const EyeIcon: Component<{ visible: boolean; class?: string }> = (props) => (
 
 const Requirement: Component<{ met: boolean; label: string }> = (props) => (
   <li
-    class={`flex items-center gap-1.5 text-xs transition-colors ${
-      props.met ? 'text-green-600' : 'text-muted-foreground'
-    }`}
+    class={`flex items-center gap-1.5 text-xs transition-colors ${props.met ? 'text-green-600' : 'text-muted-foreground'
+      }`}
   >
     <Check class={`h-3 w-3 ${props.met ? 'opacity-100' : 'opacity-30'}`} />
     <span>{props.label}</span>
@@ -264,15 +263,14 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
               <div class="mb-1 flex items-center justify-between">
                 <span class="text-xs text-muted-foreground">Strength</span>
                 <span
-                  class={`text-xs font-medium ${
-                    strength() <= 1
+                  class={`text-xs font-medium ${strength() <= 1
                       ? 'text-red-600'
                       : strength() === 2
                         ? 'text-orange-600'
                         : strength() === 3
                           ? 'text-yellow-600'
                           : 'text-green-600'
-                  }`}
+                    }`}
                 >
                   {STRENGTH_CONFIG[strength()].label}
                 </span>
