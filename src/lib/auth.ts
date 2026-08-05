@@ -32,6 +32,16 @@ export const auth = betterAuth({
     },
   },
 
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          return { data: { ...user, emailVerified: false } };
+        },
+      },
+    },
+  },
+
   plugins: [
     emailOTP({
       async sendVerificationOTP({ email, otp, type }) {
