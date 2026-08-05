@@ -15,7 +15,8 @@ import {
   createSignal,
   onMount,
 } from "solid-js";
-import InlineCombinationMark from "@/assets/inline-combination-mark"
+
+import InlineCombinationMark from "@/assets/inline-combination-mark";
 import { authClient } from "~/lib/auth-client";
 import { useSettings } from "~/stores/settings-store";
 
