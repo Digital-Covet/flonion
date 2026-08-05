@@ -10,13 +10,6 @@ export async function POST(event: APIEvent) {
 
     const { text, rating, keywords, id } = body;
 
-    if (!text || typeof text !== "string" || !text.trim()) {
-      return Response.json(
-        { error: "Missing required field: text" },
-        { status: 400 },
-      );
-    }
-
     if (typeof rating !== "number" || rating < 1 || rating > 5) {
       return Response.json(
         { error: "rating must be a number between 1 and 5" },
@@ -35,7 +28,7 @@ export async function POST(event: APIEvent) {
       const review = await prisma.sharedReview.update({
         where: { id },
         data: {
-          text: text.trim(),
+          text: typeof text === "string" ? text.trim() : "",
           rating,
           reviewerName: isOwner
             ? session.user.name
@@ -53,7 +46,7 @@ export async function POST(event: APIEvent) {
 
     const review = await prisma.sharedReview.create({
       data: {
-        text: text.trim(),
+        text: typeof text === "string" ? text.trim() : "",
         rating,
         reviewerName: session.user.name,
         keywords: typeof keywords === "string" ? keywords : null,

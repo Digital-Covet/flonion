@@ -1,5 +1,7 @@
 import Check from "lucide-solid/icons/check";
 import Link2 from "lucide-solid/icons/link-2";
+import MapPin from "lucide-solid/icons/map-pin";
+import Phone from "lucide-solid/icons/phone";
 import Send from "lucide-solid/icons/send";
 import Sparkles from "lucide-solid/icons/sparkles";
 import Star from "lucide-solid/icons/star";
@@ -20,6 +22,8 @@ interface ReviewComposerProps {
   actions: ReviewComposerActions;
   logo?: string | null;
   businessName?: string;
+  phone?: string;
+  address?: string;
   aiLoading?: boolean;
   cooldown?: boolean;
 }
@@ -40,16 +44,39 @@ export function ReviewComposer(props: ReviewComposerProps) {
       aria-labelledby="draft-review-heading"
       class="rounded-xl border border-border bg-card p-5 shadow-md"
     >
-      <Show when={props.logo}>
-        <div class="mb-4 flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-3">
-          <img
-            src={props.logo!}
-            alt="Company logo"
-            class="h-10 w-10 shrink-0 rounded object-contain"
-          />
-          <span class="text-base font-medium text-foreground">{props.businessName || "Your review"}</span>
+      <div class="mb-4 rounded-md border border-border bg-muted/40 px-4 py-3">
+        <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Business Information
+        </p>
+        <div class="flex items-start gap-3">
+          <Show when={props.logo}>
+            <img
+              src={props.logo!}
+              alt="Company logo"
+              class="h-10 w-10 shrink-0 rounded object-contain"
+            />
+          </Show>
+          <div class="min-w-0 space-y-1.5">
+            <Show when={props.businessName}>
+              <p class="text-sm font-medium text-foreground">
+                {props.businessName}
+              </p>
+            </Show>
+            <Show when={props.phone}>
+              <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                <Phone class="size-3.5 shrink-0" aria-hidden="true" />
+                <span class="truncate">{props.phone}</span>
+              </div>
+            </Show>
+            <Show when={props.address}>
+              <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                <MapPin class="size-3.5 shrink-0" aria-hidden="true" />
+                <span class="truncate">{props.address}</span>
+              </div>
+            </Show>
+          </div>
         </div>
-      </Show>
+      </div>
 
       <div class="flex flex-wrap items-center justify-between gap-3">
         <h2 id="draft-review-heading" class="text-lg font-semibold text-foreground">

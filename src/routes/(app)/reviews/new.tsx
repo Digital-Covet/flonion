@@ -14,7 +14,6 @@ import type {
   ReviewSuggestion,
   SharedReview,
 } from "@/features/reviews/review-types";
-import { BusinessInfoSection } from "~/components/review/business-info-section";
 import { RecentReviewsWidget } from "~/components/review/recent-reviews-widget";
 import { ReviewComposer } from "~/components/review/review-composer";
 import { SuggestionCard } from "~/components/review/suggestion-card";
@@ -221,17 +220,12 @@ export default function LeaveReviewPage() {
 
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div class="lg:col-span-2">
-          <BusinessInfoSection
-            logo={logo()}
-            businessName={businessName()}
-            phone={phone()}
-            address={address()}
-          />
-
           <ReviewComposer
             draft={draft()}
             logo={logo()}
             businessName={businessName()}
+            phone={phone()}
+            address={address()}
             actions={{
               setRating,
               setText,
