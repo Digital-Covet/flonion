@@ -1,6 +1,7 @@
 import { createSignal, onMount, Show, type Component } from "solid-js";
 import { Lock } from "lucide-solid";
 import { useNavigate, useSearchParams } from "@solidjs/router";
+import InlineCombinationMark from "~/assets/inline-combination-mark";
 import {
   ProgressStepper,
   BasicsStep,
@@ -111,11 +112,10 @@ export default function OnboardingPage() {
     <div class="min-h-screen bg-background text-foreground">
       <header class="glass-card fixed inset-x-0 top-0 z-50 flex h-16 items-center px-4 shadow-sm md:px-10">
         <a
-          class="font-heading text-xl font-bold uppercase tracking-tight text-primary"
           href="/"
           aria-label="Flonion home"
         >
-          Flonion
+          <InlineCombinationMark class="h-6 w-auto" />
         </a>
       </header>
 

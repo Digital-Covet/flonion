@@ -1,7 +1,7 @@
 import type { Component } from 'solid-js';
-import InlineCombinationMark from "@/assets/inline-combination-mark"
+import LogoMark from "@/assets/logomark"
 export const BrandMark: Component = () => (
   <div class="mb-14">
-    <InlineCombinationMark class='h-6' />
+    <LogoMark class='h-6' />
   </div>
 );
