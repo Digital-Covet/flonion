@@ -17,7 +17,7 @@ export default function Navbar(props: NavbarProps) {
           href="#"
           aria-label="Flonion home"
         >
-          <Wordmark class="h-8" />
+          <Wordmark class="h-4" />
         </a>
 
         <div class="hidden items-center gap-6 md:flex">
