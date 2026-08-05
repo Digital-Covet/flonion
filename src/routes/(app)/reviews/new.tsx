@@ -14,6 +14,7 @@ import type {
   ReviewSuggestion,
   SharedReview,
 } from "@/features/reviews/review-types";
+import { BusinessInfoSection } from "~/components/review/business-info-section";
 import { RecentReviewsWidget } from "~/components/review/recent-reviews-widget";
 import { ReviewComposer } from "~/components/review/review-composer";
 import { SuggestionCard } from "~/components/review/suggestion-card";
@@ -60,7 +61,7 @@ function isSuccessMessage(msg: string): boolean {
 }
 
 export default function LeaveReviewPage() {
-  const { logo, businessName, keywords } = useSettings();
+  const { logo, businessName, phone, address, keywords } = useSettings();
   const [draft, setDraft] = createSignal<ReviewDraft>(initialDraft);
   const [suggestions, setSuggestions] =
     createSignal<ReviewSuggestion[]>([]);
@@ -220,6 +221,13 @@ export default function LeaveReviewPage() {
 
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div class="lg:col-span-2">
+          <BusinessInfoSection
+            logo={logo()}
+            businessName={businessName()}
+            phone={phone()}
+            address={address()}
+          />
+
           <ReviewComposer
             draft={draft()}
             logo={logo()}
