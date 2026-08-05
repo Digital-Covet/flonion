@@ -23,6 +23,7 @@ export default function SignUpPage() {
       console.error('[SignUpPage] Sign up failed:', error.message);
       throw new Error(error.message);
     }
+    window.location.href = `/verify-email?email=${encodeURIComponent(email)}`;
   };
 
   return (

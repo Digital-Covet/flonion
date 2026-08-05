@@ -13,7 +13,6 @@ import Eye from 'lucide-solid/icons/eye';
 import EyeOff from 'lucide-solid/icons/eye-off';
 import type { FormStatus, SignUpFormProps } from '@/types/auth-ui';
 
-const SUCCESS_RESET_DELAY_MS = 2000;
 const PASSWORD_MIN_LENGTH = 8;
 
 type PasswordStrength = 0 | 1 | 2 | 3 | 4;
@@ -83,10 +82,7 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
     new Set(),
   );
 
-  let successTimer: ReturnType<typeof setTimeout> | undefined;
-  onCleanup(() => {
-    if (successTimer) clearTimeout(successTimer);
-  });
+  onCleanup(() => {});
 
   const isInteractive = () => status() === 'idle';
   const strength = () => evaluatePasswordStrength(password());
@@ -154,14 +150,6 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
 
     try {
       await props.onSubmit?.(email(), password(), name().trim());
-      setStatus('success');
-      successTimer = setTimeout(() => {
-        setStatus('idle');
-        setName('');
-        setEmail('');
-        setPassword('');
-        setTouchedFields(new Set<string>());
-      }, SUCCESS_RESET_DELAY_MS);
     } catch (e: any) {
       setError(e?.message ?? 'Sign up failed. Please try again.');
       setStatus('idle');
@@ -306,10 +294,6 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
             <Match when={status() === 'loading'}>
               <LoaderCircleIcon class="h-5 w-5 animate-spin" />
               <span>Creating account...</span>
-            </Match>
-            <Match when={status() === 'success'}>
-              <Check class="h-5 w-5" />
-              <span>Success!</span>
             </Match>
             <Match when={status() === 'idle'}>
               <Sparkles class="h-4 w-4" />
