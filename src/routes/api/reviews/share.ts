@@ -4,14 +4,11 @@ import { prisma } from "@/db/prisma";
 
 export async function POST(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   try {
     const body = await event.request.json();
 
-    const { text, rating } = body;
+    const { text, rating, keywords, id } = body;
 
     if (!text || typeof text !== "string" || !text.trim()) {
       return Response.json(
@@ -27,11 +24,39 @@ export async function POST(event: APIEvent) {
       );
     }
 
+    if (id) {
+      const existing = await prisma.sharedReview.findUnique({ where: { id } });
+      if (!existing) {
+        return Response.json({ error: "Review not found" }, { status: 404 });
+      }
+
+      const isOwner = session && existing.userId === session.session.userId;
+
+      const review = await prisma.sharedReview.update({
+        where: { id },
+        data: {
+          text: text.trim(),
+          rating,
+          reviewerName: isOwner
+            ? session.user.name
+            : session?.user.name ?? "Anonymous",
+          keywords: typeof keywords === "string" ? keywords : existing.keywords,
+        },
+      });
+
+      return Response.json({ url: `/review/${review.id}` });
+    }
+
+    if (!session) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const review = await prisma.sharedReview.create({
       data: {
         text: text.trim(),
         rating,
         reviewerName: session.user.name,
+        keywords: typeof keywords === "string" ? keywords : null,
         userId: session.session.userId,
       },
     });
@@ -60,6 +85,7 @@ export async function GET(event: APIEvent) {
       text: true,
       rating: true,
       reviewerName: true,
+      keywords: true,
       createdAt: true,
     },
   });
