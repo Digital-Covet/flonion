@@ -108,7 +108,6 @@ export function ReviewComposer(props: ReviewComposerProps) {
         <div class="relative mt-2">
           <Field.Textarea
             id="review-text"
-            value={props.draft.text}
             onInput={handleInput}
             placeholder="Write your review here..."
             autoresize
