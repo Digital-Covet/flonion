@@ -346,6 +346,7 @@ export default function PublicReviewPage() {
                     }}
                     logo={business()?.logo}
                     businessName={business()?.name}
+                    hideBusinessInfo
                     aiLoading={aiLoading()}
                     cooldown={cooldown()}
                   />

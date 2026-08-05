@@ -24,6 +24,7 @@ interface ReviewComposerProps {
   businessName?: string;
   phone?: string;
   address?: string;
+  hideBusinessInfo?: boolean;
   aiLoading?: boolean;
   cooldown?: boolean;
 }
@@ -44,39 +45,41 @@ export function ReviewComposer(props: ReviewComposerProps) {
       aria-labelledby="draft-review-heading"
       class="rounded-xl border border-border bg-card p-5 shadow-md"
     >
-      <div class="mb-4 rounded-md border border-border bg-muted/40 px-4 py-3">
-        <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Business Information
-        </p>
-        <div class="flex items-start gap-3">
-          <Show when={props.logo}>
-            <img
-              src={props.logo!}
-              alt="Company logo"
-              class="h-10 w-10 shrink-0 rounded object-contain"
-            />
-          </Show>
-          <div class="min-w-0 space-y-1.5">
-            <Show when={props.businessName}>
-              <p class="text-sm font-medium text-foreground">
-                {props.businessName}
-              </p>
+      <Show when={!props.hideBusinessInfo}>
+        <div class="mb-4 rounded-md border border-border bg-muted/40 px-4 py-3">
+          <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Business Information
+          </p>
+          <div class="flex items-start gap-3">
+            <Show when={props.logo}>
+              <img
+                src={props.logo!}
+                alt="Company logo"
+                class="h-10 w-10 shrink-0 rounded object-contain"
+              />
             </Show>
-            <Show when={props.phone}>
-              <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone class="size-3.5 shrink-0" aria-hidden="true" />
-                <span class="truncate">{props.phone}</span>
-              </div>
-            </Show>
-            <Show when={props.address}>
-              <div class="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin class="size-3.5 shrink-0" aria-hidden="true" />
-                <span class="truncate">{props.address}</span>
-              </div>
-            </Show>
+            <div class="min-w-0 space-y-1.5">
+              <Show when={props.businessName}>
+                <p class="text-sm font-medium text-foreground">
+                  {props.businessName}
+                </p>
+              </Show>
+              <Show when={props.phone}>
+                <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Phone class="size-3.5 shrink-0" aria-hidden="true" />
+                  <span class="truncate">{props.phone}</span>
+                </div>
+              </Show>
+              <Show when={props.address}>
+                <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MapPin class="size-3.5 shrink-0" aria-hidden="true" />
+                  <span class="truncate">{props.address}</span>
+                </div>
+              </Show>
+            </div>
           </div>
         </div>
-      </div>
+      </Show>
 
       <div class="flex flex-wrap items-center justify-between gap-3">
         <h2 id="draft-review-heading" class="text-lg font-semibold text-foreground">
