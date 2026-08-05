@@ -20,8 +20,9 @@ model User {
   image            String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
-  twoFactorEnabled Boolean?    @default(false)
-  sessions         Session[]
+  twoFactorEnabled    Boolean?    @default(false)
+  onboardingCompleted Boolean     @default(false)
+  sessions            Session[]
   accounts         Account[]
   twofactors       TwoFactor[]
   business         Business?
@@ -40,6 +41,7 @@ model Business {
   name      String
   phone     String?
   address   String?
+  keywords  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -114,6 +116,7 @@ model SharedReview {
   text         String
   rating       Int
   reviewerName String?
+  keywords     String?
   userId       String
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt    DateTime @default(now())
