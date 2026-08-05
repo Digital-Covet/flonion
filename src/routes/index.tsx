@@ -1,4 +1,4 @@
-import { createSignal, onMount, createEffect } from "solid-js";
+import { createSignal } from "solid-js";
 import { useReducedMotion } from "~/hooks/useReducedMotion";
 import Navbar from "~/components/landing/Navbar";
 import MobileMenu from "~/components/landing/MobileMenu";
@@ -13,16 +13,6 @@ import Footer from "~/components/landing/Footer";
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = createSignal(false);
   const reducedMotion = useReducedMotion();
-
-  createEffect(() => {
-    document.body.style.overflow = mobileMenuOpen() ? "hidden" : "";
-  });
-
-  onMount(() => {
-    return () => {
-      document.body.style.overflow = "";
-    };
-  });
 
   const toggleMenu = () => setMobileMenuOpen((prev) => !prev);
   const closeMenu = () => setMobileMenuOpen(false);

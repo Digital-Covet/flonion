@@ -49,7 +49,7 @@ export default function Navbar(props: NavbarProps) {
           </A>
 
           <A
-            class="rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors duration-200 hover:bg-primary-hover hover:scale-[1.02] hover:-translate-y-0.5 active:scale-[0.98]"
+            class="hidden rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors duration-200 hover:bg-primary-hover hover:scale-[1.02] hover:-translate-y-0.5 active:scale-[0.98] md:inline-block"
             href="/signup"
           >
             Get Started
