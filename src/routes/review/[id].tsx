@@ -40,6 +40,7 @@ export default function PublicReviewPage() {
   const [suggestions, setSuggestions] = createSignal<ReviewSuggestion[]>([]);
   const [statusMessage, setStatusMessage] = createSignal("");
   const [aiLoading, setAiLoading] = createSignal(false);
+  const [cooldown, setCooldown] = createSignal(false);
 
   let dismissTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -99,8 +100,14 @@ export default function PublicReviewPage() {
 
   const fetchSuggestions = async () => {
     const text = draft().text.trim();
+    const id = reviewId();
     if (!text) {
       setStatusMessage("Write some review text first to get AI suggestions.");
+      return;
+    }
+
+    if (!id) {
+      setStatusMessage("Review ID not found. Please reload the page.");
       return;
     }
 
@@ -112,6 +119,7 @@ export default function PublicReviewPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          reviewId: id,
           draftText: text,
           starRating: draft().rating,
           keywords: keywords() || undefined,
@@ -139,6 +147,9 @@ export default function PublicReviewPage() {
 
       setSuggestions(mapped);
       setStatusMessage("AI suggestions generated successfully.");
+
+      setCooldown(true);
+      setTimeout(() => setCooldown(false), 5000);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       setSuggestions([]);
@@ -252,6 +263,7 @@ export default function PublicReviewPage() {
                     submitReview,
                   }}
                   aiLoading={aiLoading()}
+                  cooldown={cooldown()}
                 />
 
                 <div class="mt-6">

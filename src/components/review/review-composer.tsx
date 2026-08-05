@@ -21,6 +21,7 @@ interface ReviewComposerProps {
   logo?: string | null;
   businessName?: string;
   aiLoading?: boolean;
+  cooldown?: boolean;
 }
 
 const ratings: Rating[] = [1, 2, 3, 4, 5];
@@ -128,11 +129,11 @@ export function ReviewComposer(props: ReviewComposerProps) {
         <button
           type="button"
           onClick={props.actions.fetchSuggestions}
-          disabled={props.aiLoading}
+          disabled={props.aiLoading || props.cooldown}
           class="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Sparkles class="size-4" aria-hidden="true" />
-          {props.aiLoading ? "Thinking..." : "AI Suggest"}
+          {props.aiLoading ? "Thinking..." : props.cooldown ? "Wait..." : "AI Suggest"}
         </button>
 
         <button

@@ -66,6 +66,7 @@ export default function LeaveReviewPage() {
     createSignal<ReviewSuggestion[]>([]);
   const [statusMessage, setStatusMessage] = createSignal("");
   const [loading, setLoading] = createSignal(false);
+  const [cooldown, setCooldown] = createSignal(false);
 
   let dismissTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -125,6 +126,9 @@ export default function LeaveReviewPage() {
 
       setSuggestions(mapped);
       setStatusMessage("AI suggestions generated successfully.");
+
+      setCooldown(true);
+      setTimeout(() => setCooldown(false), 5000);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       setSuggestions([]);
@@ -233,6 +237,7 @@ export default function LeaveReviewPage() {
               submitReview,
             }}
             aiLoading={loading()}
+            cooldown={cooldown()}
           />
         </div>
 
