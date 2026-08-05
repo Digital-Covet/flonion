@@ -23,6 +23,8 @@ export interface SettingsContextValue {
   setAddress: Setter<string>;
   keywords: Accessor<string>;
   setKeywords: Setter<string>;
+  refetch: () => Promise<SettingsData>;
+  updateSettings: (data: Partial<SettingsData>) => void;
 }
 
 export const SettingsContext = createContext<SettingsContextValue>();

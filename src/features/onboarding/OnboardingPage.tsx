@@ -2,6 +2,7 @@ import { createSignal, onMount, Show, type Component } from "solid-js";
 import { Lock } from "lucide-solid";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import InlineCombinationMark from "~/assets/inline-combination-mark";
+import { useSettings } from "~/stores/settings-store";
 import {
   ProgressStepper,
   BasicsStep,
@@ -79,6 +80,8 @@ export default function OnboardingPage() {
     updateStep(2);
   };
 
+  const { refetch, updateSettings } = useSettings();
+
   const handleComplete = async () => {
     if (!basicsData().businessName.trim()) return;
     setSaving(true);
@@ -97,6 +100,19 @@ export default function OnboardingPage() {
       });
 
       if (res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data) {
+          updateSettings({
+            placeId: data.placeId ?? "",
+            logo: data.logo ?? null,
+            businessName: data.businessName ?? "",
+            phone: data.phone ?? "",
+            address: data.address ?? "",
+            keywords: data.keywords ?? "",
+          });
+        } else {
+          await refetch();
+        }
         navigate("/dashboard");
       }
     } catch {

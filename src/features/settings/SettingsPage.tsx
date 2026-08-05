@@ -1,4 +1,4 @@
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onMount } from "solid-js";
 import { Title } from "@solidjs/meta";
 import Building2 from "lucide-solid/icons/building-2";
 import Puzzle from "lucide-solid/icons/puzzle";
@@ -37,6 +37,7 @@ export function SettingsPage() {
     setAddress,
     keywords,
     setKeywords,
+    refetch,
   } = useSettings();
 
   const [connected, setConnected] = createSignal(false);
@@ -91,6 +92,7 @@ export function SettingsPage() {
   };
 
   onMount(() => {
+    refetch();
     checkConnection();
 
     if (typeof window === "undefined") return;
@@ -312,7 +314,7 @@ export function SettingsPage() {
                   ? "Add another keyword..."
                   : "e.g. customer service, quality, fast delivery"
               }
-              class="h-8 min-w-[160px] flex-1 rounded-lg border border-dashed border-border bg-transparent px-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              class="h-8 min-w-40 flex-1 rounded-lg border border-dashed bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <p class="mt-2 text-xs text-muted-foreground">
@@ -330,7 +332,7 @@ export function SettingsPage() {
           <button
             type="button"
             onClick={handleSave}
-            class="flex h-10 items-center gap-1 rounded-lg bg-teal-50 px-6 text-sm font-medium leading-normal text-teal-700 shadow-md transition-all hover:bg-primary hover:text-primary-foreground active:scale-95 disabled:scale-95 disabled:opacity-70"
+            class="flex h-10 items-center gap-1 rounded-lg bg-teal-50 px-6 text-sm font-medium leading-normal text-teal-700 shadow-md transition-all hover:bg-primary hover:text-primary-foreground disabled:scale-95 disabled:opacity-70"
             disabled={saving()}
           >
             <Save size={18} />

@@ -40,14 +40,28 @@ export function SettingsProvider(props: ParentProps) {
   const [address, setAddressSignal] = createSignal("");
   const [keywords, setKeywordsSignal] = createSignal("");
 
+  const refetch = async (): Promise<SettingsData> => {
+    const data = await fetchBusiness();
+    setPlaceIdSignal(data.placeId);
+    setLogoSignal(data.logo);
+    setBusinessNameSignal(data.businessName);
+    setPhoneSignal(data.phone);
+    setAddressSignal(data.address);
+    setKeywordsSignal(data.keywords);
+    return data;
+  };
+
+  const updateSettings = (data: Partial<SettingsData>) => {
+    if (data.placeId !== undefined) setPlaceIdSignal(data.placeId);
+    if (data.logo !== undefined) setLogoSignal(data.logo);
+    if (data.businessName !== undefined) setBusinessNameSignal(data.businessName);
+    if (data.phone !== undefined) setPhoneSignal(data.phone);
+    if (data.address !== undefined) setAddressSignal(data.address);
+    if (data.keywords !== undefined) setKeywordsSignal(data.keywords);
+  };
+
   onMount(async () => {
-    const initial = await fetchBusiness();
-    setPlaceIdSignal(initial.placeId);
-    setLogoSignal(initial.logo);
-    setBusinessNameSignal(initial.businessName);
-    setPhoneSignal(initial.phone);
-    setAddressSignal(initial.address);
-    setKeywordsSignal(initial.keywords);
+    await refetch();
   });
 
   const setPlaceId: typeof setPlaceIdSignal = (value) => {
@@ -87,6 +101,8 @@ export function SettingsProvider(props: ParentProps) {
     setAddress,
     keywords,
     setKeywords,
+    refetch,
+    updateSettings,
   };
 
   return (
