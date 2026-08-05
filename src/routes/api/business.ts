@@ -8,9 +8,12 @@ export async function GET(event: APIEvent) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const business = await prisma.business.findUnique({
-    where: { userId: session.user.id },
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { onboardingCompleted: true, business: true },
   });
+
+  const business = user?.business;
 
   return Response.json({
     placeId: business?.placeId ?? "",
@@ -18,6 +21,8 @@ export async function GET(event: APIEvent) {
     businessName: business?.name ?? "",
     phone: business?.phone ?? "",
     address: business?.address ?? "",
+    keywords: business?.keywords ?? "",
+    onboardingCompleted: user?.onboardingCompleted ?? false,
   });
 }
 
@@ -29,7 +34,7 @@ export async function POST(event: APIEvent) {
 
   try {
     const body = await event.request.json();
-    const { placeId, logo, businessName, phone, address } = body;
+    const { placeId, logo, businessName, phone, address, keywords } = body;
 
     if (typeof businessName !== "string" || !businessName.trim()) {
       return Response.json(
@@ -44,13 +49,20 @@ export async function POST(event: APIEvent) {
       name: businessName.trim(),
       phone: typeof phone === "string" ? phone : null,
       address: typeof address === "string" ? address : null,
+      keywords: typeof keywords === "string" ? keywords : null,
     };
 
-    const business = await prisma.business.upsert({
-      where: { userId: session.user.id },
-      create: { userId: session.user.id, ...data },
-      update: data,
-    });
+    const [business] = await prisma.$transaction([
+      prisma.business.upsert({
+        where: { userId: session.user.id },
+        create: { userId: session.user.id, ...data },
+        update: data,
+      }),
+      prisma.user.update({
+        where: { id: session.user.id },
+        data: { onboardingCompleted: true },
+      }),
+    ]);
 
     return Response.json({
       placeId: business.placeId ?? "",
@@ -58,6 +70,8 @@ export async function POST(event: APIEvent) {
       businessName: business.name,
       phone: business.phone ?? "",
       address: business.address ?? "",
+      keywords: business.keywords ?? "",
+      onboardingCompleted: true,
     });
   } catch {
     return Response.json(

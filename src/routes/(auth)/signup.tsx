@@ -17,7 +17,7 @@ export default function SignUpPage() {
       email,
       password,
       name,
-      callbackURL: '/dashboard',
+      callbackURL: '/onboarding',
     });
     if (error) {
       console.error('[SignUpPage] Sign up failed:', error.message);

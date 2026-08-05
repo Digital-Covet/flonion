@@ -1,5 +1,6 @@
 import { createMiddleware } from "@solidjs/start/middleware";
 import { getSessionFromHeaders } from "~/lib/server-auth";
+import { prisma } from "~/db/prisma";
 
 const PUBLIC_PATHS = [
   "/",
@@ -7,6 +8,7 @@ const PUBLIC_PATHS = [
   "/signup",
   "/forgot-password",
   "/reset-password",
+  "/verify-email",
 ];
 
 const PUBLIC_PREFIXES = [
@@ -46,6 +48,27 @@ export default createMiddleware({
       return new Response(null, {
         status: 302,
         headers: { Location: loginUrl.toString() },
+      });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { onboardingCompleted: true },
+    });
+
+    if (!user) return;
+
+    if (!user.onboardingCompleted && pathname !== "/onboarding") {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: "/onboarding" },
+      });
+    }
+
+    if (user.onboardingCompleted && pathname === "/onboarding") {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: "/dashboard" },
       });
     }
   },
