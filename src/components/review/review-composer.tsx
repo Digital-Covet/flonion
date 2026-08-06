@@ -25,6 +25,7 @@ interface ReviewComposerProps {
   phone?: string;
   address?: string;
   hideBusinessInfo?: boolean;
+  showBusinessNameInHeading?: boolean;
   aiLoading?: boolean;
   cooldown?: boolean;
 }
@@ -83,7 +84,9 @@ export function ReviewComposer(props: ReviewComposerProps) {
 
       <div class="flex flex-wrap items-center justify-between gap-3">
         <h2 id="draft-review-heading" class="text-lg font-semibold text-foreground">
-          Draft Review
+          {props.showBusinessNameInHeading && props.businessName
+            ? `${props.businessName} Review`
+            : "Draft Review"}
         </h2>
 
         <Show when={props.actions.shareReview}>

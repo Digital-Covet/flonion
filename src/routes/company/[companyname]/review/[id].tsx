@@ -365,6 +365,7 @@ export default function PublicReviewPage() {
                     logo={business()?.logo}
                     businessName={business()?.name}
                     hideBusinessInfo
+                    showBusinessNameInHeading
                     aiLoading={aiLoading()}
                     cooldown={cooldown()}
                   />
