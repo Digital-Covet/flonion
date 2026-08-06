@@ -8,8 +8,7 @@ const FOOTER_LINKS: readonly FooterLink[] = [
   { label: 'Privacy', href: '#' },
 ] as const;
 
-const ILLUSTRATION_IMAGE_URL =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuAMIdvyeuaL52iY56flILB5uJc2g5I3ygiHxhnqGoPNFpfccRNuvixaMqp-TCeA-uJoPnYTisRTUAwqeN7t11NXlu5XyKwCEI6k3YmptcB8jiNkKX6UrNMvVp28kgssCi-_2b4AZC--G1DBcZ-mgRGmdfveU-FUyIZsQksfx9W_qNDfcheeCV87m0FKjgh5hr-qz9P12vrohsfo5qxqPo4rqQYXAnUFNWteGQAzNLrK8Sja5FhYZvJYkZrNs9kQIwRqUHk';
+const ILLUSTRATION_IMAGE_URL = '/auth-image.webp';
 
 export default function LoginPage() {
   const handleEmailSubmit = async (email: string, password: string) => {

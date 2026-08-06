@@ -10,10 +10,12 @@ export const IllustrationPanel: Component<IllustrationPanelProps> = (props) => (
       <img
         src={props.imageSrc}
         alt={props.imageAlt ?? ''}
-        class="h-full w-full object-cover opacity-80"
+        width={1200}
+        height={1662}
+        decoding="async"
         loading="lazy"
+        class="block h-full w-full object-cover"
       />
     </div>
-    <div class="absolute inset-0 z-10 bg-gradient-to-r from-muted/20 to-muted/60" />
   </section>
 );
