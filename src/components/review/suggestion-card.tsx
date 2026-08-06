@@ -89,7 +89,7 @@ export function SuggestionCard(props: SuggestionCardProps) {
         class="mt-4 inline-flex h-8 items-center gap-1.5 rounded-md bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
       >
         <Check class="size-3.5" aria-hidden="true" />
-        Apply
+        Use this version
       </button>
     </article>
   );
