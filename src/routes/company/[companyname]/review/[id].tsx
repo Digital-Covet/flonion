@@ -134,6 +134,9 @@ export default function PublicReviewPage() {
 
   const setRating = (rating: Rating) => {
     setDraft((current) => ({ ...current, rating }));
+    if (draft().text.trim() && !aiLoading() && !cooldown()) {
+      fetchSuggestions();
+    }
   };
 
   const setText = (text: string) => {
