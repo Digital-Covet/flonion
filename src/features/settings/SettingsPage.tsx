@@ -1,5 +1,6 @@
-import { createSignal, For, onMount } from "solid-js";
+import { createSignal, For, Index, onMount, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
+import { TagsInput } from "@ark-ui/solid/tags-input";
 import Building2 from "lucide-solid/icons/building-2";
 import Puzzle from "lucide-solid/icons/puzzle";
 import SlidersHorizontal from "lucide-solid/icons/sliders-horizontal";
@@ -8,6 +9,8 @@ import Save from "lucide-solid/icons/save";
 import Zap from "lucide-solid/icons/zap";
 import X from "lucide-solid/icons/x";
 import Tags from "lucide-solid/icons/tags";
+import Link2 from "lucide-solid/icons/link-2";
+import Plus from "lucide-solid/icons/plus";
 import { SectionCard } from "./components/SectionCard";
 import { FormField } from "./components/FormField";
 import { ToggleRow } from "./components/ToggleRow";
@@ -15,6 +18,13 @@ import { IntegrationCard } from "./components/IntegrationCard";
 import { LogoUploader } from "./components/LogoUploader";
 import { useSettings } from "~/stores/settings-store";
 import type { IntegrationData, GoogleLocationData } from "./types";
+import {
+  REVIEW_PLATFORMS,
+  getPlatformBySlug,
+  getPlatformLabel,
+  CUSTOM_LABEL_KEY,
+  type ReviewLinksMap,
+} from "./review-platforms";
 
 const googleBusinessIntegration: IntegrationData = {
   name: "Google Business Profile",
@@ -27,6 +37,10 @@ export function SettingsPage() {
   const {
     placeId,
     setPlaceId,
+    reviewLink,
+    setReviewLink,
+    reviewLinks,
+    setReviewLinks,
     logo,
     setLogo,
     businessName,
@@ -51,9 +65,9 @@ export function SettingsPage() {
 
   const [emailNotifications, setEmailNotifications] = createSignal(true);
   const [aiSuggestions, setAiSuggestions] = createSignal(true);
-  const [keywordInput, setKeywordInput] = createSignal("");
   const [saving, setSaving] = createSignal(false);
   const [saveSuccess, setSaveSuccess] = createSignal(false);
+  const [addingPlatform, setAddingPlatform] = createSignal(false);
 
   const checkConnection = async () => {
     try {
@@ -116,33 +130,26 @@ export function SettingsPage() {
       .map((k) => k.trim())
       .filter(Boolean);
 
-  const addKeyword = () => {
-    const raw = keywordInput().trim();
-    if (!raw) return;
-    const existing = parsedKeywords();
-    const newKeywords = raw
-      .split(",")
-      .map((k) => k.trim())
-      .filter((k) => k && !existing.includes(k));
-    if (newKeywords.length > 0) {
-      setKeywords(
-        existing.length > 0
-          ? existing.concat(newKeywords).join(", ")
-          : newKeywords.join(", "),
-      );
-    }
-    setKeywordInput("");
+  const enabledPlatforms = () => Object.keys(reviewLinks());
+
+  const availablePlatforms = () =>
+    REVIEW_PLATFORMS.filter((p) => !(p.slug in reviewLinks()));
+
+  const updateReviewLink = (slug: string, url: string) => {
+    setReviewLinks((prev) => ({ ...prev, [slug]: url }));
   };
 
-  const removeKeyword = (keyword: string) => {
-    setKeywords(parsedKeywords().filter((k) => k !== keyword).join(", "));
+  const removeReviewLink = (slug: string) => {
+    setReviewLinks((prev) => {
+      const next = { ...prev };
+      delete next[slug];
+      return next;
+    });
   };
 
-  const handleKeywordKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      addKeyword();
-    }
+  const addPlatform = (slug: string) => {
+    setReviewLinks((prev) => ({ ...prev, [slug]: "" }));
+    setAddingPlatform(false);
   };
 
   const handleLocationSelect = (index: number) => {
@@ -165,6 +172,8 @@ export function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           placeId: placeId(),
+          reviewLink: reviewLink(),
+          reviewLinks: reviewLinks(),
           logo: logo(),
           businessName: businessName(),
           phone: phone(),
@@ -229,17 +238,6 @@ export function SettingsPage() {
               }
               class="md:col-span-2"
             />
-            <FormField
-              id="place-id"
-              label="Google Place ID"
-              value={placeId()}
-              placeholder="ChIJ..."
-              hint="Auto-filled from Google Business Profile, or enter manually"
-              onInput={(e) =>
-                setPlaceId((e.target as HTMLInputElement).value)
-              }
-              class="md:col-span-2"
-            />
           </div>
         </SectionCard>
 
@@ -259,6 +257,131 @@ export function SettingsPage() {
             error={locationsError()}
             errorHint={locationsErrorHint()}
           />
+        </SectionCard>
+
+        <SectionCard title="Review Links" icon={Link2}>
+          <p class="mb-4 text-sm text-muted-foreground">
+            Add review links for each platform. Customers will be directed to these
+            links after submitting their feedback.
+          </p>
+
+          <div class="space-y-4">
+            <For each={enabledPlatforms()}>
+              {(slug) => {
+                const platform = getPlatformBySlug(slug);
+                if (!platform) return null;
+                return (
+                  <div class="flex items-start gap-3">
+                    <div
+                      class="mt-2.5 flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
+                      style={{ "background-color": platform.color }}
+                    >
+                      {platform.isCustom && reviewLinks()[CUSTOM_LABEL_KEY]
+                        ? reviewLinks()[CUSTOM_LABEL_KEY].charAt(0).toUpperCase()
+                        : platform.label.charAt(0)}
+                    </div>
+                    <div class="flex-1 space-y-3">
+                      <Show when={platform.isCustom}>
+                        <FormField
+                          id={`review-link-label-${slug}`}
+                          label="Platform Name"
+                          value={reviewLinks()[CUSTOM_LABEL_KEY] ?? ""}
+                          placeholder="e.g. Sulekha, Amazon, Angi"
+                          hint="Give this platform a name"
+                          onInput={(e) =>
+                            setReviewLinks((prev) => ({
+                              ...prev,
+                              [CUSTOM_LABEL_KEY]: (
+                                e.target as HTMLInputElement
+                              ).value,
+                            }))
+                          }
+                        />
+                      </Show>
+                      <FormField
+                        id={`review-link-${slug}`}
+                        label={
+                          platform.isCustom && reviewLinks()[CUSTOM_LABEL_KEY]
+                            ? reviewLinks()[CUSTOM_LABEL_KEY]
+                            : platform.label + " Review Link"
+                        }
+                        value={reviewLinks()[slug] ?? ""}
+                        placeholder={platform.placeholder}
+                        hint={
+                          platform.isCustom
+                            ? "URL for this platform's review page"
+                            : `URL for ${platform.label} review page`
+                        }
+                        onInput={(e) =>
+                          updateReviewLink(
+                            slug,
+                            (e.target as HTMLInputElement).value,
+                          )
+                        }
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeReviewLink(slug)}
+                      class="mt-8 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      aria-label={`Remove ${platform.label} link`}
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                );
+              }}
+            </For>
+          </div>
+
+          <Show when={availablePlatforms().length > 0}>
+            <div class="mt-4">
+              <Show
+                when={addingPlatform()}
+                fallback={
+                  <button
+                    type="button"
+                    onClick={() => setAddingPlatform(true)}
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                  >
+                    <Plus size={16} />
+                    Add platform
+                  </button>
+                }
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  <For each={availablePlatforms()}>
+                    {(platform) => (
+                      <button
+                        type="button"
+                        onClick={() => addPlatform(platform.slug)}
+                        class="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                      >
+                        <span
+                          class="size-2 rounded-full"
+                          style={{ "background-color": platform.color }}
+                        />
+                        {platform.label}
+                      </button>
+                    )}
+                  </For>
+                  <button
+                    type="button"
+                    onClick={() => setAddingPlatform(false)}
+                    class="text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </Show>
+            </div>
+          </Show>
+
+          <Show when={enabledPlatforms().length === 0}>
+            <p class="mt-2 text-xs text-muted-foreground/70">
+              No review links configured. Click "Add platform" to get started.
+            </p>
+          </Show>
         </SectionCard>
 
         <SectionCard title="Platform Preferences" icon={SlidersHorizontal}>
@@ -287,36 +410,56 @@ export function SettingsPage() {
             about your business. These help the AI emphasize the topics that
             matter most to you.
           </p>
-          <div class="flex flex-wrap items-center gap-2">
-            <For each={parsedKeywords()}>
-              {(keyword) => (
-                <span class="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-sm text-foreground">
-                  {keyword}
-                  <button
-                    type="button"
-                    onClick={() => removeKeyword(keyword)}
-                    class="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-destructive/10 hover:text-destructive"
-                    aria-label={`Remove keyword: ${keyword}`}
-                  >
-                    <X size={12} />
-                  </button>
-                </span>
+          <TagsInput.Root
+            value={parsedKeywords()}
+            onValueChange={(details) => setKeywords(details.value.join(", "))}
+            delimiter=","
+            blurBehavior="add"
+            addOnPaste
+            validate={({ inputValue }) => {
+              const trimmed = inputValue.trim();
+              const existing = parsedKeywords();
+              return trimmed !== "" && !existing.includes(trimmed);
+            }}
+          >
+            <TagsInput.Context>
+              {(api) => (
+                <>
+                  <TagsInput.Control class="flex min-h-10 flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
+                    <Index each={api().value}>
+                      {(keyword, index) => (
+                        <TagsInput.Item
+                          index={index}
+                          value={keyword()}
+                          class="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-sm text-foreground"
+                        >
+                          <TagsInput.ItemPreview>
+                            <TagsInput.ItemText>{keyword()}</TagsInput.ItemText>
+                            <TagsInput.ItemDeleteTrigger class="ml-0.5 rounded-full p-0.5 transition-colors hover:bg-destructive/10 hover:text-destructive">
+                              <X size={12} />
+                            </TagsInput.ItemDeleteTrigger>
+                          </TagsInput.ItemPreview>
+                          <TagsInput.ItemInput />
+                        </TagsInput.Item>
+                      )}
+                    </Index>
+                    <TagsInput.Input
+                      placeholder={
+                        parsedKeywords().length > 0
+                          ? "Add another keyword..."
+                          : "e.g. customer service, quality, fast delivery"
+                      }
+                      class="h-8 min-w-40 flex-1 bg-transparent px-2 text-sm placeholder:text-muted-foreground focus:outline-none"
+                    />
+                    <TagsInput.ClearTrigger class="whitespace-nowrap text-xs text-muted-foreground hover:text-foreground">
+                      Clear all
+                    </TagsInput.ClearTrigger>
+                  </TagsInput.Control>
+                </>
               )}
-            </For>
-            <input
-              type="text"
-              value={keywordInput()}
-              onInput={(e) => setKeywordInput((e.target as HTMLInputElement).value)}
-              onKeyDown={handleKeywordKeyDown}
-              onBlur={addKeyword}
-              placeholder={
-                parsedKeywords().length > 0
-                  ? "Add another keyword..."
-                  : "e.g. customer service, quality, fast delivery"
-              }
-              class="h-8 min-w-40 flex-1 rounded-lg border border-dashed bg-transparent px-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
+            </TagsInput.Context>
+            <TagsInput.HiddenInput />
+          </TagsInput.Root>
           <p class="mt-2 text-xs text-muted-foreground">
             Press Enter or comma to add. Click X to remove.
           </p>

@@ -1,8 +1,11 @@
 import { createContext, useContext } from "solid-js";
 import type { Accessor, Setter } from "solid-js";
+import type { ReviewLinksMap } from "~/features/settings/review-platforms";
 
 export interface SettingsData {
   placeId: string;
+  reviewLink: string;
+  reviewLinks: ReviewLinksMap;
   logo: string | null;
   businessName: string;
   phone: string;
@@ -13,6 +16,10 @@ export interface SettingsData {
 export interface SettingsContextValue {
   placeId: Accessor<string>;
   setPlaceId: Setter<string>;
+  reviewLink: Accessor<string>;
+  setReviewLink: Setter<string>;
+  reviewLinks: Accessor<ReviewLinksMap>;
+  setReviewLinks: Setter<ReviewLinksMap>;
   logo: Accessor<string | null>;
   setLogo: Setter<string | null>;
   businessName: Accessor<string>;

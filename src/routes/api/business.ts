@@ -15,8 +15,17 @@ export async function GET(event: APIEvent) {
 
   const business = user?.business;
 
+  const reviewLinks =
+    business?.reviewLinks &&
+    typeof business.reviewLinks === "object" &&
+    !Array.isArray(business.reviewLinks)
+      ? (business.reviewLinks as Record<string, string>)
+      : {};
+
   return Response.json({
     placeId: business?.placeId ?? "",
+    reviewLink: business?.reviewLink ?? "",
+    reviewLinks,
     logo: business?.logo ?? null,
     businessName: business?.name ?? "",
     phone: business?.phone ?? "",
@@ -34,7 +43,7 @@ export async function POST(event: APIEvent) {
 
   try {
     const body = await event.request.json();
-    const { placeId, logo, businessName, phone, address, keywords } = body;
+    const { placeId, reviewLink, reviewLinks, logo, businessName, phone, address, keywords } = body;
 
     if (typeof businessName !== "string" || !businessName.trim()) {
       return Response.json(
@@ -45,6 +54,11 @@ export async function POST(event: APIEvent) {
 
     const data = {
       placeId: typeof placeId === "string" ? placeId : null,
+      reviewLink: typeof reviewLink === "string" ? reviewLink : null,
+      reviewLinks:
+        typeof reviewLinks === "object" && reviewLinks !== null && !Array.isArray(reviewLinks)
+          ? reviewLinks
+          : undefined,
       logo: typeof logo === "string" ? logo : null,
       name: businessName.trim(),
       phone: typeof phone === "string" ? phone : null,
@@ -64,8 +78,17 @@ export async function POST(event: APIEvent) {
       }),
     ]);
 
+    const savedLinks =
+      business.reviewLinks &&
+      typeof business.reviewLinks === "object" &&
+      !Array.isArray(business.reviewLinks)
+        ? (business.reviewLinks as Record<string, string>)
+        : {};
+
     return Response.json({
       placeId: business.placeId ?? "",
+      reviewLink: business.reviewLink ?? "",
+      reviewLinks: savedLinks,
       logo: business.logo ?? null,
       businessName: business.name,
       phone: business.phone ?? "",

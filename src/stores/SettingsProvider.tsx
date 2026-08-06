@@ -4,9 +4,12 @@ import {
   type SettingsContextValue,
   type SettingsData,
 } from "./settings-store";
+import type { ReviewLinksMap } from "~/features/settings/review-platforms";
 
 const EMPTY: SettingsData = {
   placeId: "",
+  reviewLink: "",
+  reviewLinks: {},
   logo: null,
   businessName: "",
   phone: "",
@@ -21,6 +24,10 @@ async function fetchBusiness(): Promise<SettingsData> {
     const data = await res.json();
     return {
       placeId: typeof data.placeId === "string" ? data.placeId : "",
+      reviewLink: typeof data.reviewLink === "string" ? data.reviewLink : "",
+      reviewLinks: typeof data.reviewLinks === "object" && data.reviewLinks !== null
+        ? data.reviewLinks
+        : {},
       logo: typeof data.logo === "string" ? data.logo : null,
       businessName: typeof data.businessName === "string" ? data.businessName : "",
       phone: typeof data.phone === "string" ? data.phone : "",
@@ -34,6 +41,8 @@ async function fetchBusiness(): Promise<SettingsData> {
 
 export function SettingsProvider(props: ParentProps) {
   const [placeId, setPlaceIdSignal] = createSignal("");
+  const [reviewLink, setReviewLinkSignal] = createSignal("");
+  const [reviewLinks, setReviewLinksSignal] = createSignal<ReviewLinksMap>({});
   const [logo, setLogoSignal] = createSignal<string | null>(null);
   const [businessName, setBusinessNameSignal] = createSignal("");
   const [phone, setPhoneSignal] = createSignal("");
@@ -43,6 +52,8 @@ export function SettingsProvider(props: ParentProps) {
   const refetch = async (): Promise<SettingsData> => {
     const data = await fetchBusiness();
     setPlaceIdSignal(data.placeId);
+    setReviewLinkSignal(data.reviewLink);
+    setReviewLinksSignal(data.reviewLinks);
     setLogoSignal(data.logo);
     setBusinessNameSignal(data.businessName);
     setPhoneSignal(data.phone);
@@ -53,6 +64,8 @@ export function SettingsProvider(props: ParentProps) {
 
   const updateSettings = (data: Partial<SettingsData>) => {
     if (data.placeId !== undefined) setPlaceIdSignal(data.placeId);
+    if (data.reviewLink !== undefined) setReviewLinkSignal(data.reviewLink);
+    if (data.reviewLinks !== undefined) setReviewLinksSignal(data.reviewLinks);
     if (data.logo !== undefined) setLogoSignal(data.logo);
     if (data.businessName !== undefined) setBusinessNameSignal(data.businessName);
     if (data.phone !== undefined) setPhoneSignal(data.phone);
@@ -66,6 +79,14 @@ export function SettingsProvider(props: ParentProps) {
 
   const setPlaceId: typeof setPlaceIdSignal = (value) => {
     return setPlaceIdSignal(value);
+  };
+
+  const setReviewLink: typeof setReviewLinkSignal = (value) => {
+    return setReviewLinkSignal(value);
+  };
+
+  const setReviewLinks: typeof setReviewLinksSignal = (value) => {
+    return setReviewLinksSignal(value);
   };
 
   const setLogo: typeof setLogoSignal = (value) => {
@@ -91,6 +112,10 @@ export function SettingsProvider(props: ParentProps) {
   const value: SettingsContextValue = {
     placeId,
     setPlaceId,
+    reviewLink,
+    setReviewLink,
+    reviewLinks,
+    setReviewLinks,
     logo,
     setLogo,
     businessName,
