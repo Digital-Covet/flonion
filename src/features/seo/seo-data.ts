@@ -44,6 +44,7 @@ export const businessInfo: BusinessInfo = {
   },
   rating: 4.2,
   reviewCount: 87,
+  reviewLink: 'https://search.google.com/local/writereview?placeid=ChIJGblnVa655zsRtRfkePjHE8E',
 }
 
 export const keywordSuggestions: KeywordSuggestion[] = [
@@ -112,7 +113,7 @@ export const seoScore: SeoScore = {
 }
 
 export const quickLinks: QuickLink[] = [
-  { id: 'ql1', label: 'View on Google', href: 'https://search.google.com/local/writereview?placeid=ChIJGblnVa655zsRtRfkePjHE8E', external: true },
+  { id: 'ql1', label: 'View on Google', href: businessInfo.reviewLink, external: true },
   { id: 'ql2', label: 'Review Inbox', href: '/reviews/inbox', external: false },
   { id: 'ql3', label: 'Request Reviews', href: '/reviews/new', external: false },
   { id: 'ql4', label: 'Share Profile', href: '#', external: false },

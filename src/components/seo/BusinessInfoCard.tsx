@@ -58,7 +58,7 @@ const BusinessInfoCard: Component<BusinessInfoCardProps> = (props) => {
         </div>
         <div class="flex items-center gap-2">
           <a
-            href="https://search.google.com/local/writereview?placeid=ChIJGblnVa655zsRtRfkePjHE8E"
+            href={props.info.reviewLink}
             target="_blank"
             rel="noopener noreferrer"
             class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"

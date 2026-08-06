@@ -14,6 +14,8 @@ export interface BusinessInfo {
   hours: Record<string, DayHours>
   rating: number
   reviewCount: number
+  reviewLink: string
+  reviewLinks?: Record<string, string>
 }
 
 export type SearchVolume = 'high' | 'medium' | 'low'
