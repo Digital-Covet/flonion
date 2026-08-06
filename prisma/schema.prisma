@@ -36,8 +36,10 @@ model Business {
   id        String   @id @default(cuid())
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  placeId   String?
-  logo      String?
+  placeId    String?
+  reviewLink  String?
+  reviewLinks Json?
+  logo        String?
   name      String
   phone     String?
   address   String?
