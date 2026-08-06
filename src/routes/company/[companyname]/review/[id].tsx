@@ -1,6 +1,7 @@
 import {
   createEffect,
   createSignal,
+  For,
   onCleanup,
   onMount,
   Show,
@@ -10,6 +11,7 @@ import CheckCircle from "lucide-solid/icons/check-circle";
 import AlertTriangle from "lucide-solid/icons/alert-triangle";
 import MapPin from "lucide-solid/icons/map-pin";
 import Phone from "lucide-solid/icons/phone";
+import ExternalLink from "lucide-solid/icons/external-link";
 import type {
   Rating,
   ReviewDraft,
@@ -18,12 +20,22 @@ import type {
 import { ReviewComposer } from "~/components/review/review-composer";
 import InlineCombinationMark from "@/assets/inline-combination-mark";
 import { toSlug } from "~/lib/slug";
+import {
+  REVIEW_PLATFORMS,
+  getPlatformBySlug,
+  getPlatformLabel,
+  CUSTOM_LABEL_KEY,
+  type ReviewLinksMap,
+} from "~/features/settings/review-platforms";
 
 interface BusinessInfo {
   logo: string | null;
   name: string;
   phone: string | null;
   address: string | null;
+  placeId: string | null;
+  reviewLink: string | null;
+  reviewLinks: ReviewLinksMap | null;
 }
 
 const tones = ["Simple", "Professional", "Casual"] as const;
@@ -278,17 +290,57 @@ export default function PublicReviewPage() {
                     Thank you!
                   </h1>
                   <p class="mt-2 text-sm text-muted-foreground">
-                    Your review is ready to post on Google.
+                    Your review is ready. Choose a platform to post it on:
                   </p>
                   <div class="mt-6 flex flex-col items-center gap-3">
-                    <a
-                      href="https://search.google.com/local/writereview"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
+                    <Show
+                      when={
+                        business()?.reviewLinks &&
+                        Object.keys(business()!.reviewLinks!).filter(
+                          (k) => k !== CUSTOM_LABEL_KEY,
+                        ).length > 0
+                      }
+                      fallback={
+                        <a
+                          href={
+                            business()?.reviewLink ||
+                            `https://search.google.com/local/writereview?placeid=${business()?.placeId}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
+                        >
+                          <ExternalLink class="size-4" />
+                          Continue to Google
+                        </a>
+                      }
                     >
-                      Continue to Google
-                    </a>
+                      <For
+                        each={Object.entries(business()!.reviewLinks!).filter(
+                          ([key]) => key !== CUSTOM_LABEL_KEY && key !== "other" || (key === "other" && business()!.reviewLinks!["other"]),
+                        )}
+                      >
+                        {([slug, url]) => {
+                          if (!url || slug === CUSTOM_LABEL_KEY) return null;
+                          const platform = getPlatformBySlug(slug);
+                          const label = getPlatformLabel(slug, business()!.reviewLinks!);
+                          return (
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              class="inline-flex h-11 items-center gap-2 rounded-lg px-6 text-sm font-medium text-white shadow-sm transition-colors hover:opacity-90"
+                              style={{
+                                "background-color": platform?.color ?? "#666",
+                              }}
+                            >
+                              <ExternalLink class="size-4" />
+                              Post on {label}
+                            </a>
+                          );
+                        }}
+                      </For>
+                    </Show>
                     <Show when={business()}>
                       <p class="text-xs text-muted-foreground/60">
                         {business()?.name}
