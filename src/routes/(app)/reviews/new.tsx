@@ -22,7 +22,7 @@ import { useSettings } from "~/stores/settings-store";
 const tones = ["Simple", "Professional", "Casual"] as const;
 
 const initialDraft: ReviewDraft = {
-  rating: 1,
+  rating: 0,
   text: "",
 };
 
@@ -194,7 +194,7 @@ export default function LeaveReviewPage() {
 
   return (
     <div class="mx-auto max-w-7xl">
-      <Title>Ask a Review — Cognitive Enterprise</Title>
+      <Title>Ask for a Review — Flonion</Title>
       <nav aria-label="Breadcrumb" class="mb-2 text-sm text-muted-foreground">
         <ol class="flex items-center gap-1.5">
           <li>
@@ -207,15 +207,18 @@ export default function LeaveReviewPage() {
           </li>
           <li aria-hidden="true">/</li>
           <li aria-current="page" class="font-medium text-foreground">
-            Ask a Review
+            Ask for a Review
           </li>
         </ol>
       </nav>
 
       <div class="mb-6">
         <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-          Ask a Review
+          Ask for a Review
         </h1>
+        <p class="mt-1 text-sm text-muted-foreground">
+          Send a personalized review request to your customer.
+        </p>
       </div>
 
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -226,6 +229,13 @@ export default function LeaveReviewPage() {
             businessName={businessName()}
             phone={phone()}
             address={address()}
+            heading="Review Request"
+            ratingLabel="Suggested rating (optional)"
+            ratingHint="Your customer can change this before submitting."
+            placeholder={`Hi! We'd love to hear about your experience with ${businessName()}...`}
+            submitLabel="Create Review Request"
+            aiButtonLabel="Improve with AI"
+            showShareButton
             actions={{
               setRating,
               setText,
@@ -266,17 +276,16 @@ export default function LeaveReviewPage() {
 
               <Show when={suggestions().length === 0 && !loading()}>
                 <p class="rounded-lg border border-dashed border-border bg-muted/40 px-4 py-5 text-sm text-muted-foreground">
-                  No suggestions yet. Write a review draft and click AI Suggest
-                  to generate improved versions.
+                  Write a message and click Improve with AI to generate clearer, more engaging versions.
                 </p>
               </Show>
             </div>
           </section>
-
-          <div class="border-t border-border pt-6">
-            <RecentReviewsWidget reviews={mockRecentReviews} />
-          </div>
         </div>
+      </div>
+
+      <div class="mt-8 max-w-2xl border-t border-border pt-6">
+        <RecentReviewsWidget reviews={mockRecentReviews} showViewAll />
       </div>
 
       <div aria-live="polite" aria-atomic="true" class="sr-only">

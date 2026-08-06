@@ -1,26 +1,21 @@
 import {
   createEffect,
   createSignal,
-  For,
   onCleanup,
   onMount,
   Show,
-  Suspense,
 } from "solid-js";
 import { Title, Meta } from "@solidjs/meta";
 import CheckCircle from "lucide-solid/icons/check-circle";
 import AlertTriangle from "lucide-solid/icons/alert-triangle";
 import MapPin from "lucide-solid/icons/map-pin";
 import Phone from "lucide-solid/icons/phone";
-import Sparkles from "lucide-solid/icons/sparkles";
-import Star from "lucide-solid/icons/star";
 import type {
   Rating,
   ReviewDraft,
   ReviewSuggestion,
 } from "@/features/reviews/review-types";
 import { ReviewComposer } from "~/components/review/review-composer";
-import { SuggestionCard } from "~/components/review/suggestion-card";
 import Wordmark from "@/assets/wordmark";
 import { toSlug } from "~/lib/slug";
 
@@ -51,11 +46,12 @@ export default function PublicReviewPage() {
   const [business, setBusiness] = createSignal<BusinessInfo | null>(null);
   const [companyMismatch, setCompanyMismatch] = createSignal(false);
 
-  const [draft, setDraft] = createSignal<ReviewDraft>({ rating: 5, text: "" });
+  const [draft, setDraft] = createSignal<ReviewDraft>({ rating: 0, text: "" });
   const [suggestions, setSuggestions] = createSignal<ReviewSuggestion[]>([]);
   const [statusMessage, setStatusMessage] = createSignal("");
   const [aiLoading, setAiLoading] = createSignal(false);
   const [cooldown, setCooldown] = createSignal(false);
+  const [showSuggestions, setShowSuggestions] = createSignal(false);
 
   let dismissTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -146,6 +142,7 @@ export default function PublicReviewPage() {
     }
 
     setAiLoading(true);
+    setShowSuggestions(true);
     setStatusMessage("Generating AI suggestions...");
 
     try {
@@ -273,24 +270,32 @@ export default function PublicReviewPage() {
             <Show
               when={!submitted()}
               fallback={
-                <div class="w-full max-w-lg animate-[fade-in-up_0.4s_ease-out_both] rounded-2xl border border-border/60 bg-card/80 p-8 text-center shadow-md backdrop-blur-sm sm:p-10">
-                  <div class="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/10 to-purple/10">
-                    <CheckCircle class="size-8 text-primary" />
-                  </div>
-                  <h1 class="font-heading text-2xl font-bold text-foreground">
-                    Thank you!
-                  </h1>
-                  <p class="mt-2 text-sm text-muted-foreground">
-                    Your review has been submitted successfully.
-                  </p>
+              <div class="w-full max-w-lg animate-[fade-in-up_0.4s_ease-out_both] rounded-2xl border border-border/60 bg-card/80 p-8 text-center shadow-md backdrop-blur-sm sm:p-10">
+                <div class="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/10 to-purple/10">
+                  <CheckCircle class="size-8 text-primary" />
+                </div>
+                <h1 class="font-heading text-2xl font-bold text-foreground">
+                  Thank you!
+                </h1>
+                <p class="mt-2 text-sm text-muted-foreground">
+                  Your review is ready to post on Google.
+                </p>
+                <div class="mt-6 flex flex-col items-center gap-3">
+                  <a
+                    href="https://search.google.com/local/writereview"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
+                  >
+                    Continue to Google
+                  </a>
                   <Show when={business()}>
-                    <div class="mt-6 border-t border-border/60 pt-5">
-                      <p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        {business()?.name}
-                      </p>
-                    </div>
+                    <p class="text-xs text-muted-foreground/60">
+                      {business()?.name}
+                    </p>
                   </Show>
                 </div>
+              </div>
               }
             >
               <div class="flex w-full max-w-2xl flex-col gap-6">
@@ -335,8 +340,11 @@ export default function PublicReviewPage() {
                     </div>
 
                     <div class="mt-5 border-t border-border/60 pt-4 text-center sm:text-left">
-                      <p class="text-xs font-medium text-muted-foreground/70">
-                        Share your experience with {business()?.name}
+                      <p class="text-sm font-medium text-foreground">
+                        How was your experience with {business()?.name}?
+                      </p>
+                      <p class="mt-1 text-xs text-muted-foreground/70">
+                        Your feedback takes less than a minute.
                       </p>
                     </div>
                   </div>
@@ -361,59 +369,24 @@ export default function PublicReviewPage() {
                       setText,
                       fetchSuggestions,
                       submitReview,
+                      applySuggestion,
+                      dismissSuggestion,
                     }}
                     logo={business()?.logo}
                     businessName={business()?.name}
                     hideBusinessInfo
-                    showBusinessNameInHeading
+                    heading="Your Review"
+                    ratingLabel="How would you rate your experience?"
+                    placeholder="What did you like? What could we improve?"
+                    submitLabel="Submit Review"
+                    aiButtonLabel="Improve with AI"
                     aiLoading={aiLoading()}
                     cooldown={cooldown()}
+                    suggestions={suggestions()}
+                    showSuggestions={showSuggestions()}
+                    showTrustStatement
                   />
                 </div>
-
-                <section
-                  aria-labelledby="suggestions-heading"
-                  class="animate-[fade-in-up_0.4s_ease-out_0.2s_both]"
-                >
-                  <div class="flex items-center gap-2">
-                    <Sparkles class="size-5 text-primary" aria-hidden="true" />
-                    <h2
-                      id="suggestions-heading"
-                      class="font-heading text-lg font-semibold text-foreground"
-                    >
-                      AI Suggestions
-                    </h2>
-                    <Show when={aiLoading()}>
-                      <span class="ml-auto text-xs text-muted-foreground animate-pulse">
-                        Thinking...
-                      </span>
-                    </Show>
-                  </div>
-
-                  <div class="mt-4 space-y-3">
-                    <For each={suggestions()}>
-                      {(suggestion, index) => (
-                        <SuggestionCard
-                          suggestion={suggestion}
-                          onApply={applySuggestion}
-                          onDismiss={dismissSuggestion}
-                          style={`animation-delay: ${index() * 80}ms`}
-                        />
-                      )}
-                    </For>
-
-                    <Show when={suggestions().length === 0 && !aiLoading()}>
-                      <div class="rounded-xl border border-dashed border-border/60 bg-muted/30 px-4 py-6 text-center">
-                        <Sparkles class="mx-auto mb-2 size-5 text-muted-foreground/40" aria-hidden="true" />
-                        <p class="text-sm text-muted-foreground">
-                          No suggestions yet. Write a review draft and click{" "}
-                          <span class="font-medium text-foreground">AI Suggest</span>{" "}
-                          to generate improved versions.
-                        </p>
-                      </div>
-                    </Show>
-                  </div>
-                </section>
 
                 <p class="flex items-center justify-center gap-1.5 text-xs text-muted-foreground/50">
                   Powered by{" "}

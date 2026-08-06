@@ -11,7 +11,7 @@ export async function POST(event: APIEvent) {
 
     const { text, rating, keywords, id } = body;
 
-    if (typeof rating !== "number" || rating < 1 || rating > 5) {
+    if (id && (typeof rating !== "number" || rating < 1 || rating > 5)) {
       return Response.json(
         { error: "rating must be a number between 1 and 5" },
         { status: 400 },
