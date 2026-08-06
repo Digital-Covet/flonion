@@ -19,10 +19,6 @@ import type {
   NavId,
 } from '../types'
 
-export const GOOGLE_PLACE_ID = "ChIJGblnVa655zsRtRfkePjHE8E"
-
-export const GOOGLE_REVIEW_URL = `https://search.google.com/local/writereview?placeid=${GOOGLE_PLACE_ID}`
-
 export const ACTIVE_NAV_ID: NavId = 'dashboard'
 
 export const NAV_ITEMS: NavItem[] = [

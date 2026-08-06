@@ -5,7 +5,6 @@ declare namespace Env {
     GOOGLE_CLIENT_ID: string
     GOOGLE_CLIENT_SECRET: string
     GOOGLE_REDIRECT_URI: string
-    GOOGLE_PLACE_ID: string
     OPENROUTER_API_KEY: string
   }
 }
