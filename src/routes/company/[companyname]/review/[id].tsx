@@ -16,7 +16,7 @@ import type {
   ReviewSuggestion,
 } from "@/features/reviews/review-types";
 import { ReviewComposer } from "~/components/review/review-composer";
-import Wordmark from "@/assets/wordmark";
+import InlineCombinationMark from "@/assets/inline-combination-mark";
 import { toSlug } from "~/lib/slug";
 
 interface BusinessInfo {
@@ -270,32 +270,32 @@ export default function PublicReviewPage() {
             <Show
               when={!submitted()}
               fallback={
-              <div class="w-full max-w-lg animate-[fade-in-up_0.4s_ease-out_both] rounded-2xl border border-border/60 bg-card/80 p-8 text-center shadow-md backdrop-blur-sm sm:p-10">
-                <div class="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/10 to-purple/10">
-                  <CheckCircle class="size-8 text-primary" />
+                <div class="w-full max-w-lg animate-[fade-in-up_0.4s_ease-out_both] rounded-2xl border border-border/60 bg-card/80 p-8 text-center shadow-md backdrop-blur-sm sm:p-10">
+                  <div class="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-linear-to-br from-primary/10 to-purple/10">
+                    <CheckCircle class="size-8 text-primary" />
+                  </div>
+                  <h1 class="font-heading text-2xl font-bold text-foreground">
+                    Thank you!
+                  </h1>
+                  <p class="mt-2 text-sm text-muted-foreground">
+                    Your review is ready to post on Google.
+                  </p>
+                  <div class="mt-6 flex flex-col items-center gap-3">
+                    <a
+                      href="https://search.google.com/local/writereview"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
+                    >
+                      Continue to Google
+                    </a>
+                    <Show when={business()}>
+                      <p class="text-xs text-muted-foreground/60">
+                        {business()?.name}
+                      </p>
+                    </Show>
+                  </div>
                 </div>
-                <h1 class="font-heading text-2xl font-bold text-foreground">
-                  Thank you!
-                </h1>
-                <p class="mt-2 text-sm text-muted-foreground">
-                  Your review is ready to post on Google.
-                </p>
-                <div class="mt-6 flex flex-col items-center gap-3">
-                  <a
-                    href="https://search.google.com/local/writereview"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
-                  >
-                    Continue to Google
-                  </a>
-                  <Show when={business()}>
-                    <p class="text-xs text-muted-foreground/60">
-                      {business()?.name}
-                    </p>
-                  </Show>
-                </div>
-              </div>
               }
             >
               <div class="flex w-full max-w-2xl flex-col gap-6">
@@ -305,7 +305,7 @@ export default function PublicReviewPage() {
                       <Show
                         when={business()?.logo}
                         fallback={
-                          <div class="flex size-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/10 to-purple/10 text-3xl font-bold text-primary sm:size-24">
+                          <div class="flex size-20 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-primary/10 to-purple/10 text-3xl font-bold text-primary sm:size-24">
                             {business()?.name?.charAt(0) || "?"}
                           </div>
                         }
@@ -390,7 +390,7 @@ export default function PublicReviewPage() {
 
                 <p class="flex items-center justify-center gap-1.5 text-xs text-muted-foreground/50">
                   Powered by{" "}
-                  <Wordmark class="h-3.5 w-auto text-muted-foreground/60" />
+                  <InlineCombinationMark class="h-3.5 w-auto text-muted-foreground/60" />
                 </p>
               </div>
             </Show>
@@ -414,11 +414,10 @@ export default function PublicReviewPage() {
       <Show when={statusMessage()}>
         <div class="fixed top-4 right-4 z-30 max-w-sm animate-[fade-in-up_0.2s_ease-out]">
           <div
-            class={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-md backdrop-blur-sm ${
-              isSuccessMessage(statusMessage())
-                ? "border-positive/20 bg-positive-muted text-foreground"
-                : "border-destructive/20 bg-destructive-muted text-foreground"
-            }`}
+            class={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-md backdrop-blur-sm ${isSuccessMessage(statusMessage())
+              ? "border-positive/20 bg-positive-muted text-foreground"
+              : "border-destructive/20 bg-destructive-muted text-foreground"
+              }`}
           >
             <Show
               when={isSuccessMessage(statusMessage())}
