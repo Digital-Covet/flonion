@@ -6,6 +6,9 @@ import {
   type Component,
 } from 'solid-js';
 import { Field } from '@ark-ui/solid/field';
+import { PasswordInput } from '@ark-ui/solid/password-input';
+import EyeIcon from 'lucide-solid/icons/eye';
+import EyeOffIcon from 'lucide-solid/icons/eye-off';
 import LogIn from 'lucide-solid/icons/log-in';
 import LoaderCircleIcon from 'lucide-solid/icons/loader-circle';
 import Check from 'lucide-solid/icons/check';
@@ -73,19 +76,26 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
         </Field.Root>
 
         <Field.Root>
-          <Field.Label class="mb-1.5 block text-sm font-medium text-foreground">
-            Password
-          </Field.Label>
-          <Field.Input
-            type="password"
-            required
-            placeholder="Enter your password"
-            value={password()}
-            autocomplete="current-password"
-            disabled={!isInteractive()}
-            onInput={(event) => setPassword(event.currentTarget.value)}
-            class="w-full rounded-full border border-input bg-card px-6 py-4 text-base text-foreground outline-none transition-colors focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
-          />
+          <PasswordInput.Root>
+            <Field.Label class="mb-1.5 block text-sm font-medium text-foreground">
+              Password
+            </Field.Label>
+            <PasswordInput.Control class="flex w-full items-center rounded-full border border-input bg-card px-6 py-4 transition-colors focus-within:ring-2 focus-within:ring-primary/20">
+              <PasswordInput.Input
+                required
+                placeholder="Enter your password"
+                autocomplete="current-password"
+                disabled={!isInteractive()}
+                onInput={(event) => setPassword(event.currentTarget.value)}
+                class="w-full bg-transparent text-base text-foreground outline-none disabled:opacity-60"
+              />
+              <PasswordInput.VisibilityTrigger disabled={!isInteractive()} class="ml-2 shrink-0 text-muted-foreground transition-colors hover:text-foreground">
+                <PasswordInput.Indicator fallback={<EyeOffIcon class="h-4 w-4" />}>
+                  <EyeIcon class="h-4 w-4" />
+                </PasswordInput.Indicator>
+              </PasswordInput.VisibilityTrigger>
+            </PasswordInput.Control>
+          </PasswordInput.Root>
         </Field.Root>
 
         {errorMessage() && (

@@ -6,11 +6,12 @@ import {
   type Component,
 } from 'solid-js';
 import { Field } from '@ark-ui/solid/field';
+import { PasswordInput } from '@ark-ui/solid/password-input';
 import Sparkles from 'lucide-solid/icons/sparkles';
 import LoaderCircleIcon from 'lucide-solid/icons/loader-circle';
 import Check from 'lucide-solid/icons/check';
-import Eye from 'lucide-solid/icons/eye';
-import EyeOff from 'lucide-solid/icons/eye-off';
+import EyeIcon from 'lucide-solid/icons/eye';
+import EyeOffIcon from 'lucide-solid/icons/eye-off';
 import type { FormStatus, SignUpFormProps } from '@/types/auth-ui';
 
 const PASSWORD_MIN_LENGTH = 8;
@@ -50,16 +51,9 @@ function hasNumber(pw: string): boolean {
   return /\d/.test(pw);
 }
 
-const EyeIcon: Component<{ visible: boolean; class?: string }> = (props) => (
-  <Switch>
-    <Match when={props.visible}>
-      <EyeOff class={props.class} />
-    </Match>
-    <Match when={!props.visible}>
-      <Eye class={props.class} />
-    </Match>
-  </Switch>
-);
+function hasSymbol(pw: string): boolean {
+  return /[^A-Za-z0-9]/.test(pw);
+}
 
 const Requirement: Component<{ met: boolean; label: string }> = (props) => (
   <li
@@ -76,7 +70,6 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
   const [name, setName] = createSignal('');
   const [email, setEmail] = createSignal('');
   const [password, setPassword] = createSignal('');
-  const [showPassword, setShowPassword] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [touchedFields, setTouchedFields] = createSignal<Set<string>>(
     new Set(),
@@ -129,6 +122,15 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
 
     if (password().length < PASSWORD_MIN_LENGTH)
       return `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
+
+    if (!hasUpperCase(password()))
+      return 'Password must contain at least one uppercase letter';
+
+    if (!hasNumber(password()))
+      return 'Password must contain at least one number';
+
+    if (!hasSymbol(password()))
+      return 'Password must contain at least one symbol (@#&!)';
 
     return null;
   };
@@ -210,40 +212,36 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
         </Field.Root>
 
         <Field.Root invalid={!!passwordError()}>
-          <Field.Label class="mb-1.5 block text-sm font-medium text-foreground">
-            Password <span class="text-muted-foreground">*</span>
-          </Field.Label>
-          <div class="relative">
-            <Field.Input
-              type={showPassword() ? 'text' : 'password'}
-              required
-              placeholder="Create a password"
-              value={password()}
-              autocomplete="new-password"
-              disabled={!isInteractive()}
-              onInput={(event) => setPassword(event.currentTarget.value)}
-              onBlur={() => markTouched('password')}
-              class={`w-full rounded-full border border-input bg-card px-6 py-4 pr-12 text-base text-foreground outline-none transition-colors focus:ring-2 focus:ring-primary/20 disabled:opacity-60 ${fieldState(
-                'password',
-                !!passwordError(),
-              )}`}
-            />
-            <button
-              type="button"
-              tabindex={-1}
-              disabled={!isInteractive()}
-              onClick={() => setShowPassword((v) => !v)}
-              class="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-              aria-label={showPassword() ? 'Hide password' : 'Show password'}
-            >
-              <EyeIcon visible={showPassword()} class="h-4 w-4" />
-            </button>
-          </div>
+          <PasswordInput.Root>
+            <Field.Label class="mb-1.5 block text-sm font-medium text-foreground">
+              Password <span class="text-muted-foreground">*</span>
+            </Field.Label>
+            <PasswordInput.Control class={`flex w-full items-center rounded-full border border-input bg-card px-6 py-4 transition-colors focus-within:ring-2 focus-within:ring-primary/20 disabled:opacity-60 ${fieldState(
+              'password',
+              !!passwordError(),
+            )}`}>
+              <PasswordInput.Input
+                required
+                placeholder="Create a password"
+                autocomplete="new-password"
+                disabled={!isInteractive()}
+                onInput={(event) => setPassword(event.currentTarget.value)}
+                onBlur={() => markTouched('password')}
+                class="w-full bg-transparent text-base text-foreground outline-none disabled:opacity-60"
+              />
+              <PasswordInput.VisibilityTrigger disabled={!isInteractive()} class="ml-2 shrink-0 text-muted-foreground transition-colors hover:text-foreground">
+                <PasswordInput.Indicator fallback={<EyeOffIcon class="h-4 w-4" />}>
+                  <EyeIcon class="h-4 w-4" />
+                </PasswordInput.Indicator>
+              </PasswordInput.VisibilityTrigger>
+            </PasswordInput.Control>
+          </PasswordInput.Root>
 
           <ul class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
             <Requirement met={hasMinLength(password())} label="8+ characters" />
             <Requirement met={hasUpperCase(password())} label="One uppercase" />
             <Requirement met={hasNumber(password())} label="One number" />
+            <Requirement met={hasSymbol(password())} label="One symbol (@#&!)" />
           </ul>
 
           {password().length > 0 && (
