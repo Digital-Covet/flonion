@@ -102,30 +102,25 @@ const navigationGroups: NavigationGroup[] = [
 ];
 
 export function Brand(props: { collapsed?: boolean }) {
-  const { logo } = useSettings();
+  const { logo, businessName } = useSettings();
 
   return (
-    <div
-      class="flex min-w-0 items-center gap-2 overflow-hidden text-lg font-semibold tracking-tight text-foreground"
-      aria-label="RevMe"
-    >
-      <Show
-        when={logo()}
-        fallback={
-          <InlineCombinationMark
-            class={`h-6 shrink-0 ${props.collapsed ? "w-8" : "w-auto"}`}
-            aria-hidden="true"
-          />
-        }
+    <div class="flex min-w-0 flex-col gap-1 overflow-hidden">
+      <div
+        class="flex min-w-0 items-center gap-2 text-lg font-semibold tracking-tight text-foreground"
+        aria-label="Flonion"
       >
-        <img
-          src={logo()!}
-          alt=""
-          class={`h-8 shrink-0 object-contain ${props.collapsed ? "w-8" : "w-auto"}`}
+        <InlineCombinationMark
+          class={`h-6 shrink-0 ${props.collapsed ? "w-8" : "w-auto"}`}
+          aria-hidden="true"
         />
+      </div>
+
+      <Show when={!props.collapsed && businessName()}>
+        <p class="truncate px-0.5 text-xs text-muted-foreground">
+          {businessName()}
+        </p>
       </Show>
-
-
     </div>
   );
 }

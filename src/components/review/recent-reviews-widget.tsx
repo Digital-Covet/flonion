@@ -4,6 +4,7 @@ import type { SharedReview } from "@/features/reviews/review-types";
 
 interface RecentReviewsWidgetProps {
   reviews: SharedReview[];
+  showViewAll?: boolean;
 }
 
 function timeAgo(timestamp: string | number): string {
@@ -36,12 +37,22 @@ function initials(name: string): string {
 export function RecentReviewsWidget(props: RecentReviewsWidgetProps) {
   return (
     <section aria-labelledby="recent-reviews-heading">
-      <h2
-        id="recent-reviews-heading"
-        class="text-lg font-semibold text-foreground"
-      >
-        Recent Reviews
-      </h2>
+      <div class="flex items-center justify-between">
+        <h2
+          id="recent-reviews-heading"
+          class="text-lg font-semibold text-foreground"
+        >
+          Recent Reviews
+        </h2>
+        <Show when={props.showViewAll}>
+          <a
+            href="/reviews/inbox"
+            class="text-sm font-medium text-primary transition-colors hover:text-primary/80"
+          >
+            View all &rarr;
+          </a>
+        </Show>
+      </div>
 
       <div class="mt-3 rounded-xl border border-border bg-card p-4 shadow-md">
         <Show
