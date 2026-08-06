@@ -1,6 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "@/db/prisma";
+import { toSlug } from "~/lib/slug";
 
 export async function POST(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -35,9 +36,21 @@ export async function POST(event: APIEvent) {
             : session?.user.name ?? "Anonymous",
           keywords: typeof keywords === "string" ? keywords : existing.keywords,
         },
+        select: {
+          id: true,
+          userId: true,
+        },
       });
 
-      return Response.json({ url: `/review/${review.id}` });
+      const user = await prisma.user.findUnique({
+        where: { id: review.userId },
+        select: { business: { select: { name: true } } },
+      });
+
+      const businessName = user?.business?.name;
+      const slug = businessName ? toSlug(businessName) : "unknown";
+
+      return Response.json({ url: `/company/${slug}/review/${review.id}` });
     }
 
     if (!session) {
@@ -54,7 +67,15 @@ export async function POST(event: APIEvent) {
       },
     });
 
-    return Response.json({ url: `/review/${review.id}` });
+    const user = await prisma.user.findUnique({
+      where: { id: session.session.userId },
+      select: { business: { select: { name: true } } },
+    });
+
+    const businessName = user?.business?.name;
+    const slug = businessName ? toSlug(businessName) : "unknown";
+
+    return Response.json({ url: `/company/${slug}/review/${review.id}` });
   } catch {
     return Response.json(
       { error: "Invalid request body" },

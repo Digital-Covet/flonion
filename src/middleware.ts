@@ -16,6 +16,7 @@ const PUBLIC_PREFIXES = [
   "/api/reviews/share",
   "/api/ai/suggest-review",
   "/review/",
+  "/company/",
 ];
 
 function isPublicPath(pathname: string): boolean {
