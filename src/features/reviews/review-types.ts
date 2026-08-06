@@ -1,7 +1,7 @@
 import type { Component } from "solid-js";
 import type { LucideProps } from "lucide-solid";
 
-export type Rating = 1 | 2 | 3 | 4 | 5;
+export type Rating = 0 | 1 | 2 | 3 | 4 | 5;
 
 export type MetricTrend = "positive" | "negative";
 
