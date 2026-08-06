@@ -50,7 +50,7 @@ function renderBaseHtml(title: string, bodyHtml: string): string {
   <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color:#f6f7f9;">
     <tr>
       <td align="center" style="padding: 24px 0;">
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width:600px;width:100%;background:#fff;border:1px solid #E5E5E5;border-radius:8px;overflow:hidden;font-family: Lato, Helvetica, 'Helvetica Neue', Arial, sans-serif;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;box-sizing:border-box;background:#fff;border:1px solid #E5E5E5;border-radius:8px;overflow:hidden;font-family: Lato, Helvetica, 'Helvetica Neue', Arial, sans-serif;">
           <tr>
             <td style="padding: 32px;">
               <h1 style="margin:0 0 24px;font-size:22px;color:#111;text-align:center;">${escapeHtml(title)}</h1>
