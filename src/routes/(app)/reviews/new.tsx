@@ -5,6 +5,7 @@ import {
   createSignal,
   For,
   onCleanup,
+  onMount,
   Show,
 } from "solid-js";
 import { Title } from "@solidjs/meta";
@@ -16,6 +17,7 @@ import type {
 } from "@/features/reviews/review-types";
 import { RecentReviewsWidget } from "~/components/review/recent-reviews-widget";
 import { ReviewComposer } from "~/components/review/review-composer";
+import { QRCodeDisplay } from "~/components/review/qr-code-display";
 import { SuggestionCard } from "~/components/review/suggestion-card";
 import { useSettings } from "~/stores/settings-store";
 
@@ -67,6 +69,7 @@ export default function LeaveReviewPage() {
   const [statusMessage, setStatusMessage] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [cooldown, setCooldown] = createSignal(false);
+  const [shareUrl, setShareUrl] = createSignal<string | null>(null);
 
   let dismissTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -79,6 +82,27 @@ export default function LeaveReviewPage() {
   });
 
   onCleanup(() => clearTimeout(dismissTimer));
+
+  onMount(async () => {
+    try {
+      const response = await fetch("/api/reviews/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: "",
+          rating: 0,
+          keywords: keywords(),
+        }),
+      });
+
+      if (response.ok) {
+        const { url } = await response.json();
+        setShareUrl(`${window.location.origin}${url}`);
+      }
+    } catch {
+      // QR code will remain in placeholder state if initial generation fails
+    }
+  });
 
   const setRating = (rating: Rating) => {
     setDraft((current) => ({ ...current, rating }));
@@ -170,6 +194,8 @@ export default function LeaveReviewPage() {
       const { url } = await response.json();
       const fullUrl = `${window.location.origin}${url}`;
 
+      setShareUrl(fullUrl);
+
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(fullUrl);
         setStatusMessage("Share link copied to clipboard!");
@@ -221,67 +247,74 @@ export default function LeaveReviewPage() {
         </p>
       </div>
 
-      <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div class="lg:col-span-2">
-          <ReviewComposer
-            draft={draft()}
-            logo={logo()}
-            businessName={businessName()}
-            phone={phone()}
-            address={address()}
-            heading="Review Request"
-            ratingLabel="Suggested rating (optional)"
-            ratingHint="Your customer can change this before submitting."
-            placeholder={`Hi! We'd love to hear about your experience with ${businessName()}...`}
-            submitLabel="Create Review Request"
-            aiButtonLabel="Improve with AI"
-            showShareButton
-            actions={{
-              setRating,
-              setText,
-              fetchSuggestions,
-              shareReview,
-              submitReview,
-            }}
-            aiLoading={loading()}
-            cooldown={cooldown()}
-          />
+      <div class="space-y-6">
+        <div class="flex flex-col gap-6 lg:flex-row">
+          <div class="min-w-0 flex-1">
+            <ReviewComposer
+              draft={draft()}
+              logo={logo()}
+              businessName={businessName()}
+              phone={phone()}
+              address={address()}
+              heading="Review Request"
+              ratingLabel="Suggested rating (optional)"
+              ratingHint="Your customer can change this before submitting."
+              placeholder={`Hi! We'd love to hear about your experience with ${businessName()}...`}
+              submitLabel="Create Review Request"
+              aiButtonLabel="Improve with AI"
+              showShareButton
+              actions={{
+                setRating,
+                setText,
+                fetchSuggestions,
+                shareReview,
+                submitReview,
+              }}
+              aiLoading={loading()}
+              cooldown={cooldown()}
+            />
+          </div>
+          <div class="w-full shrink-0 sm:w-52 lg:w-56">
+            <QRCodeDisplay
+              url={shareUrl()}
+              logo={logo()}
+              businessName={businessName()}
+            />
+          </div>
         </div>
 
-        <div class="space-y-6">
-          <section aria-labelledby="suggestions-heading">
-            <div class="flex items-center justify-between gap-3">
-              <h2
-                id="suggestions-heading"
-                class="text-lg font-semibold text-foreground"
-              >
-                AI Suggestions
-              </h2>
-              <Show when={loading()}>
-                <span class="text-xs text-muted-foreground animate-pulse">Thinking...</span>
-              </Show>
-            </div>
+        <section aria-labelledby="suggestions-heading">
+          <div class="flex items-center justify-between gap-3">
+            <h2
+              id="suggestions-heading"
+              class="text-lg font-semibold text-foreground"
+            >
+              AI Suggestions
+            </h2>
+            <Show when={loading()}>
+              <span class="text-xs text-muted-foreground animate-pulse">Thinking...</span>
+            </Show>
+          </div>
 
-            <div class="mt-3 space-y-3">
-              <For each={suggestions()}>
-                {(suggestion, index) => (
-                  <SuggestionCard
-                    suggestion={suggestion}
-                    onApply={applySuggestion}
-                    onDismiss={dismissSuggestion}
-                    style={`animation-delay: ${index() * 80}ms`}
-                  />
-                )}
-              </For>
+          <div class="mt-3 space-y-3">
+            <For each={suggestions()}>
+              {(suggestion, index) => (
+                <SuggestionCard
+                  suggestion={suggestion}
+                  onApply={applySuggestion}
+                  onDismiss={dismissSuggestion}
+                  style={`animation-delay: ${index() * 80}ms`}
+                />
+              )}
+            </For>
 
-              <Show when={suggestions().length === 0 && !loading()}>
-                <p class="rounded-lg border border-dashed border-border bg-muted/40 px-4 py-5 text-sm text-muted-foreground">
-                  Write a message and click Improve with AI to generate clearer, more engaging versions.
-                </p>
-              </Show>
-            </div>
-          </section>
-        </div>
+            <Show when={suggestions().length === 0 && !loading()}>
+              <p class="rounded-lg border border-dashed border-border bg-muted/40 px-4 py-5 text-sm text-muted-foreground">
+                Write a message and click Improve with AI to generate clearer, more engaging versions.
+              </p>
+            </Show>
+          </div>
+        </section>
       </div>
 
       <div class="mt-8 max-w-2xl border-t border-border pt-6">

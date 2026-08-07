@@ -59,7 +59,7 @@ export function ReviewComposer(props: ReviewComposerProps) {
   return (
     <section
       aria-labelledby="draft-review-heading"
-      class="rounded-xl border border-border bg-card p-5 shadow-md"
+      class="h-full rounded-xl border border-border bg-card p-5 shadow-md"
     >
       <Show when={!props.hideBusinessInfo}>
         <div class="mb-4 rounded-md border border-border bg-muted/40 px-4 py-3">
