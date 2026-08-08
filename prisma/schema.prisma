@@ -132,9 +132,10 @@ model ReviewAnalytics {
   id          String   @id @default(cuid())
   reviewId    String   @unique
   review      SharedReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  visitCount  Int      @default(0)
-  reviewCount Int      @default(0)
-  qrScanCount Int      @default(0)
+  visitCount     Int      @default(0)
+  reviewCount    Int      @default(0)
+  qrScanCount    Int      @default(0)
+  redirectCount  Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
