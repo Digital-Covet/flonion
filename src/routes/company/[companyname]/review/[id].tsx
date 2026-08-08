@@ -125,6 +125,12 @@ export default function PublicReviewPage() {
           );
         }
       }
+
+      fetch("/api/reviews/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewId: id, type: "visit" }),
+      }).catch(() => {});
     } catch {
       setError("Could not connect to the server.");
     } finally {
@@ -247,6 +253,12 @@ export default function PublicReviewPage() {
 
       setSubmitted(true);
       setStatusMessage("Thank you for your review!");
+
+      fetch("/api/reviews/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewId: id, type: "review" }),
+      }).catch(() => {});
     } catch {
       setStatusMessage("Could not submit review. Please try again.");
     }

@@ -7,6 +7,7 @@ interface QRCodeDisplayProps {
   url: string | null;
   logo?: string | null;
   businessName?: string;
+  reviewId?: string | null;
 }
 
 const QR_SIZE = 160;
@@ -16,7 +17,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
   const [dataUrl, setDataUrl] = createSignal<string | null>(null);
 
   createEffect(() => {
-    const url = props.url;
+    const url = props.reviewId ? `/qr/${props.reviewId}` : props.url;
     if (!url) {
       setDataUrl(null);
       return;
@@ -31,7 +32,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
   });
 
   const downloadQR = async () => {
-    const url = props.url;
+    const url = props.reviewId ? `/qr/${props.reviewId}` : props.url;
     if (!url) return;
 
     const canvasSize = 1080;
