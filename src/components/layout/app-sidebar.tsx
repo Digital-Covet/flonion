@@ -22,6 +22,7 @@ import {
 } from "solid-js";
 
 import InlineCombinationMark from "@/assets/inline-combination-mark";
+import Logomark from "@/assets/logomark";
 import { authClient } from "~/lib/auth-client";
 import { useSettings } from "~/stores/settings-store";
 
@@ -125,14 +126,24 @@ export function Brand(props: { collapsed?: boolean }) {
         class="flex min-w-0 items-center gap-2 text-lg font-semibold tracking-tight text-foreground"
         aria-label="Flonion"
       >
-        <InlineCombinationMark
-          class={`h-6 shrink-0 ${props.collapsed ? "w-8" : "w-auto"}`}
-          aria-hidden="true"
-        />
+        <Show
+          when={props.collapsed}
+          fallback={
+            <InlineCombinationMark
+              class="h-6 w-auto shrink-0"
+              aria-hidden="true"
+            />
+          }
+        >
+          <Logomark
+            class="h-6 w-8 shrink-0"
+            aria-hidden="true"
+          />
+        </Show>
       </div>
 
       <Show when={!props.collapsed && businessName()}>
-        <p class="truncate px-0.5 text-xs text-muted-foreground">
+        <p class="truncate px-0.5 text-sm text-muted-foreground">
           {businessName()}
         </p>
       </Show>
