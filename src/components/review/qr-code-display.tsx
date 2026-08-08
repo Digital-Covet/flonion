@@ -13,11 +13,19 @@ interface QRCodeDisplayProps {
 const QR_SIZE = 160;
 const CANVAS_SCALE = 2;
 
+function getQrUrl(reviewId: string | null | undefined, fallback: string | null): string | null {
+  if (reviewId) {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    return `${origin}/qr/${reviewId}`;
+  }
+  return fallback;
+}
+
 export function QRCodeDisplay(props: QRCodeDisplayProps) {
   const [dataUrl, setDataUrl] = createSignal<string | null>(null);
 
   createEffect(() => {
-    const url = props.reviewId ? `/qr/${props.reviewId}` : props.url;
+    const url = getQrUrl(props.reviewId, props.url);
     if (!url) {
       setDataUrl(null);
       return;
@@ -32,7 +40,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
   });
 
   const downloadQR = async () => {
-    const url = props.reviewId ? `/qr/${props.reviewId}` : props.url;
+    const url = getQrUrl(props.reviewId, props.url);
     if (!url) return;
 
     const canvasSize = 1080;
