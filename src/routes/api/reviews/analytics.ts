@@ -27,6 +27,10 @@ export async function GET(event: APIEvent) {
     (sum, r) => sum + (r.analytics?.qrScanCount ?? 0),
     0,
   );
+  const totalRedirects = reviews.reduce(
+    (sum, r) => sum + (r.analytics?.redirectCount ?? 0),
+    0,
+  );
 
   const breakdown = reviews.map((r) => ({
     id: r.id,
@@ -36,6 +40,7 @@ export async function GET(event: APIEvent) {
     visits: r.analytics?.visitCount ?? 0,
     reviews: r.analytics?.reviewCount ?? 0,
     qrScans: r.analytics?.qrScanCount ?? 0,
+    redirects: r.analytics?.redirectCount ?? 0,
     createdAt: r.createdAt.toISOString(),
   }));
 
@@ -43,6 +48,7 @@ export async function GET(event: APIEvent) {
     totalVisits,
     totalReviews,
     totalQrScans,
+    totalRedirects,
     totalLinks: reviews.length,
     reviews: breakdown,
   });

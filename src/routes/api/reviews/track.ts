@@ -10,8 +10,8 @@ export async function POST(event: APIEvent) {
       return Response.json({ error: "reviewId is required" }, { status: 400 });
     }
 
-    if (type !== "visit" && type !== "review") {
-      return Response.json({ error: "type must be 'visit' or 'review'" }, { status: 400 });
+    if (type !== "visit" && type !== "review" && type !== "redirect") {
+      return Response.json({ error: "type must be 'visit', 'review', or 'redirect'" }, { status: 400 });
     }
 
     const review = await prisma.sharedReview.findUnique({
@@ -29,11 +29,14 @@ export async function POST(event: APIEvent) {
         reviewId,
         visitCount: type === "visit" ? 1 : 0,
         reviewCount: type === "review" ? 1 : 0,
+        redirectCount: type === "redirect" ? 1 : 0,
       },
       update: {
         ...(type === "visit"
           ? { visitCount: { increment: 1 } }
-          : { reviewCount: { increment: 1 } }),
+          : type === "redirect"
+            ? { redirectCount: { increment: 1 } }
+            : { reviewCount: { increment: 1 } }),
       },
     });
 

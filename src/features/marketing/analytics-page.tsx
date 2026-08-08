@@ -4,6 +4,7 @@ import BarChart3 from "lucide-solid/icons/bar-chart-3";
 import Eye from "lucide-solid/icons/eye";
 import MessageSquare from "lucide-solid/icons/message-square";
 import Link2 from "lucide-solid/icons/link-2";
+import ExternalLink from "lucide-solid/icons/external-link";
 import Star from "lucide-solid/icons/star";
 
 interface ReviewAnalyticsRow {
@@ -14,6 +15,7 @@ interface ReviewAnalyticsRow {
   visits: number;
   reviews: number;
   qrScans: number;
+  redirects: number;
   createdAt: string;
 }
 
@@ -21,6 +23,7 @@ interface AnalyticsData {
   totalVisits: number;
   totalReviews: number;
   totalQrScans: number;
+  totalRedirects: number;
   totalLinks: number;
   reviews: ReviewAnalyticsRow[];
 }
@@ -83,8 +86,8 @@ function EmptyState() {
 function LoadingSkeleton() {
   return (
     <div class="space-y-6">
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <For each={[1, 2, 3]}>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-5">
+        <For each={[1, 2, 3, 4, 5]}>
           {() => (
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div class="flex items-center gap-4">
@@ -104,6 +107,7 @@ function LoadingSkeleton() {
             {() => (
               <div class="flex items-center gap-4 py-2">
                 <div class="h-4 flex-1 animate-pulse rounded bg-slate-100" />
+                <div class="h-4 w-12 animate-pulse rounded bg-slate-100" />
                 <div class="h-4 w-12 animate-pulse rounded bg-slate-100" />
                 <div class="h-4 w-12 animate-pulse rounded bg-slate-100" />
                 <div class="h-4 w-20 animate-pulse rounded bg-slate-100" />
@@ -138,7 +142,7 @@ export function AnalyticsPage() {
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-              Campaign Analytics
+              Analytics
             </h1>
             <p class="mt-1 text-sm text-muted-foreground">
               Track how many people interact with your review links and QR codes.
@@ -163,7 +167,7 @@ export function AnalyticsPage() {
           <Show when={data()} fallback={<EmptyState />}>
             {(analytics) => (
               <div class="space-y-6">
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-5">
                   <StatCard
                     label="QR Code Scans"
                     value={analytics().totalQrScans}
@@ -183,6 +187,12 @@ export function AnalyticsPage() {
                     accent="bg-emerald-50 text-emerald-600"
                   />
                   <StatCard
+                    label="Redirects"
+                    value={analytics().totalRedirects}
+                    icon={ExternalLink}
+                    accent="bg-orange-50 text-orange-600"
+                  />
+                  <StatCard
                     label="Review Links"
                     value={analytics().totalLinks}
                     icon={Link2}
@@ -197,7 +207,7 @@ export function AnalyticsPage() {
                         Per-Link Breakdown
                       </h2>
                       <p class="text-xs text-slate-500">
-                        QR scans, visit, and review counts for each shared link.
+                        QR scans, visits, reviews, and redirects for each shared link.
                       </p>
                     </div>
                     <div class="overflow-x-auto">
@@ -209,6 +219,7 @@ export function AnalyticsPage() {
                             <th class="px-6 py-3 text-right">QR Scans</th>
                             <th class="px-6 py-3 text-right">Visits</th>
                             <th class="px-6 py-3 text-right">Reviews</th>
+                            <th class="px-6 py-3 text-right">Redirects</th>
                             <th class="px-6 py-3 text-right">Created</th>
                           </tr>
                         </thead>
@@ -250,6 +261,9 @@ export function AnalyticsPage() {
                                 </td>
                                 <td class="px-6 py-3.5 text-right font-medium text-slate-700">
                                   {row.reviews}
+                                </td>
+                                <td class="px-6 py-3.5 text-right font-medium text-slate-700">
+                                  {row.redirects}
                                 </td>
                                 <td class="px-6 py-3.5 text-right text-slate-500">
                                   {new Date(row.createdAt).toLocaleDateString()}
