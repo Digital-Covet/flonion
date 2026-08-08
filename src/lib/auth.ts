@@ -22,6 +22,34 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
 
+  user: {
+    changeEmail: {
+      enabled: true,
+      sendChangeEmailVerification: async ({
+        user,
+        newEmail,
+        url,
+      }: {
+        user: { name?: string | null; email: string };
+        newEmail: string;
+        url: string;
+      }) => {
+        const { html, text } = renderEmailVerificationEmail({
+          username: user.name ?? undefined,
+          email: newEmail,
+          verificationUrl: url,
+        });
+
+        void sendEmail({
+          to: newEmail,
+          subject: `Verify your new ${COMPANY_NAME} email`,
+          text,
+          html,
+        });
+      },
+    },
+  },
+
   emailAndPassword: {
     enabled: true,
 
