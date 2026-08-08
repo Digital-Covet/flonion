@@ -93,6 +93,7 @@ export default function LeaveReviewPage() {
           text: "",
           rating: 0,
           keywords: keywords(),
+          reuse: true,
         }),
       });
 
@@ -187,6 +188,7 @@ export default function LeaveReviewPage() {
           text: reviewText,
           rating: draft().rating,
           keywords: keywords(),
+          id: reviewId(),
         }),
       });
 

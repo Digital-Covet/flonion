@@ -64,6 +64,7 @@ export default function PublicReviewPage() {
   const [aiLoading, setAiLoading] = createSignal(false);
   const [cooldown, setCooldown] = createSignal(false);
   const [showSuggestions, setShowSuggestions] = createSignal(false);
+  const [visitorName, setVisitorName] = createSignal("");
 
   let dismissTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -244,6 +245,7 @@ export default function PublicReviewPage() {
           id,
           text: reviewText,
           rating: draft().rating,
+          reviewerName: visitorName() || undefined,
         }),
       });
 
@@ -434,6 +436,7 @@ export default function PublicReviewPage() {
                     actions={{
                       setRating,
                       setText,
+                      setName: setVisitorName,
                       fetchSuggestions,
                       submitReview,
                       applySuggestion,
@@ -452,6 +455,7 @@ export default function PublicReviewPage() {
                     suggestions={suggestions()}
                     showSuggestions={showSuggestions()}
                     showTrustStatement
+                    name={visitorName()}
                   />
                 </div>
 

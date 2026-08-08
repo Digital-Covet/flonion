@@ -9,7 +9,7 @@ export async function POST(event: APIEvent) {
   try {
     const body = await event.request.json();
 
-    const { text, rating, keywords, id } = body;
+    const { text, rating, keywords, id, reuse, reviewerName } = body;
 
     if (id && (typeof rating !== "number" || rating < 1 || rating > 5)) {
       return Response.json(
@@ -33,7 +33,9 @@ export async function POST(event: APIEvent) {
           rating,
           reviewerName: isOwner
             ? session.user.name
-            : session?.user.name ?? "Anonymous",
+            : (typeof reviewerName === "string" && reviewerName.trim()
+                ? reviewerName.trim()
+                : session?.user.name ?? "Anonymous"),
           keywords: typeof keywords === "string" ? keywords : existing.keywords,
         },
         select: {
@@ -55,6 +57,24 @@ export async function POST(event: APIEvent) {
 
     if (!session) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (reuse) {
+      const existing = await prisma.sharedReview.findFirst({
+        where: { userId: session.session.userId },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, userId: true },
+      });
+      if (existing) {
+        const existingUser = await prisma.user.findUnique({
+          where: { id: existing.userId },
+          select: { business: { select: { name: true } } },
+        });
+        const slug = existingUser?.business?.name
+          ? toSlug(existingUser.business.name)
+          : "unknown";
+        return Response.json({ url: `/company/${slug}/review/${existing.id}` });
+      }
     }
 
     const review = await prisma.sharedReview.create({

@@ -13,6 +13,7 @@ import { SuggestionCard } from "~/components/review/suggestion-card";
 interface ReviewComposerActions {
   setRating: (rating: Rating) => void;
   setText: (text: string) => void;
+  setName?: (name: string) => void;
   fetchSuggestions: () => void;
   shareReview?: () => void;
   submitReview: () => void;
@@ -40,6 +41,8 @@ interface ReviewComposerProps {
   suggestions?: ReviewSuggestion[];
   showSuggestions?: boolean;
   showTrustStatement?: boolean;
+  name?: string;
+  nameLabel?: string;
 }
 
 const ratings: Rating[] = [1, 2, 3, 4, 5];
@@ -150,6 +153,21 @@ export function ReviewComposer(props: ReviewComposerProps) {
           <p class="mt-1.5 text-xs text-muted-foreground italic">{props.ratingHint}</p>
         </Show>
       </fieldset>
+
+      <Show when={props.actions.setName}>
+        <Field.Root class="mt-5">
+          <Field.Label class="text-sm font-medium text-foreground">
+            {props.nameLabel ?? "Your name (optional)"}
+          </Field.Label>
+          <Field.Input
+            type="text"
+            value={props.name ?? ""}
+            onInput={(e) => props.actions.setName?.((e.target as HTMLInputElement).value)}
+            placeholder="How should we attribute this review?"
+            class="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+        </Field.Root>
+      </Show>
 
       <Field.Root class="mt-5">
         <Field.Label class="text-sm font-medium text-foreground">
