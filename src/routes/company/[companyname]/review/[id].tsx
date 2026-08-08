@@ -253,17 +253,22 @@ export default function PublicReviewPage() {
         throw new Error("Failed to submit review");
       }
 
+      await navigator.clipboard.writeText(reviewText);
       setSubmitted(true);
-      setStatusMessage("Thank you for your review!");
-
-      fetch("/api/reviews/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reviewId: id, type: "review" }),
-      }).catch(() => {});
+      setStatusMessage("Text Copied");
     } catch {
       setStatusMessage("Could not submit review. Please try again.");
     }
+  };
+
+  const trackRedirect = () => {
+    const id = reviewId();
+    if (!id) return;
+    fetch("/api/reviews/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reviewId: id, type: "redirect" }),
+    }).catch(() => {});
   };
 
   const pageTitle = () =>
@@ -325,6 +330,7 @@ export default function PublicReviewPage() {
                           }
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={trackRedirect}
                           class="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
                         >
                           <ExternalLink class="size-4" />
@@ -346,6 +352,7 @@ export default function PublicReviewPage() {
                               href={url}
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={trackRedirect}
                               class="inline-flex h-11 items-center gap-2 rounded-lg px-6 text-sm font-medium text-white shadow-sm transition-colors hover:opacity-90"
                               style={{
                                 "background-color": platform?.color ?? "#666",
