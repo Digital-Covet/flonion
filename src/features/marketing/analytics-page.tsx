@@ -181,7 +181,7 @@ export function AnalyticsPage() {
                     accent="bg-blue-50 text-blue-600"
                   />
                   <StatCard
-                    label="Reviews Submitted"
+                    label="Text Copied"
                     value={analytics().totalReviews}
                     icon={MessageSquare}
                     accent="bg-emerald-50 text-emerald-600"
@@ -243,11 +243,11 @@ export function AnalyticsPage() {
                                         </span>
                                       )}
                                     </div>
-                                    <Show when={row.reviewerName}>
-                                      <p class="text-xs text-slate-500">
-                                        by {row.reviewerName}
-                                      </p>
-                                    </Show>
+                                  </Show>
+                                  <Show when={row.reviews > 0 || row.visits > 0 || row.qrScans > 0}>
+                                    <p class="text-xs text-slate-500">
+                                      by {row.reviewerName || "Anonymous"}
+                                    </p>
                                   </Show>
                                 </td>
                                 <td class="px-6 py-3.5">
