@@ -2,12 +2,17 @@ import ChevronLeft from "lucide-solid/icons/chevron-left";
 import ChevronRight from "lucide-solid/icons/chevron-right";
 import Gauge from "lucide-solid/icons/gauge";
 import Inbox from "lucide-solid/icons/inbox";
+import LogOut from "lucide-solid/icons/log-out";
+import BarChart3 from "lucide-solid/icons/bar-chart-3";
 import Megaphone from "lucide-solid/icons/megaphone";
 import PenSquare from "lucide-solid/icons/pen-square";
 import SearchCheck from "lucide-solid/icons/search-check";
 import Settings from "lucide-solid/icons/settings";
+import User from "lucide-solid/icons/user";
+import UserCircle from "lucide-solid/icons/user-circle";
 
-import { A, useLocation } from "@solidjs/router";
+import { Menu } from "@ark-ui/solid/menu";
+import { A, useLocation, useNavigate } from "@solidjs/router";
 import {
   For,
   Show,
@@ -83,6 +88,11 @@ const navigationGroups: NavigationGroup[] = [
         icon: SearchCheck,
       },
       {
+        label: "Analytics",
+        href: "/marketing/analytics",
+        icon: BarChart3,
+      },
+      {
         label: "Campaigns",
         href: "/marketing/campaigns",
         icon: Megaphone,
@@ -96,6 +106,11 @@ const navigationGroups: NavigationGroup[] = [
         label: "Settings",
         href: "/settings",
         icon: Settings,
+      },
+      {
+        label: "Account",
+        href: "/account",
+        icon: UserCircle,
       },
     ],
   },
@@ -127,6 +142,7 @@ export function Brand(props: { collapsed?: boolean }) {
 
 export function ProfileSummary(props: { collapsed?: boolean }) {
   const session = authClient.useSession();
+  const navigate = useNavigate();
 
   const displayName = createMemo(() => {
     const user = session()?.data?.user;
@@ -154,33 +170,63 @@ export function ProfileSummary(props: { collapsed?: boolean }) {
       .slice(0, 2);
   });
 
+  const handleLogout = async () => {
+    await authClient.signOut();
+    navigate("/sign-in");
+  };
+
   return (
-    <div
-      class="flex min-w-0 items-center gap-3"
-      role="group"
-      aria-label={props.collapsed ? displayName() : undefined}
-    >
-      <div
-        class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
-        aria-hidden="true"
+    <Menu.Root>
+      <Menu.Trigger
+        class={`flex min-w-0 items-center gap-3 rounded-md text-left transition-colors hover:bg-muted ${props.collapsed ? "justify-center px-1 py-1" : "w-full px-2 py-1"}`}
+        aria-label={props.collapsed ? displayName() : undefined}
       >
-        {initials()}
-      </div>
-
-      <Show when={!props.collapsed}>
-        <div class="min-w-0">
-          <p class="truncate text-sm font-medium text-foreground">
-            {displayName()}
-          </p>
-
-          <Show when={email()}>
-            <p class="truncate text-xs text-muted-foreground">
-              {email()}
-            </p>
-          </Show>
+        <div
+          class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
+          aria-hidden="true"
+        >
+          {initials()}
         </div>
-      </Show>
-    </div>
+
+        <Show when={!props.collapsed}>
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-medium text-foreground">
+              {displayName()}
+            </p>
+
+            <Show when={email()}>
+              <p class="truncate text-xs text-muted-foreground">
+                {email()}
+              </p>
+            </Show>
+          </div>
+        </Show>
+      </Menu.Trigger>
+
+      <Menu.Positioner>
+        <Menu.Content class="min-w-[180px] rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-md">
+          <Menu.Item
+            value="account-settings"
+            class="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
+            onSelect={() => navigate("/account")}
+          >
+            <User class="size-4 shrink-0" aria-hidden="true" />
+            Account Settings
+          </Menu.Item>
+
+          <Menu.Separator class="my-1 h-px bg-border" />
+
+          <Menu.Item
+            value="logout"
+            class="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
+            onSelect={handleLogout}
+          >
+            <LogOut class="size-4 shrink-0" aria-hidden="true" />
+            Logout
+          </Menu.Item>
+        </Menu.Content>
+      </Menu.Positioner>
+    </Menu.Root>
   );
 }
 
