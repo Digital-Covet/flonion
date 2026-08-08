@@ -254,6 +254,13 @@ export default function PublicReviewPage() {
       }
 
       await navigator.clipboard.writeText(reviewText);
+
+      fetch("/api/reviews/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewId: id, type: "review" }),
+      }).catch(() => {});
+
       setSubmitted(true);
       setStatusMessage("Text Copied");
     } catch {
