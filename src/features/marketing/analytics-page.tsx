@@ -217,17 +217,26 @@ export function AnalyticsPage() {
                             {(row) => (
                               <tr class="transition-colors hover:bg-slate-50/50">
                                 <td class="px-6 py-3.5">
-                                  <div class="max-w-xs truncate font-medium text-slate-900">
-                                    {row.text || (
+                                  <Show
+                                    when={row.reviews > 0}
+                                    fallback={
                                       <span class="text-slate-400 italic">
-                                        Empty review
+                                        Awaiting submission
                                       </span>
-                                    )}
-                                  </div>
-                                  <Show when={row.reviewerName}>
-                                    <p class="text-xs text-slate-500">
-                                      by {row.reviewerName}
-                                    </p>
+                                    }
+                                  >
+                                    <div class="max-w-xs truncate font-medium text-slate-900">
+                                      {row.text || (
+                                        <span class="text-slate-400 italic">
+                                          Empty review
+                                        </span>
+                                      )}
+                                    </div>
+                                    <Show when={row.reviewerName}>
+                                      <p class="text-xs text-slate-500">
+                                        by {row.reviewerName}
+                                      </p>
+                                    </Show>
                                   </Show>
                                 </td>
                                 <td class="px-6 py-3.5">
