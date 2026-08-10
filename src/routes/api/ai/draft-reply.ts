@@ -3,9 +3,9 @@ import { runReviewPipeline } from "~/lib/agents/pipeline";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 
 function getApiKey(): string {
-  const key = process.env.OPENROUTER_API_KEY;
+  const key = process.env.DEEPSEEK_API_KEY;
   if (!key) {
-    throw new Error("OPENROUTER_API_KEY is not set in environment variables");
+    throw new Error("DEEPSEEK_API_KEY is not set in environment variables");
   }
   return key;
 }

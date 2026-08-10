@@ -7,9 +7,9 @@ const IP_RATE_LIMIT = 30;
 const RATE_WINDOW_MS = 60 * 60 * 1000;
 
 function getApiKey(): string {
-  const key = process.env.OPENROUTER_API_KEY;
+  const key = process.env.DEEPSEEK_API_KEY;
   if (!key) {
-    throw new Error("OPENROUTER_API_KEY is not set in environment variables");
+    throw new Error("DEEPSEEK_API_KEY is not set in environment variables");
   }
   return key;
 }
@@ -18,7 +18,7 @@ export async function POST(event: APIEvent) {
   try {
     const body = await event.request.json();
 
-    const { reviewId, draftText, starRating, keywords } = body;
+    const { reviewId, draftText, starRating, keywords, businessName } = body;
 
     if (reviewId !== undefined && typeof reviewId !== "string") {
       return Response.json(
@@ -27,9 +27,9 @@ export async function POST(event: APIEvent) {
       );
     }
 
-    if (!draftText || typeof draftText !== "string") {
+    if (draftText !== undefined && typeof draftText !== "string") {
       return Response.json(
-        { error: "Missing required field: draftText" },
+        { error: "draftText must be a string" },
         { status: 400 },
       );
     }
@@ -80,9 +80,10 @@ export async function POST(event: APIEvent) {
     const apiKey = getApiKey();
 
     const result = await runSuggestionPipeline({
-      draftText,
+      draftText: draftText || "",
       starRating,
       keywords: typeof keywords === "string" ? keywords : undefined,
+      businessName: typeof businessName === "string" ? businessName : undefined,
       apiKey,
     });
 

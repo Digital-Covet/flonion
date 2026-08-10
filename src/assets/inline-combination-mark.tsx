@@ -5,8 +5,6 @@ const InlineCombinationMark = (props: JSX.SvgSVGAttributes<SVGSVGElement>) => (
   <svg
     data-name="Layer 1"
     viewBox="0 0 873.46 155.798"
-    width={873.46}
-    height={155.798}
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >

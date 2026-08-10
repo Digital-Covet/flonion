@@ -9,9 +9,9 @@ export async function POST(event: APIEvent) {
   try {
     const body = await event.request.json();
 
-    const { text, rating, keywords, id, reuse, reviewerName } = body;
+    const { text, rating, keywords, id, reviewerName } = body;
 
-    if (id && (typeof rating !== "number" || rating < 1 || rating > 5)) {
+    if (id && rating !== 0 && (typeof rating !== "number" || rating < 1 || rating > 5)) {
       return Response.json(
         { error: "rating must be a number between 1 and 5" },
         { status: 400 },
@@ -30,7 +30,7 @@ export async function POST(event: APIEvent) {
         where: { id },
         data: {
           text: typeof text === "string" ? text.trim() : "",
-          rating,
+          rating: rating !== 0 ? rating : existing.rating,
           reviewerName: isOwner
             ? session.user.name
             : (typeof reviewerName === "string" && reviewerName.trim()
@@ -59,7 +59,7 @@ export async function POST(event: APIEvent) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (reuse) {
+    if (!id) {
       const existing = await prisma.sharedReview.findFirst({
         where: { userId: session.session.userId },
         orderBy: { createdAt: "desc" },

@@ -233,11 +233,11 @@ export function ReviewComposer(props: ReviewComposerProps) {
         <button
           type="button"
           onClick={props.actions.fetchSuggestions}
-          disabled={props.aiLoading || props.cooldown || isTextEmpty()}
+          disabled={props.aiLoading || props.cooldown || props.draft.rating === 0}
           class="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
         >
           <Sparkles class="size-4" aria-hidden="true" />
-          {props.aiLoading ? "Thinking..." : props.cooldown ? "Wait..." : (props.aiButtonLabel ?? "Improve with AI")}
+          {props.aiLoading ? "Thinking..." : props.cooldown ? "Wait..." : (isTextEmpty() ? "Get AI Suggestions" : (props.aiButtonLabel ?? "Improve with AI"))}
         </button>
 
         <button

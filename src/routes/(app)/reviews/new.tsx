@@ -93,7 +93,6 @@ export default function LeaveReviewPage() {
           text: "",
           rating: 0,
           keywords: keywords(),
-          reuse: true,
         }),
       });
 
@@ -193,7 +192,8 @@ export default function LeaveReviewPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to create share link");
+        const err = await response.json().catch(() => null);
+        throw new Error(err?.error || "Failed to create share link");
       }
 
       const { url } = await response.json();
@@ -209,8 +209,9 @@ export default function LeaveReviewPage() {
       } else {
         setStatusMessage(`Share link: ${fullUrl}`);
       }
-    } catch {
-      setStatusMessage("Could not generate share link. Try again later.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setStatusMessage(`Could not generate share link: ${message}`);
     }
   };
 

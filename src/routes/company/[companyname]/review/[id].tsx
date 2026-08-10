@@ -141,7 +141,7 @@ export default function PublicReviewPage() {
 
   const setRating = (rating: Rating) => {
     setDraft((current) => ({ ...current, rating }));
-    if (draft().text.trim() && !aiLoading() && !cooldown()) {
+    if (!aiLoading() && !cooldown()) {
       fetchSuggestions();
     }
   };
@@ -153,8 +153,10 @@ export default function PublicReviewPage() {
   const fetchSuggestions = async () => {
     const text = draft().text.trim();
     const id = reviewId();
-    if (!text) {
-      setStatusMessage("Write some review text first to get AI suggestions.");
+    const rating = draft().rating;
+
+    if (!rating) {
+      setStatusMessage("Select a star rating first.");
       return;
     }
 
@@ -173,9 +175,10 @@ export default function PublicReviewPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           reviewId: id,
-          draftText: text,
-          starRating: draft().rating,
+          draftText: text || undefined,
+          starRating: rating,
           keywords: keywords() || undefined,
+          businessName: business()?.name || undefined,
         }),
       });
 

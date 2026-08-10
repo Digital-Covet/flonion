@@ -1,4 +1,4 @@
-import { ChatOpenRouter } from "@langchain/openrouter";
+import { ChatDeepSeek } from "@langchain/deepseek";
 import { z } from "zod";
 
 const sentimentWordSchema = z.object({
@@ -17,9 +17,9 @@ export const sentimentAnalysisSchema = z.object({
 
 export type SentimentAnalysis = z.infer<typeof sentimentAnalysisSchema>;
 
-function getModel(apiKey: string): ChatOpenRouter {
-  return new ChatOpenRouter({
-    model: "openai/gpt-oss-20b:free",
+function getModel(apiKey: string): ChatDeepSeek {
+  return new ChatDeepSeek({
+    model: "deepseek-v4-flash",
     temperature: 0,
     apiKey,
   });
@@ -30,6 +30,28 @@ export async function analyzeSentiment(params: {
   starRating: number;
   apiKey: string;
 }): Promise<SentimentAnalysis> {
+  if (!params.comment.trim()) {
+    const overallSentiment: SentimentAnalysis["overallSentiment"] =
+      params.starRating >= 4
+        ? "positive"
+        : params.starRating <= 2
+          ? "negative"
+          : "neutral";
+    const sentimentScore =
+      params.starRating >= 4
+        ? 0.7
+        : params.starRating <= 2
+          ? -0.6
+          : 0.0;
+    return {
+      overallSentiment,
+      sentimentScore,
+      sentimentWords: [],
+      keyTopics: [],
+      customerIntent: params.starRating >= 4 ? "compliment" : "complaint",
+    };
+  }
+
   const model = getModel(params.apiKey);
 
   const starContext =

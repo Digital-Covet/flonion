@@ -43,10 +43,13 @@ export async function runSuggestionPipeline(params: {
   draftText: string;
   starRating: number;
   keywords?: string;
+  businessName?: string;
   apiKey: string;
 }): Promise<SuggestionPipelineResult> {
+  const hasText = params.draftText.trim().length > 0;
+
   const sentiment = await analyzeSentiment({
-    comment: params.draftText,
+    comment: hasText ? params.draftText : "",
     starRating: params.starRating,
     apiKey: params.apiKey,
   });
@@ -56,6 +59,7 @@ export async function runSuggestionPipeline(params: {
     starRating: params.starRating,
     sentiment,
     keywords: params.keywords,
+    businessName: params.businessName,
     apiKey: params.apiKey,
   });
 
