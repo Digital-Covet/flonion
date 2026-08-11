@@ -121,7 +121,9 @@ export function Brand(props: { collapsed?: boolean }) {
   const { logo, businessName } = useSettings();
 
   return (
-    <div class="flex min-w-0 flex-col gap-1 overflow-hidden">
+    <div
+      class={`flex min-w-0 flex-col gap-1 overflow-hidden ${props.collapsed ? "items-center" : ""}`}
+    >
       <div
         class="flex min-w-0 items-center gap-2 text-lg font-semibold tracking-tight text-foreground"
         aria-label="Flonion"
@@ -135,15 +137,17 @@ export function Brand(props: { collapsed?: boolean }) {
             />
           }
         >
-          <Logomark
-            class="h-6 w-8 shrink-0"
-            aria-hidden="true"
-          />
+          <div class="flex size-8 shrink-0 items-center justify-center">
+            <Logomark
+              class="size-8 shrink-0"
+              aria-hidden="true"
+            />
+          </div>
         </Show>
       </div>
 
       <Show when={!props.collapsed && businessName()}>
-        <p class="truncate px-0.5 text-sm text-muted-foreground">
+        <p class="truncate px-0.5 text-lg font-medium text-muted-foreground">
           {businessName()}
         </p>
       </Show>
@@ -369,7 +373,7 @@ export function AppSidebar() {
     >
       <header
         class={`flex h-18 shrink-0 items-center ${collapsed()
-          ? "justify-center px-2"
+          ? "justify-center"
           : "justify-between px-5"
           }`}
       >
@@ -385,7 +389,7 @@ export function AppSidebar() {
           }
           aria-expanded={!collapsed()}
           aria-controls="sidebar-navigation"
-          class="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          class={`inline-flex shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 size-8`}
         >
           <Show
             when={collapsed()}
