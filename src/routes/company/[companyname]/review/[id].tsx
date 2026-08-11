@@ -215,9 +215,24 @@ export default function PublicReviewPage() {
     }
   };
 
-  const applySuggestion = (suggestion: ReviewSuggestion) => {
+  const applySuggestion = async (suggestion: ReviewSuggestion) => {
     setText(suggestion.text);
     setStatusMessage(`${suggestion.tone} suggestion applied to the draft.`);
+
+    try {
+      await navigator.clipboard.writeText(suggestion.text);
+    } catch {
+      // clipboard write may fail without user gesture; non-critical
+    }
+
+    const id = reviewId();
+    if (id) {
+      fetch("/api/reviews/track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviewId: id, type: "ai_copy" }),
+      }).catch(() => {});
+    }
   };
 
   const dismissSuggestion = (suggestionId: string) => {
@@ -271,13 +286,13 @@ export default function PublicReviewPage() {
     }
   };
 
-  const trackRedirect = () => {
+  const trackRedirect = (platform?: string) => {
     const id = reviewId();
     if (!id) return;
     fetch("/api/reviews/track", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reviewId: id, type: "redirect" }),
+      body: JSON.stringify({ reviewId: id, type: "redirect", platform }),
     }).catch(() => {});
   };
 
@@ -340,7 +355,7 @@ export default function PublicReviewPage() {
                           }
                           target="_blank"
                           rel="noopener noreferrer"
-                          onClick={trackRedirect}
+                          onClick={() => trackRedirect("google")}
                           class="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
                         >
                           <ExternalLink class="size-4" />
@@ -353,26 +368,26 @@ export default function PublicReviewPage() {
                           ([key]) => key !== CUSTOM_LABEL_KEY && key !== "other" || (key === "other" && business()!.reviewLinks!["other"]),
                         )}
                       >
-                        {([slug, url]) => {
-                          if (!url || slug === CUSTOM_LABEL_KEY) return null;
-                          const platform = getPlatformBySlug(slug);
-                          const label = getPlatformLabel(slug, business()!.reviewLinks!);
-                          return (
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={trackRedirect}
-                              class="inline-flex h-11 items-center gap-2 rounded-lg px-6 text-sm font-medium text-white shadow-sm transition-colors hover:opacity-90"
-                              style={{
-                                "background-color": platform?.color ?? "#666",
-                              }}
-                            >
-                              <ExternalLink class="size-4" />
-                              Post on {label}
-                            </a>
-                          );
-                        }}
+                            {([slug, url]) => {
+                              if (!url || slug === CUSTOM_LABEL_KEY) return null;
+                              const platform = getPlatformBySlug(slug);
+                              const label = getPlatformLabel(slug, business()!.reviewLinks!);
+                              return (
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => trackRedirect(slug)}
+                                  class="inline-flex h-11 items-center gap-2 rounded-lg px-6 text-sm font-medium text-white shadow-sm transition-colors hover:opacity-90"
+                                  style={{
+                                    "background-color": platform?.color ?? "#666",
+                                  }}
+                                >
+                                  <ExternalLink class="size-4" />
+                                  Post on {label}
+                                </a>
+                              );
+                            }}
                       </For>
                     </Show>
                     <Show when={business()}>

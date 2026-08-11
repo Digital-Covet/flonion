@@ -6,6 +6,9 @@ import MessageSquare from "lucide-solid/icons/message-square";
 import Link2 from "lucide-solid/icons/link-2";
 import ExternalLink from "lucide-solid/icons/external-link";
 import Star from "lucide-solid/icons/star";
+import ClipboardCheck from "lucide-solid/icons/clipboard-check";
+import MousePointerClick from "lucide-solid/icons/mouse-pointer-click";
+import { REVIEW_PLATFORMS } from "~/features/settings/review-platforms";
 
 interface ReviewAnalyticsRow {
   id: string;
@@ -16,6 +19,8 @@ interface ReviewAnalyticsRow {
   reviews: number;
   qrScans: number;
   redirects: number;
+  aiCopies: number;
+  platformRedirects: Record<string, number>;
   createdAt: string;
 }
 
@@ -24,6 +29,8 @@ interface AnalyticsData {
   totalReviews: number;
   totalQrScans: number;
   totalRedirects: number;
+  totalAiCopies: number;
+  totalPlatformRedirects: Record<string, number>;
   totalLinks: number;
   reviews: ReviewAnalyticsRow[];
 }
@@ -44,6 +51,27 @@ function StatCard(props: {
       <div>
         <p class="text-2xl font-bold text-slate-900">{props.value.toLocaleString()}</p>
         <p class="text-xs text-slate-500">{props.label}</p>
+      </div>
+    </div>
+  );
+}
+
+function PlatformStatCard(props: {
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <div class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div
+        class="flex size-12 items-center justify-center rounded-xl"
+        style={{ "background-color": `${props.color}15`, color: props.color }}
+      >
+        <MousePointerClick size={22} />
+      </div>
+      <div>
+        <p class="text-2xl font-bold text-slate-900">{props.value.toLocaleString()}</p>
+        <p class="text-xs text-slate-500">{props.label} Clicks</p>
       </div>
     </div>
   );
@@ -86,8 +114,23 @@ function EmptyState() {
 function LoadingSkeleton() {
   return (
     <div class="space-y-6">
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-5">
-        <For each={[1, 2, 3, 4, 5]}>
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <For each={[1, 2, 3, 4, 5, 6]}>
+          {() => (
+            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div class="flex items-center gap-4">
+                <div class="size-12 animate-pulse rounded-xl bg-slate-100" />
+                <div class="space-y-2">
+                  <div class="h-7 w-16 animate-pulse rounded bg-slate-100" />
+                  <div class="h-3 w-24 animate-pulse rounded bg-slate-100" />
+                </div>
+              </div>
+            </div>
+          )}
+        </For>
+      </div>
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <For each={[1, 2, 3, 4, 5, 6]}>
           {() => (
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div class="flex items-center gap-4">
@@ -167,7 +210,7 @@ export function AnalyticsPage() {
           <Show when={data()} fallback={<EmptyState />}>
             {(analytics) => (
               <div class="space-y-6">
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-5">
+                <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                   <StatCard
                     label="QR Code Scans"
                     value={analytics().totalQrScans}
@@ -187,6 +230,12 @@ export function AnalyticsPage() {
                     accent="bg-emerald-50 text-emerald-600"
                   />
                   <StatCard
+                    label="AI Copies"
+                    value={analytics().totalAiCopies}
+                    icon={ClipboardCheck}
+                    accent="bg-cyan-50 text-cyan-600"
+                  />
+                  <StatCard
                     label="Redirects"
                     value={analytics().totalRedirects}
                     icon={ExternalLink}
@@ -198,6 +247,18 @@ export function AnalyticsPage() {
                     icon={Link2}
                     accent="bg-violet-50 text-violet-600"
                   />
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                  <For each={REVIEW_PLATFORMS}>
+                    {(platform) => (
+                      <PlatformStatCard
+                        label={platform.label}
+                        value={analytics().totalPlatformRedirects[platform.slug] || 0}
+                        color={platform.color}
+                      />
+                    )}
+                  </For>
                 </div>
 
                 <Show when={analytics().reviews.length > 0}>
@@ -219,6 +280,7 @@ export function AnalyticsPage() {
                             <th class="px-6 py-3 text-right">QR Scans</th>
                             <th class="px-6 py-3 text-right">Visits</th>
                             <th class="px-6 py-3 text-right">Reviews</th>
+                            <th class="px-6 py-3 text-right">AI Copies</th>
                             <th class="px-6 py-3 text-right">Redirects</th>
                             <th class="px-6 py-3 text-right">Created</th>
                           </tr>
@@ -261,6 +323,9 @@ export function AnalyticsPage() {
                                 </td>
                                 <td class="px-6 py-3.5 text-right font-medium text-slate-700">
                                   {row.reviews}
+                                </td>
+                                <td class="px-6 py-3.5 text-right font-medium text-slate-700">
+                                  {row.aiCopies}
                                 </td>
                                 <td class="px-6 py-3.5 text-right font-medium text-slate-700">
                                   {row.redirects}

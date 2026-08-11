@@ -31,6 +31,18 @@ export async function GET(event: APIEvent) {
     (sum, r) => sum + (r.analytics?.redirectCount ?? 0),
     0,
   );
+  const totalAiCopies = reviews.reduce(
+    (sum, r) => sum + (r.analytics?.aiCopyCount ?? 0),
+    0,
+  );
+
+  const totalPlatformRedirects: Record<string, number> = {};
+  for (const r of reviews) {
+    const pr = (r.analytics?.platformRedirects as Record<string, number>) || {};
+    for (const [key, val] of Object.entries(pr)) {
+      totalPlatformRedirects[key] = (totalPlatformRedirects[key] || 0) + val;
+    }
+  }
 
   const breakdown = reviews.map((r) => ({
     id: r.id,
@@ -41,6 +53,8 @@ export async function GET(event: APIEvent) {
     reviews: r.analytics?.reviewCount ?? 0,
     qrScans: r.analytics?.qrScanCount ?? 0,
     redirects: r.analytics?.redirectCount ?? 0,
+    aiCopies: r.analytics?.aiCopyCount ?? 0,
+    platformRedirects: (r.analytics?.platformRedirects as Record<string, number>) || {},
     createdAt: r.createdAt.toISOString(),
   }));
 
@@ -49,6 +63,8 @@ export async function GET(event: APIEvent) {
     totalReviews,
     totalQrScans,
     totalRedirects,
+    totalAiCopies,
+    totalPlatformRedirects,
     totalLinks: reviews.length,
     reviews: breakdown,
   });
