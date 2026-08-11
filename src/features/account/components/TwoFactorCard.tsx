@@ -11,6 +11,7 @@ import AlertTriangle from "lucide-solid/icons/alert-triangle";
 import { authClient } from "~/lib/auth-client";
 import { SectionCard } from "~/features/settings/components/SectionCard";
 import { BackupCodesDialog } from "./BackupCodesDialog";
+import { PasswordConfirmDialog } from "./PasswordConfirmDialog";
 
 interface TwoFactorCardProps {
   icon: LucideIcon;
@@ -29,6 +30,10 @@ export function TwoFactorCard(props: TwoFactorCardProps) {
   const [error, setError] = createSignal("");
   const [showBackupDialog, setShowBackupDialog] = createSignal(false);
   const [copied, setCopied] = createSignal(false);
+  const [showPasswordDialog, setShowPasswordDialog] = createSignal(false);
+  const [pendingAction, setPendingAction] = createSignal<"enable" | "disable">("enable");
+  const [passwordError, setPasswordError] = createSignal("");
+  const [passwordLoading, setPasswordLoading] = createSignal(false);
 
   const user = () => session()?.data?.user;
 
@@ -41,26 +46,34 @@ export function TwoFactorCard(props: TwoFactorCardProps) {
 
   const handleEnable = async () => {
     setError("");
-    setSetupMode(true);
+    setPendingAction("enable");
+    setShowPasswordDialog(true);
+  };
+
+  const executeEnable = async (password: string) => {
+    setPasswordLoading(true);
+    setPasswordError("");
 
     try {
       const { data, error: enableError } = await authClient.twoFactor.enable({
-        password: "", // Will need password dialog
+        password,
       });
 
       if (enableError) {
-        setError(enableError.message || "Failed to enable 2FA.");
-        setSetupMode(false);
+        setPasswordError(enableError.message || "Failed to enable 2FA.");
         return;
       }
 
       if (data) {
         setTotpUri(data.totpURI);
         setBackupCodes(data.backupCodes);
+        setShowPasswordDialog(false);
+        setSetupMode(true);
       }
     } catch {
-      setError("An unexpected error occurred.");
-      setSetupMode(false);
+      setPasswordError("An unexpected error occurred.");
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -91,23 +104,38 @@ export function TwoFactorCard(props: TwoFactorCardProps) {
 
   const handleDisable = async () => {
     setError("");
-    setLoading(true);
+    setPendingAction("disable");
+    setShowPasswordDialog(true);
+  };
+
+  const executeDisable = async (password: string) => {
+    setPasswordLoading(true);
+    setPasswordError("");
 
     try {
       const { error: disableError } = await authClient.twoFactor.disable({
-        password: "", // Will need password
+        password,
       });
 
       if (disableError) {
-        setError(disableError.message || "Failed to disable 2FA.");
+        setPasswordError(disableError.message || "Failed to disable 2FA.");
         return;
       }
 
       setEnabled(false);
+      setShowPasswordDialog(false);
     } catch {
-      setError("An unexpected error occurred.");
+      setPasswordError("An unexpected error occurred.");
     } finally {
-      setLoading(false);
+      setPasswordLoading(false);
+    }
+  };
+
+  const handlePasswordSubmit = (password: string) => {
+    if (pendingAction() === "enable") {
+      executeEnable(password);
+    } else {
+      executeDisable(password);
     }
   };
 
@@ -309,6 +337,22 @@ export function TwoFactorCard(props: TwoFactorCardProps) {
             onClose={() => setShowBackupDialog(false)}
             onCopy={copyBackupCodes}
             copied={copied()}
+          />
+        </Portal>
+      </Show>
+
+      <Show when={showPasswordDialog()}>
+        <Portal>
+          <PasswordConfirmDialog
+            title={pendingAction() === "enable" ? "Enable Two-Factor Authentication" : "Disable Two-Factor Authentication"}
+            description={pendingAction() === "enable" ? "Enter your password to enable 2FA for your account." : "Enter your password to disable 2FA for your account."}
+            onSubmit={handlePasswordSubmit}
+            onClose={() => {
+              setShowPasswordDialog(false);
+              setPasswordError("");
+            }}
+            error={passwordError()}
+            loading={passwordLoading()}
           />
         </Portal>
       </Show>

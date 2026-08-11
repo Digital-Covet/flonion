@@ -6,9 +6,7 @@ export const authClient = createAuthClient({
   plugins: [
     emailOTPClient(),
     twoFactorClient({
-      onTwoFactorRedirect() {
-        window.location.href = "/2fa";
-      },
+      twoFactorPage: "/2fa",
     }),
   ],
 });
