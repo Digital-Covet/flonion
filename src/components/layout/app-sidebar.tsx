@@ -125,7 +125,7 @@ export function Brand(props: { collapsed?: boolean }) {
       class={`flex min-w-0 flex-col gap-1 overflow-hidden ${props.collapsed ? "items-center" : ""}`}
     >
       <div
-        class="flex min-w-0 items-center gap-2 text-lg font-semibold tracking-tight text-foreground"
+        class="flex min-w-0 items-center gap-2 pb-4 text-lg font-semibold tracking-tight text-foreground"
         aria-label="Flonion"
       >
         <Show
