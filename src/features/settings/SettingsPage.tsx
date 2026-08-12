@@ -49,6 +49,7 @@ export function SettingsPage() {
     setPhone,
     address,
     setAddress,
+    sector,
     keywords,
     setKeywords,
     refetch,
@@ -178,6 +179,7 @@ export function SettingsPage() {
           businessName: businessName(),
           phone: phone(),
           address: address(),
+          sector: sector(),
           keywords: keywords(),
         }),
       });

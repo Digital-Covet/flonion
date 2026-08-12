@@ -1,5 +1,6 @@
 export { ProgressStepper } from "./ProgressStepper";
 export { CategoryChips } from "./CategoryChips";
+export { SectorSelect } from "./SectorSelect";
 export { LogoUpload } from "./LogoUpload";
 export { BasicsStep } from "./BasicsStep";
 export { PlatformsStep } from "./PlatformsStep";

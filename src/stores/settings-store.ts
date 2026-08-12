@@ -10,6 +10,7 @@ export interface SettingsData {
   businessName: string;
   phone: string;
   address: string;
+  sector: string;
   keywords: string;
 }
 
@@ -28,6 +29,8 @@ export interface SettingsContextValue {
   setPhone: Setter<string>;
   address: Accessor<string>;
   setAddress: Setter<string>;
+  sector: Accessor<string>;
+  setSector: Setter<string>;
   keywords: Accessor<string>;
   setKeywords: Setter<string>;
   refetch: () => Promise<SettingsData>;

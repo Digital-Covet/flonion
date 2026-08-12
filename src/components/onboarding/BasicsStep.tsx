@@ -6,6 +6,7 @@ import Search from "lucide-solid/icons/search";
 import X from "lucide-solid/icons/x";
 import { CategoryChips } from "./CategoryChips";
 import { LogoUpload } from "./LogoUpload";
+import { SectorSelect } from "./SectorSelect";
 
 export interface BasicsData {
   businessName: string;
@@ -13,6 +14,7 @@ export interface BasicsData {
   city: string;
   pinCode: string;
   category: string;
+  sector: string;
   keywords: string;
   logo: string | null;
 }
@@ -115,6 +117,11 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
       <CategoryChips
         value={props.data.category}
         onChange={(category) => props.onChange({ category })}
+      />
+
+      <SectorSelect
+        value={props.data.sector}
+        onChange={(sector) => props.onChange({ sector })}
       />
 
       <TagsInput.Root

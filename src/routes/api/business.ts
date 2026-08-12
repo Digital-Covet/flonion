@@ -30,6 +30,7 @@ export async function GET(event: APIEvent) {
     businessName: business?.name ?? "",
     phone: business?.phone ?? "",
     address: business?.address ?? "",
+    sector: business?.sector ?? "",
     keywords: business?.keywords ?? "",
     onboardingCompleted: user?.onboardingCompleted ?? false,
   });
@@ -43,7 +44,7 @@ export async function POST(event: APIEvent) {
 
   try {
     const body = await event.request.json();
-    const { placeId, reviewLink, reviewLinks, logo, businessName, phone, address, keywords } = body;
+    const { placeId, reviewLink, reviewLinks, logo, businessName, phone, address, sector, keywords } = body;
 
     if (typeof businessName !== "string" || !businessName.trim()) {
       return Response.json(
@@ -63,6 +64,7 @@ export async function POST(event: APIEvent) {
       name: businessName.trim(),
       phone: typeof phone === "string" ? phone : null,
       address: typeof address === "string" ? address : null,
+      sector: typeof sector === "string" ? sector : null,
       keywords: typeof keywords === "string" ? keywords : null,
     };
 
@@ -93,6 +95,7 @@ export async function POST(event: APIEvent) {
       businessName: business.name,
       phone: business.phone ?? "",
       address: business.address ?? "",
+      sector: business.sector ?? "",
       keywords: business.keywords ?? "",
       onboardingCompleted: true,
     });

@@ -14,6 +14,7 @@ const EMPTY: SettingsData = {
   businessName: "",
   phone: "",
   address: "",
+  sector: "",
   keywords: "",
 };
 
@@ -32,6 +33,7 @@ async function fetchBusiness(): Promise<SettingsData> {
       businessName: typeof data.businessName === "string" ? data.businessName : "",
       phone: typeof data.phone === "string" ? data.phone : "",
       address: typeof data.address === "string" ? data.address : "",
+      sector: typeof data.sector === "string" ? data.sector : "",
       keywords: typeof data.keywords === "string" ? data.keywords : "",
     };
   } catch {
@@ -47,6 +49,7 @@ export function SettingsProvider(props: ParentProps) {
   const [businessName, setBusinessNameSignal] = createSignal("");
   const [phone, setPhoneSignal] = createSignal("");
   const [address, setAddressSignal] = createSignal("");
+  const [sector, setSectorSignal] = createSignal("");
   const [keywords, setKeywordsSignal] = createSignal("");
 
   const refetch = async (): Promise<SettingsData> => {
@@ -58,6 +61,7 @@ export function SettingsProvider(props: ParentProps) {
     setBusinessNameSignal(data.businessName);
     setPhoneSignal(data.phone);
     setAddressSignal(data.address);
+    setSectorSignal(data.sector);
     setKeywordsSignal(data.keywords);
     return data;
   };
@@ -70,6 +74,7 @@ export function SettingsProvider(props: ParentProps) {
     if (data.businessName !== undefined) setBusinessNameSignal(data.businessName);
     if (data.phone !== undefined) setPhoneSignal(data.phone);
     if (data.address !== undefined) setAddressSignal(data.address);
+    if (data.sector !== undefined) setSectorSignal(data.sector);
     if (data.keywords !== undefined) setKeywordsSignal(data.keywords);
   };
 
@@ -105,6 +110,10 @@ export function SettingsProvider(props: ParentProps) {
     return setAddressSignal(value);
   };
 
+  const setSector: typeof setSectorSignal = (value) => {
+    return setSectorSignal(value);
+  };
+
   const setKeywords: typeof setKeywordsSignal = (value) => {
     return setKeywordsSignal(value);
   };
@@ -124,6 +133,8 @@ export function SettingsProvider(props: ParentProps) {
     setPhone,
     address,
     setAddress,
+    sector,
+    setSector,
     keywords,
     setKeywords,
     refetch,

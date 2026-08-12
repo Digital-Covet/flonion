@@ -76,6 +76,11 @@ export const ReviewStep: Component<ReviewStepProps> = (props) => {
               <span class="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium">
                 {props.data.category}
               </span>
+              <Show when={props.data.sector}>
+                <span class="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium">
+                  {props.data.sector}
+                </span>
+              </Show>
             </div>
 
             <Show when={keywordList().length > 0}>
