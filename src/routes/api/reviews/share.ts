@@ -3,6 +3,10 @@ import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "@/db/prisma";
 import { toSlug } from "~/lib/slug";
 
+const MAX_TEXT_LENGTH = 5000;
+const MAX_NAME_LENGTH = 100;
+const MAX_KEYWORDS_LENGTH = 500;
+
 export async function POST(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
 
@@ -14,6 +18,27 @@ export async function POST(event: APIEvent) {
     if (id && rating !== 0 && (typeof rating !== "number" || rating < 1 || rating > 5)) {
       return Response.json(
         { error: "rating must be a number between 1 and 5" },
+        { status: 400 },
+      );
+    }
+
+    if (typeof text === "string" && text.length > MAX_TEXT_LENGTH) {
+      return Response.json(
+        { error: "text is too long" },
+        { status: 400 },
+      );
+    }
+
+    if (typeof reviewerName === "string" && reviewerName.length > MAX_NAME_LENGTH) {
+      return Response.json(
+        { error: "reviewerName is too long" },
+        { status: 400 },
+      );
+    }
+
+    if (typeof keywords === "string" && keywords.length > MAX_KEYWORDS_LENGTH) {
+      return Response.json(
+        { error: "keywords is too long" },
         { status: 400 },
       );
     }
@@ -36,7 +61,9 @@ export async function POST(event: APIEvent) {
             : (typeof reviewerName === "string" && reviewerName.trim()
                 ? reviewerName.trim()
                 : session?.user.name ?? "Anonymous"),
-          keywords: typeof keywords === "string" ? keywords : existing.keywords,
+          // `keywords` is owner-configured SEO input that is served back to every
+          // visitor and fed into the AI prompt. Anonymous callers must not set it.
+          keywords: isOwner && typeof keywords === "string" ? keywords : existing.keywords,
         },
         select: {
           id: true,
@@ -75,6 +102,13 @@ export async function POST(event: APIEvent) {
           : "unknown";
         return Response.json({ url: `/company/${slug}/review/${existing.id}` });
       }
+    }
+
+    if (typeof rating !== "number" || rating < 0 || rating > 5) {
+      return Response.json(
+        { error: "rating must be a number between 0 and 5" },
+        { status: 400 },
+      );
     }
 
     const review = await prisma.sharedReview.create({
