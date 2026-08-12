@@ -1,124 +1,78 @@
-import { getRequestEvent } from "solid-js/web"
-import { createHmac } from "node:crypto"
+import { prisma } from "@/db/prisma"
+import { decrypt, encrypt } from "./crypto"
 
-interface TokenSet {
+export interface TokenSet {
   accessToken: string
   refreshToken: string
   expiresAt: number
   tokenType: string
 }
 
-const COOKIE_NAME = "gtok"
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 30 // 30 days
+/**
+ * Google OAuth tokens are stored per user in the database, encrypted at rest.
+ *
+ * They previously lived in a signed but client-readable cookie, which meant any
+ * XSS on the app yielded a refresh token, and every caller passed the literal
+ * string "default" as the user id — so token ownership was really "whoever's
+ * browser sent the cookie". Both are fixed here.
+ */
 
-function getSigningKey(): string {
-  const key = process.env.COOKIE_SECRET
-  if (!key) throw new Error("Missing environment variable: COOKIE_SECRET")
-  return key
-}
+async function readTokenSet(userId: string): Promise<TokenSet | null> {
+  const row = await prisma.googleToken.findUnique({ where: { userId } })
+  if (!row) return null
 
-function sign(data: string): string {
-  return createHmac("sha256", getSigningKey()).update(data).digest("hex")
-}
+  const accessToken = decrypt(row.accessToken)
+  const refreshToken = decrypt(row.refreshToken)
 
-function verify(data: string, signature: string): boolean {
-  return sign(data) === signature
-}
+  // Undecryptable rows mean a rotated/incorrect key. Treat as not connected.
+  if (!accessToken || !refreshToken) return null
 
-function serializeTokens(tokenSet: TokenSet): string {
-  const json = JSON.stringify(tokenSet)
-  const encoded = Buffer.from(json).toString("base64url")
-  const signature = sign(encoded)
-  return `${encoded}.${signature}`
-}
-
-function deserializeTokens(cookieValue: string): TokenSet | null {
-  try {
-    const dotIndex = cookieValue.lastIndexOf(".")
-    if (dotIndex === -1) return null
-
-    const encoded = cookieValue.slice(0, dotIndex)
-    const signature = cookieValue.slice(dotIndex + 1)
-
-    if (!verify(encoded, signature)) return null
-
-    const json = Buffer.from(encoded, "base64url").toString("utf-8")
-    return JSON.parse(json)
-  } catch {
-    return null
+  return {
+    accessToken,
+    refreshToken,
+    expiresAt: row.expiresAt.getTime(),
+    tokenType: row.tokenType,
   }
 }
 
-function parseCookies(cookieHeader: string): Record<string, string> {
-  const cookies: Record<string, string> = {}
-  if (!cookieHeader) return cookies
-
-  for (const pair of cookieHeader.split(";")) {
-    const idx = pair.indexOf("=")
-    if (idx === -1) continue
-    const name = pair.slice(0, idx).trim()
-    const value = pair.slice(idx + 1).trim()
-    if (name) cookies[name] = decodeURIComponent(value)
-  }
-  return cookies
-}
-
-function readTokenSet(): TokenSet | null {
-  const event = getRequestEvent()
-  const cookieHeader = event?.request.headers.get("Cookie") ?? ""
-  const cookies = parseCookies(cookieHeader)
-  const cookieValue = cookies[COOKIE_NAME]
-  if (!cookieValue) return null
-  return deserializeTokens(cookieValue)
-}
-
-function writeTokenSet(tokenSet: TokenSet): void {
-  const event = getRequestEvent()
-  if (!event) return
-
-  const serialized = serializeTokens(tokenSet)
-  const cookieParts = [
-    `${COOKIE_NAME}=${serialized}`,
-    "Path=/",
-    "SameSite=Lax",
-    `Max-Age=${COOKIE_MAX_AGE}`,
-  ]
-
-  if (process.env.NODE_ENV === "production") {
-    cookieParts.push("Secure")
+export async function storeTokens(
+  userId: string,
+  tokenData: TokenSet,
+): Promise<void> {
+  const data = {
+    accessToken: encrypt(tokenData.accessToken),
+    refreshToken: encrypt(tokenData.refreshToken),
+    expiresAt: new Date(tokenData.expiresAt),
+    tokenType: tokenData.tokenType ?? "Bearer",
   }
 
-  // HttpOnly cannot be set via Set-Cookie header from JS
-  // We rely on the cookie being signed to prevent tampering
-  event.response.headers.append("Set-Cookie", cookieParts.join("; "))
+  await prisma.googleToken.upsert({
+    where: { userId },
+    create: { userId, ...data },
+    update: data,
+  })
 }
 
-function removeTokenSet(): void {
-  const event = getRequestEvent()
-  if (!event) return
-
-  event.response.headers.append(
-    "Set-Cookie",
-    `${COOKIE_NAME}=; Path=/; Max-Age=0`,
-  )
+export async function getTokens(userId: string): Promise<TokenSet | undefined> {
+  return (await readTokenSet(userId)) ?? undefined
 }
 
-export function storeTokens(_userId: string, tokenData: TokenSet): void {
-  writeTokenSet(tokenData)
-}
-
-export function getTokens(_userId: string): TokenSet | undefined {
-  return readTokenSet() ?? undefined
-}
-
-export function hasValidTokens(_userId: string): boolean {
-  const tokenSet = readTokenSet()
+export async function hasValidTokens(userId: string): Promise<boolean> {
+  const tokenSet = await readTokenSet(userId)
   if (!tokenSet) return false
   return Date.now() < tokenSet.expiresAt - 60_000
 }
 
-export async function refreshAccessToken(_userId: string): Promise<string> {
-  const tokenSet = readTokenSet()
+export async function clearTokens(userId: string): Promise<void> {
+  await prisma.googleToken.deleteMany({ where: { userId } })
+}
+
+/**
+ * Google only returns a refresh token on the first consent. Preserve the
+ * stored one when a refresh response omits it.
+ */
+export async function refreshAccessToken(userId: string): Promise<string> {
+  const tokenSet = await readTokenSet(userId)
   if (!tokenSet) throw new Error("No tokens found for user")
 
   const clientId = process.env.GOOGLE_CLIENT_ID
@@ -137,7 +91,7 @@ export async function refreshAccessToken(_userId: string): Promise<string> {
   })
 
   if (!response.ok) {
-    removeTokenSet()
+    await clearTokens(userId)
     throw new Error("Failed to refresh access token")
   }
 
@@ -145,23 +99,21 @@ export async function refreshAccessToken(_userId: string): Promise<string> {
   const updated: TokenSet = {
     ...tokenSet,
     accessToken: data.access_token,
+    refreshToken: data.refresh_token ?? tokenSet.refreshToken,
     expiresAt: Date.now() + data.expires_in * 1000,
   }
-  writeTokenSet(updated)
+
+  await storeTokens(userId, updated)
   return updated.accessToken
 }
 
-export async function getValidAccessToken(_userId: string): Promise<string> {
-  const tokenSet = readTokenSet()
+export async function getValidAccessToken(userId: string): Promise<string> {
+  const tokenSet = await readTokenSet(userId)
   if (!tokenSet) throw new Error("Not authenticated with Google")
 
   if (Date.now() < tokenSet.expiresAt - 60_000) {
     return tokenSet.accessToken
   }
 
-  return refreshAccessToken(_userId)
-}
-
-export function clearTokens(_userId: string): void {
-  removeTokenSet()
+  return refreshAccessToken(userId)
 }

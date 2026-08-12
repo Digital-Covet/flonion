@@ -104,7 +104,7 @@ export async function GET(_event: APIEvent) {
     )
   }
 
-  if (!hasValidTokens("default")) {
+  if (!(await hasValidTokens(session.user.id))) {
     return Response.json(
       { error: "Not authenticated", authUrl: "/api/google/auth" },
       { status: 401 },
@@ -112,7 +112,7 @@ export async function GET(_event: APIEvent) {
   }
 
   try {
-    const accessToken = await getValidAccessToken("default")
+    const accessToken = await getValidAccessToken(session.user.id)
 
     const accountsResponse = await fetchWithRetry(
       "https://mybusinessbusinessinformation.googleapis.com/v1/accounts",
@@ -163,7 +163,7 @@ export async function GET(_event: APIEvent) {
 
     return Response.json({ accounts: allLocations })
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error"
-    return Response.json({ error: message }, { status: 500 })
+    console.error("[google/locations] request failed:", err)
+    return Response.json({ error: "Failed to fetch locations" }, { status: 500 })
   }
 }

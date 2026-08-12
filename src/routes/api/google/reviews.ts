@@ -12,7 +12,7 @@ export async function GET(event: APIEvent) {
     )
   }
 
-  if (!hasValidTokens("default")) {
+  if (!(await hasValidTokens(session.user.id))) {
     return Response.json(
       { error: "Not authenticated", authUrl: "/api/google/auth" },
       { status: 401 },
@@ -33,7 +33,7 @@ export async function GET(event: APIEvent) {
   }
 
   try {
-    const accessToken = await getValidAccessToken("default")
+    const accessToken = await getValidAccessToken(session.user.id)
 
     const parent = `accounts/${accountId}/locations/${locationId}`
     const params = new URLSearchParams({ pageSize })
@@ -73,7 +73,7 @@ export async function GET(event: APIEvent) {
 
     return Response.json(response)
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error"
-    return Response.json({ error: message }, { status: 500 })
+    console.error("[google/reviews] request failed:", err)
+    return Response.json({ error: "Failed to fetch reviews" }, { status: 500 })
   }
 }

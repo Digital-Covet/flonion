@@ -27,9 +27,26 @@ model User {
   twofactors       TwoFactor[]
   business         Business?
   sharedReviews    SharedReview[]
+  googleToken      GoogleToken?
 
   @@unique([email])
   @@map("user")
+}
+
+/// Google Business Profile OAuth tokens, scoped per user.
+/// `accessToken` and `refreshToken` are AES-256-GCM ciphertext, never plaintext.
+model GoogleToken {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  tokenType    String   @default("Bearer")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("google_token")
 }
 
 model Business {
