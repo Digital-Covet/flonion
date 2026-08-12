@@ -16,11 +16,16 @@ import {
 } from "@/services/email-templates";
 
 import { COMPANY_NAME } from "./constants";
+import { getTrustedOrigins } from "./trusted-origins";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+
+  // Blocks CSRF and open redirects on the /api/auth/* routes: better-auth
+  // validates request Origin and every callbackURL/redirectTo against this list.
+  trustedOrigins: getTrustedOrigins(),
 
   user: {
     changeEmail: {

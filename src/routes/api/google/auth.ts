@@ -1,5 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server"
 import { getSessionFromHeaders } from "~/lib/server-auth"
+import { createOAuthState } from "~/lib/oauth-state"
 
 function getEnv(key: string): string {
   const value = process.env[key]
@@ -17,7 +18,7 @@ export async function GET(event: APIEvent) {
   const redirectUri = getEnv("GOOGLE_REDIRECT_URI")
 
   const url = new URL(event.request.url)
-  const returnTo = url.searchParams.get("returnTo") || "/"
+  const { state, cookie } = createOAuthState(url.searchParams.get("returnTo") ?? "")
 
   const scopes = [
     "https://www.googleapis.com/auth/business.manage",
@@ -32,13 +33,16 @@ export async function GET(event: APIEvent) {
     scope: scopes.join(" "),
     access_type: "offline",
     prompt: "consent",
-    state: returnTo,
+    state,
   })
 
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
 
   return new Response(null, {
     status: 302,
-    headers: { Location: authUrl },
+    headers: {
+      Location: authUrl,
+      "Set-Cookie": cookie,
+    },
   })
 }
