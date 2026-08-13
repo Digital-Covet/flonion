@@ -24,6 +24,11 @@ export const ReviewStep: Component<ReviewStepProps> = (props) => {
       .map((k) => k.trim())
       .filter(Boolean);
 
+  const sectorDisplay = () =>
+    props.data.sector === "Other" && props.data.customSector.trim()
+      ? props.data.customSector
+      : props.data.sector;
+
   return (
     <div class="flex flex-col gap-6">
       <p class="text-center text-sm text-muted-foreground">
@@ -76,9 +81,9 @@ export const ReviewStep: Component<ReviewStepProps> = (props) => {
               <span class="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium">
                 {props.data.category}
               </span>
-              <Show when={props.data.sector}>
+              <Show when={sectorDisplay()}>
                 <span class="rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-medium">
-                  {props.data.sector}
+                  {sectorDisplay()}
                 </span>
               </Show>
             </div>

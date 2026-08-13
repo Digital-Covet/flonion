@@ -31,6 +31,7 @@ export default function OnboardingPage() {
     pinCode: "",
     category: "Restaurant",
     sector: "",
+    customSector: "",
     keywords: "",
     logo: null,
   });
@@ -52,6 +53,7 @@ export default function OnboardingPage() {
             pinCode: "",
             category: "Restaurant",
             sector: data.sector ?? "",
+            customSector: "",
             keywords: data.keywords ?? "",
             logo: data.logo ?? null,
           });
@@ -96,7 +98,10 @@ export default function OnboardingPage() {
           address: [basicsData().address, basicsData().city, basicsData().pinCode]
             .filter(Boolean)
             .join(", "),
-          sector: basicsData().sector,
+          sector:
+            basicsData().sector === "Other" && basicsData().customSector.trim()
+              ? basicsData().customSector
+              : basicsData().sector,
           keywords: basicsData().keywords,
           logo: basicsData().logo,
         }),

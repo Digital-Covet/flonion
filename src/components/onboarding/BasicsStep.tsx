@@ -15,6 +15,7 @@ export interface BasicsData {
   pinCode: string;
   category: string;
   sector: string;
+  customSector: string;
   keywords: string;
   logo: string | null;
 }
@@ -121,7 +122,9 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
 
       <SectorSelect
         value={props.data.sector}
+        customValue={props.data.customSector}
         onChange={(sector) => props.onChange({ sector })}
+        onCustomChange={(customSector) => props.onChange({ customSector })}
       />
 
       <TagsInput.Root

@@ -1,9 +1,11 @@
+import { Field } from "@ark-ui/solid/field";
 import { Select, createListCollection } from "@ark-ui/solid/select";
-import { For, type Component } from "solid-js";
+import { For, Show, type Component } from "solid-js";
+import { Portal } from "solid-js/web";
 import Check from "lucide-solid/icons/check";
 import ChevronDown from "lucide-solid/icons/chevron-down";
 
-const sectors = [
+export const sectors: string[] = [
   "Agriculture",
   "Fishing",
   "Forestry",
@@ -23,7 +25,8 @@ const sectors = [
   "Intellectual property",
   "Technology and innovation",
   "Data analysis",
-] as const;
+  "Other",
+];
 
 const sectorItems = sectors.map((sector) => ({ label: sector, value: sector }));
 
@@ -31,19 +34,25 @@ const sectorCollection = createListCollection({ items: sectorItems });
 
 interface SectorSelectProps {
   value: string;
+  customValue: string;
   onChange: (value: string) => void;
+  onCustomChange: (value: string) => void;
 }
 
 const triggerClass =
   "flex w-full items-center justify-between gap-3 rounded-lg border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
 
+const inputClass =
+  "w-full rounded-lg border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
+
 export const SectorSelect: Component<SectorSelectProps> = (props) => {
   return (
-    <Select.Root
+    <>
+      <Select.Root
       collection={sectorCollection}
       value={props.value ? [props.value] : []}
       onValueChange={(details) => props.onChange(details.value[0] ?? "")}
-      positioning={{ placement: "bottom" }}
+      positioning={{ placement: "bottom-start", sameWidth: true }}
     >
       <Select.Label class="text-sm font-semibold text-foreground">
         Business Sector
@@ -61,25 +70,47 @@ export const SectorSelect: Component<SectorSelectProps> = (props) => {
         </Select.Trigger>
       </Select.Control>
 
-      <Select.Positioner>
-        <Select.Content class="z-50 mt-1 min-w-52 rounded-md border border-border bg-card p-1 shadow-sm">
-          <For each={sectorItems}>
-            {(item) => (
-              <Select.Item
-                item={item}
-                class="flex cursor-pointer items-center justify-between rounded-sm px-3 py-2 text-sm text-foreground outline-none data-highlighted:bg-muted"
-              >
-                <Select.ItemText>{item.label}</Select.ItemText>
-                <Select.ItemIndicator>
-                  <Check class="size-4 text-primary" aria-hidden="true" />
-                </Select.ItemIndicator>
-              </Select.Item>
-            )}
-          </For>
-        </Select.Content>
-      </Select.Positioner>
+      <Portal>
+        <Select.Positioner>
+          <Select.Content class="z-50 mt-1 max-h-64 min-w-52 overflow-y-auto rounded-md border border-border bg-card p-1 shadow-sm">
+            <For each={sectorItems}>
+              {(item) => (
+                <Select.Item
+                  item={item}
+                  class="flex cursor-pointer items-center justify-between rounded-sm px-3 py-2 text-sm text-foreground outline-none data-highlighted:bg-muted"
+                >
+                  <Select.ItemText>{item.label}</Select.ItemText>
+                  <Select.ItemIndicator>
+                    <Check class="size-4 text-primary" aria-hidden="true" />
+                  </Select.ItemIndicator>
+                </Select.Item>
+              )}
+            </For>
+          </Select.Content>
+        </Select.Positioner>
+      </Portal>
 
       <Select.HiddenSelect />
-    </Select.Root>
+      </Select.Root>
+
+      <Show when={props.value === "Other"}>
+        <Field.Root>
+          <Field.Label
+            for="business-sector-other"
+            class="text-sm font-semibold text-foreground"
+          >
+            Specify your sector
+          </Field.Label>
+          <Field.Input
+            id="business-sector-other"
+            type="text"
+            placeholder="e.g., Real Estate, Digital Agency"
+            value={props.customValue}
+            onInput={(e) => props.onCustomChange(e.currentTarget.value)}
+            class={inputClass}
+          />
+        </Field.Root>
+      </Show>
+    </>
   );
 };
