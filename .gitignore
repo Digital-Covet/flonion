@@ -29,3 +29,7 @@ Thumbs.db
 
 generated/prisma
 .agents/
+
+# AI tooling
+repomix-output.md
+.claude/
