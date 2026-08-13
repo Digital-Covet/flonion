@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import '@fontsource-variable/rubik/wght.css';
 @import '@fontsource-variable/jost/wght.css';
+
+/* Short viewports (laptops, split screens) where full-height
+   chrome like the sidebar would otherwise need to scroll. */
+@custom-variant short (@media (max-height: 820px));
+
 @theme {
   --color-background: #f8fafc;
   --color-foreground: #0f172a;
