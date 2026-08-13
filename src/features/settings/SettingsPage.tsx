@@ -16,6 +16,7 @@ import { FormField } from "./components/FormField";
 import { ToggleRow } from "./components/ToggleRow";
 import { IntegrationCard } from "./components/IntegrationCard";
 import { LogoUploader } from "./components/LogoUploader";
+import { SectorSelect, sectors } from "~/components/onboarding/SectorSelect";
 import { useSettings } from "~/stores/settings-store";
 import type { IntegrationData, GoogleLocationData } from "./types";
 import {
@@ -50,6 +51,7 @@ export function SettingsPage() {
     address,
     setAddress,
     sector,
+    setSector,
     keywords,
     setKeywords,
     refetch,
@@ -164,6 +166,30 @@ export function SettingsPage() {
     if (loc.address) setAddress(loc.address);
   };
 
+  const selectedSector = () =>
+    sectors.includes(sector())
+      ? sector()
+      : sector()
+        ? "Other"
+        : "";
+
+  const customSectorValue = () =>
+    sectors.includes(sector()) ? "" : sector();
+
+  const handleSectorChange = (value: string) => {
+    setSector(value === "Other" ? "Other" : value);
+  };
+
+  const handleCustomSectorChange = (value: string) => {
+    setSector(value);
+  };
+
+  const finalSector = () => {
+    const s = sector();
+    if (sectors.includes(s)) return s;
+    return s === "Other" ? "" : s;
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setSaveSuccess(false);
@@ -179,7 +205,7 @@ export function SettingsPage() {
           businessName: businessName(),
           phone: phone(),
           address: address(),
-          sector: sector(),
+          sector: finalSector(),
           keywords: keywords(),
         }),
       });
@@ -240,6 +266,14 @@ export function SettingsPage() {
               }
               class="md:col-span-2"
             />
+            <div class="md:col-span-2">
+              <SectorSelect
+                value={selectedSector()}
+                customValue={customSectorValue()}
+                onChange={handleSectorChange}
+                onCustomChange={handleCustomSectorChange}
+              />
+            </div>
           </div>
         </SectionCard>
 
