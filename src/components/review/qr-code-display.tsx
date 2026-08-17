@@ -8,6 +8,7 @@ interface QRCodeDisplayProps {
   logo?: string | null;
   businessName?: string;
   reviewId?: string | null;
+  instructionText?: string;
 }
 
 const QR_SIZE = 160;
@@ -23,6 +24,19 @@ function getQrUrl(reviewId: string | null | undefined, fallback: string | null):
 
 export function QRCodeDisplay(props: QRCodeDisplayProps) {
   const [dataUrl, setDataUrl] = createSignal<string | null>(null);
+  const [instructionText, setInstructionText] = createSignal(
+    props.instructionText ?? "Scan to leave a review",
+  );
+  const [editing, setEditing] = createSignal(false);
+  const [draftText, setDraftText] = createSignal(instructionText());
+  let textareaRef: HTMLTextAreaElement | undefined;
+
+  createEffect(() => {
+    if (textareaRef && editing()) {
+      textareaRef.style.height = "auto";
+      textareaRef.style.height = `${textareaRef.scrollHeight}px`;
+    }
+  });
 
   createEffect(() => {
     const url = getQrUrl(props.reviewId, props.url);
@@ -69,16 +83,16 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
       if (props.logo) {
         const logoImg = new Image();
         logoImg.onload = () => {
-          drawLogoAndText(ctx, logoImg, canvasSize, qrSize, qrX, qrY);
+          drawLogoAndText(ctx, logoImg, canvasSize, qrSize, qrX, qrY, instructionText());
           triggerDownload(canvas);
         };
         logoImg.onerror = () => {
-          drawTextOnly(ctx, canvasSize, qrSize, qrX, qrY);
+          drawTextOnly(ctx, canvasSize, qrSize, qrX, qrY, instructionText());
           triggerDownload(canvas);
         };
         logoImg.src = props.logo;
       } else {
-        drawTextOnly(ctx, canvasSize, qrSize, qrX, qrY);
+        drawTextOnly(ctx, canvasSize, qrSize, qrX, qrY, instructionText());
         triggerDownload(canvas);
       }
     };
@@ -104,6 +118,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
     qrSize: number,
     qrX: number,
     qrY: number,
+    instrText: string,
   ) => {
     const logoSize = qrSize * 0.18;
     const center = canvasSize / 2;
@@ -128,7 +143,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
     );
     ctx.restore();
 
-    drawTextOnly(ctx, canvasSize, qrSize, qrX, qrY);
+    drawTextOnly(ctx, canvasSize, qrSize, qrX, qrY, instrText);
   };
 
   const drawTextOnly = (
@@ -137,6 +152,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
     qrSize: number,
     _qrX: number,
     qrY: number,
+    instrText: string,
   ) => {
     const textY = qrY + qrSize + 60;
 
@@ -163,7 +179,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
     ctx.fillStyle = "#6b7280";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.fillText("Scan to leave a review", canvasSize / 2, instrY);
+    ctx.fillText(instructionText(), canvasSize / 2, instrY);
   };
 
   return (
@@ -209,9 +225,41 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
               {props.businessName}
             </p>
           </Show>
-          <p class="text-center text-xs text-muted-foreground/60">
-            Scan to leave a review
-          </p>
+          <Show
+            when={editing()}
+            fallback={
+              <button
+                type="button"
+                onClick={() => {
+                  setDraftText(instructionText());
+                  setEditing(true);
+                }}
+                class="text-center text-xs text-muted-foreground/60 hover:text-muted-foreground/80 transition-colors"
+              >
+                {instructionText()}
+              </button>
+            }
+          >
+            <textarea
+              ref={textareaRef}
+              value={draftText()}
+              onInput={(e) => setDraftText((e.target as HTMLTextAreaElement).value)}
+              onBlur={() => {
+                const trimmed = draftText().trim();
+                setInstructionText(trimmed || "Scan to leave a review");
+                setEditing(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setDraftText(instructionText());
+                  setEditing(false);
+                }
+              }}
+              class="w-full max-w-[200px] resize-none overflow-hidden border-none bg-transparent p-0 text-center text-xs text-muted-foreground/60 outline-none focus:ring-0"
+              rows={1}
+              autofocus
+            />
+          </Show>
           <button
             type="button"
             onClick={downloadQR}
