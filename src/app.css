@@ -18,6 +18,8 @@
   --color-primary: #0060ff;
   --color-primary-hover: #0050cc;
   --color-primary-foreground: #ffffff;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #0f172a;
 
   --color-destructive: #dc2626;
   --color-destructive-muted: #fef2f2;

@@ -27,6 +27,7 @@ model User {
   twofactors       TwoFactor[]
   business         Business?
   sharedReviews    SharedReview[]
+  feedback         Feedback[]
   googleToken      GoogleToken?
 
   @@unique([email])
@@ -161,4 +162,19 @@ model ReviewAnalytics {
 
   @@index([reviewId])
   @@map("review_analytics")
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  email     String
+  category  String
+  rating    Int
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("feedback")
 }

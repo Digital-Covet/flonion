@@ -7,6 +7,7 @@ import Inbox from "lucide-solid/icons/inbox";
 import Megaphone from "lucide-solid/icons/megaphone";
 import PenSquare from "lucide-solid/icons/pen-square";
 import SearchCheck from "lucide-solid/icons/search-check";
+import MessageSquare from "lucide-solid/icons/message-square";
 import Settings from "lucide-solid/icons/settings";
 import User from "lucide-solid/icons/user";
 import UserCircle from "lucide-solid/icons/user-circle";
@@ -87,6 +88,11 @@ const navigationGroups: NavigationGroup[] = [
         label: "Account",
         href: "/account",
         icon: UserCircle,
+      },
+      {
+        label: "Feedback",
+        href: "/feedback",
+        icon: MessageSquare,
       },
     ],
   },
