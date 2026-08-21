@@ -8,6 +8,7 @@ export interface SettingsData {
   reviewLinks: ReviewLinksMap;
   logo: string | null;
   businessName: string;
+  username: string;
   phone: string;
   address: string;
   sector: string;
@@ -25,6 +26,8 @@ export interface SettingsContextValue {
   setLogo: Setter<string | null>;
   businessName: Accessor<string>;
   setBusinessName: Setter<string>;
+  username: Accessor<string>;
+  setUsername: Setter<string>;
   phone: Accessor<string>;
   setPhone: Setter<string>;
   address: Accessor<string>;

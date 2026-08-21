@@ -26,6 +26,7 @@ export default function OnboardingPage() {
 
   const [basicsData, setBasicsData] = createSignal<BasicsData>({
     businessName: "",
+    username: "",
     address: "",
     city: "",
     pinCode: "",
@@ -48,6 +49,7 @@ export default function OnboardingPage() {
         if (data.businessName) {
           setBasicsData({
             businessName: data.businessName ?? "",
+            username: data.username ?? "",
             address: data.address ?? "",
             city: "",
             pinCode: "",
@@ -95,6 +97,7 @@ export default function OnboardingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           businessName: basicsData().businessName,
+          username: basicsData().username,
           address: [basicsData().address, basicsData().city, basicsData().pinCode]
             .filter(Boolean)
             .join(", "),

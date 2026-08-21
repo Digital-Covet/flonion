@@ -59,6 +59,7 @@ model Business {
   reviewLinks Json?
   logo        String?
   name      String
+  username  String?  @unique
   phone     String?
   address   String?
   sector    String?

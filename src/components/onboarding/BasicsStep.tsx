@@ -1,4 +1,4 @@
-import { Index, type Component } from "solid-js";
+import { createSignal, Index, type Component } from "solid-js";
 import { Field } from "@ark-ui/solid/field";
 import { TagsInput } from "@ark-ui/solid/tags-input";
 import ArrowRight from "lucide-solid/icons/arrow-right";
@@ -10,6 +10,7 @@ import { SectorSelect } from "./SectorSelect";
 
 export interface BasicsData {
   businessName: string;
+  username: string;
   address: string;
   city: string;
   pinCode: string;
@@ -29,17 +30,59 @@ interface BasicsStepProps {
 const fieldInputClass =
   "w-full rounded-lg border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
 
+const USERNAME_REGEX = /^[a-z0-9-]+$/;
+const MAX_USERNAME_LENGTH = 15;
+
 export const BasicsStep: Component<BasicsStepProps> = (props) => {
+  const [usernameError, setUsernameError] = createSignal("");
+  const [usernameAvailable, setUsernameAvailable] = createSignal<boolean | null>(null);
+
   const parsedKeywords = () =>
     props.data.keywords
       .split(",")
       .map((k) => k.trim())
       .filter(Boolean);
 
+  const validateUsername = (value: string) => {
+    const trimmed = value.toLowerCase();
+    
+    if (!trimmed) {
+      setUsernameError("");
+      setUsernameAvailable(null);
+      return;
+    }
+
+    if (trimmed.length > MAX_USERNAME_LENGTH) {
+      setUsernameError(`Max ${MAX_USERNAME_LENGTH} characters`);
+      setUsernameAvailable(false);
+      return;
+    }
+
+    if (!USERNAME_REGEX.test(trimmed)) {
+      setUsernameError("Lowercase letters, numbers, hyphens only");
+      setUsernameAvailable(false);
+      return;
+    }
+
+    setUsernameError("");
+    setUsernameAvailable(null);
+  };
+
+  const handleUsernameInput = (e: Event) => {
+    const value = (e.target as HTMLInputElement).value;
+    props.onChange({ username: value });
+    validateUsername(value);
+  };
+
   const handleSubmit = (e: Event) => {
     e.preventDefault();
     if (!props.data.businessName.trim()) return;
     props.onContinue();
+  };
+
+  const previewUrl = () => {
+    const username = props.data.username.trim().toLowerCase();
+    return username ? `/company/${username}/review/...` : "/company/yourusername/review/...";
   };
 
   return (
@@ -59,6 +102,37 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
           onInput={(e) => props.onChange({ businessName: e.currentTarget.value })}
           class={fieldInputClass}
         />
+      </Field.Root>
+
+      <Field.Root>
+        <Field.Label
+          for="username"
+          class="text-sm font-semibold text-foreground"
+        >
+          Username
+        </Field.Label>
+        <Field.Input
+          id="username"
+          type="text"
+          placeholder="e.g., johns-diner"
+          value={props.data.username}
+          onInput={handleUsernameInput}
+          maxlength={MAX_USERNAME_LENGTH}
+          class={`${fieldInputClass} ${usernameError() ? "border-destructive" : ""} ${usernameAvailable() === true ? "border-positive" : ""}`}
+        />
+        <div class="mt-1 flex items-center justify-between">
+          <p class={`text-xs ${usernameError() ? "text-destructive" : "text-muted-foreground"}`}>
+            {usernameError() || "Lowercase letters, numbers, hyphens. Max 15 characters."}
+          </p>
+          {props.data.username && (
+            <p class="text-xs text-muted-foreground/60">
+              {props.data.username.length}/{MAX_USERNAME_LENGTH}
+            </p>
+          )}
+        </div>
+        <p class="text-xs text-muted-foreground/50">
+          Your review link: <span class="font-mono">{previewUrl()}</span>
+        </p>
       </Field.Root>
 
       <Field.Root>

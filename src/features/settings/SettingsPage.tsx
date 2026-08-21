@@ -46,6 +46,8 @@ export function SettingsPage() {
     setLogo,
     businessName,
     setBusinessName,
+    username,
+    setUsername,
     phone,
     setPhone,
     address,
@@ -203,6 +205,7 @@ export function SettingsPage() {
           reviewLinks: reviewLinks(),
           logo: logo(),
           businessName: businessName(),
+          username: username(),
           phone: phone(),
           address: address(),
           sector: finalSector(),
@@ -248,6 +251,19 @@ export function SettingsPage() {
                 setBusinessName((e.target as HTMLInputElement).value)
               }
             />
+            <div>
+              <FormField
+                id="username"
+                label="Username"
+                value={username()}
+                onInput={(e) =>
+                  setUsername((e.target as HTMLInputElement).value.toLowerCase())
+                }
+              />
+              <p class="mt-1 text-xs text-muted-foreground">
+                Your review link: /company/{username() || "username"}/review/...
+              </p>
+            </div>
             <FormField
               id="phone-number"
               label="Phone Number"

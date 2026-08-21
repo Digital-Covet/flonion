@@ -12,6 +12,7 @@ const EMPTY: SettingsData = {
   reviewLinks: {},
   logo: null,
   businessName: "",
+  username: "",
   phone: "",
   address: "",
   sector: "",
@@ -31,6 +32,7 @@ async function fetchBusiness(): Promise<SettingsData> {
         : {},
       logo: typeof data.logo === "string" ? data.logo : null,
       businessName: typeof data.businessName === "string" ? data.businessName : "",
+      username: typeof data.username === "string" ? data.username : "",
       phone: typeof data.phone === "string" ? data.phone : "",
       address: typeof data.address === "string" ? data.address : "",
       sector: typeof data.sector === "string" ? data.sector : "",
@@ -47,6 +49,7 @@ export function SettingsProvider(props: ParentProps) {
   const [reviewLinks, setReviewLinksSignal] = createSignal<ReviewLinksMap>({});
   const [logo, setLogoSignal] = createSignal<string | null>(null);
   const [businessName, setBusinessNameSignal] = createSignal("");
+  const [username, setUsernameSignal] = createSignal("");
   const [phone, setPhoneSignal] = createSignal("");
   const [address, setAddressSignal] = createSignal("");
   const [sector, setSectorSignal] = createSignal("");
@@ -59,6 +62,7 @@ export function SettingsProvider(props: ParentProps) {
     setReviewLinksSignal(data.reviewLinks);
     setLogoSignal(data.logo);
     setBusinessNameSignal(data.businessName);
+    setUsernameSignal(data.username);
     setPhoneSignal(data.phone);
     setAddressSignal(data.address);
     setSectorSignal(data.sector);
@@ -72,6 +76,7 @@ export function SettingsProvider(props: ParentProps) {
     if (data.reviewLinks !== undefined) setReviewLinksSignal(data.reviewLinks);
     if (data.logo !== undefined) setLogoSignal(data.logo);
     if (data.businessName !== undefined) setBusinessNameSignal(data.businessName);
+    if (data.username !== undefined) setUsernameSignal(data.username);
     if (data.phone !== undefined) setPhoneSignal(data.phone);
     if (data.address !== undefined) setAddressSignal(data.address);
     if (data.sector !== undefined) setSectorSignal(data.sector);
@@ -102,6 +107,10 @@ export function SettingsProvider(props: ParentProps) {
     return setBusinessNameSignal(value);
   };
 
+  const setUsername: typeof setUsernameSignal = (value) => {
+    return setUsernameSignal(value);
+  };
+
   const setPhone: typeof setPhoneSignal = (value) => {
     return setPhoneSignal(value);
   };
@@ -129,6 +138,8 @@ export function SettingsProvider(props: ParentProps) {
     setLogo,
     businessName,
     setBusinessName,
+    username,
+    setUsername,
     phone,
     setPhone,
     address,
