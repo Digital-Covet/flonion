@@ -1,6 +1,7 @@
 import { createEffect, createSignal, Show } from "solid-js";
 import QRCode from "qrcode";
 import Download from "lucide-solid/icons/download";
+import Pencil from "lucide-solid/icons/pencil";
 import QrCode from "lucide-solid/icons/qr-code";
 
 interface QRCodeDisplayProps {
@@ -236,6 +237,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
                 }}
                 class="text-center text-xs text-muted-foreground/60 hover:text-muted-foreground/80 transition-colors"
               >
+                <Pencil class="mr-1 inline-block size-3" aria-hidden="true" />
                 {instructionText()}
               </button>
             }
