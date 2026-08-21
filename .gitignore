@@ -33,3 +33,4 @@ generated/prisma
 # AI tooling
 repomix-output.md
 .claude/
+.design-sync/
