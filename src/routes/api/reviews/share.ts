@@ -1,7 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "@/db/prisma";
-import { toSlug } from "~/lib/slug";
 
 const MAX_TEXT_LENGTH = 5000;
 const MAX_NAME_LENGTH = 100;
@@ -73,13 +72,12 @@ export async function POST(event: APIEvent) {
 
       const user = await prisma.user.findUnique({
         where: { id: review.userId },
-        select: { business: { select: { name: true } } },
+        select: { business: { select: { name: true, username: true } } },
       });
 
-      const businessName = user?.business?.name;
-      const slug = businessName ? toSlug(businessName) : "unknown";
+      const username = user?.business?.username || "unknown";
 
-      return Response.json({ url: `/company/${slug}/review/${review.id}` });
+      return Response.json({ url: `/company/${username}/review/${review.id}` });
     }
 
     if (!session) {
@@ -95,12 +93,10 @@ export async function POST(event: APIEvent) {
       if (existing) {
         const existingUser = await prisma.user.findUnique({
           where: { id: existing.userId },
-          select: { business: { select: { name: true } } },
+          select: { business: { select: { name: true, username: true } } },
         });
-        const slug = existingUser?.business?.name
-          ? toSlug(existingUser.business.name)
-          : "unknown";
-        return Response.json({ url: `/company/${slug}/review/${existing.id}` });
+        const username = existingUser?.business?.username || "unknown";
+        return Response.json({ url: `/company/${username}/review/${existing.id}` });
       }
     }
 
@@ -123,13 +119,12 @@ export async function POST(event: APIEvent) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.session.userId },
-      select: { business: { select: { name: true } } },
+      select: { business: { select: { name: true, username: true } } },
     });
 
-    const businessName = user?.business?.name;
-    const slug = businessName ? toSlug(businessName) : "unknown";
+    const username = user?.business?.username || "unknown";
 
-    return Response.json({ url: `/company/${slug}/review/${review.id}` });
+    return Response.json({ url: `/company/${username}/review/${review.id}` });
   } catch {
     return Response.json(
       { error: "Invalid request body" },

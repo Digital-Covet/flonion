@@ -19,7 +19,6 @@ import type {
 } from "@/features/reviews/review-types";
 import { ReviewComposer } from "~/components/review/review-composer";
 import InlineCombinationMark from "@/assets/inline-combination-mark";
-import { toSlug } from "~/lib/slug";
 import {
   REVIEW_PLATFORMS,
   getPlatformBySlug,
@@ -81,7 +80,7 @@ export default function PublicReviewPage() {
   onMount(async () => {
     const pathParts = window.location.pathname.split("/");
 
-    const companyname = pathParts[2];
+    const username = pathParts[2];
     const id = pathParts[4];
 
     if (!id) {
@@ -90,8 +89,8 @@ export default function PublicReviewPage() {
       return;
     }
 
-    if (!companyname) {
-      setError("No company name provided.");
+    if (!username) {
+      setError("No username provided.");
       setLoading(false);
       return;
     }
@@ -118,8 +117,8 @@ export default function PublicReviewPage() {
       if (data.business) {
         setBusiness(data.business);
 
-        const expectedSlug = toSlug(data.business.name);
-        if (expectedSlug !== companyname) {
+        const expectedUsername = data.business.username;
+        if (expectedUsername && expectedUsername !== username) {
           setCompanyMismatch(true);
           setError(
             `This review link is not valid for "${data.business.name}".`,

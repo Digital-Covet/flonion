@@ -1,7 +1,6 @@
 import { createSignal, onMount, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 import AlertTriangle from "lucide-solid/icons/alert-triangle";
-import { toSlug } from "~/lib/slug";
 
 export default function ReviewRedirect() {
   const [errorTitle, setErrorTitle] = createSignal<string | null>(null);
@@ -26,15 +25,14 @@ export default function ReviewRedirect() {
       }
 
       const data = await response.json();
-      const businessName = data.business?.name;
+      const username = data.business?.username;
 
-      if (!businessName) {
+      if (!username) {
         setErrorTitle("Could not determine business for this review.");
         return;
       }
 
-      const slug = toSlug(businessName);
-      window.location.replace(`/company/${slug}/review/${id}`);
+      window.location.replace(`/company/${username}/review/${id}`);
     } catch {
       setErrorTitle("Could not connect to the server.");
     }

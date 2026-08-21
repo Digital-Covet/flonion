@@ -1,6 +1,5 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "@/db/prisma";
-import { toSlug } from "~/lib/slug";
 
 export async function GET(event: APIEvent) {
   const id = event.params.id;
@@ -17,7 +16,7 @@ export async function GET(event: APIEvent) {
         user: {
           select: {
             business: {
-              select: { name: true },
+              select: { name: true, username: true },
             },
           },
         },
@@ -28,8 +27,7 @@ export async function GET(event: APIEvent) {
       return new Response("Not found", { status: 404 });
     }
 
-    const businessName = review.user?.business?.name;
-    const slug = businessName ? toSlug(businessName) : "unknown";
+    const username = review.user?.business?.username || "unknown";
 
     const userAgent = event.request.headers.get("user-agent") || "";
     const ip =
@@ -48,7 +46,7 @@ export async function GET(event: APIEvent) {
       },
     });
 
-    const destination = `/company/${slug}/review/${id}`;
+    const destination = `/company/${username}/review/${id}`;
 
     return new Response(null, {
       status: 302,

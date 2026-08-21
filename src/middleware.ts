@@ -20,6 +20,7 @@ const PUBLIC_PREFIXES = [
   "/api/reviews/share",
   "/api/reviews/track",
   "/api/ai/suggest-review",
+  "/qr/",
   "/review/",
   "/company/",
 ];
