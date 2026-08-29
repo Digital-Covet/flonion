@@ -7,6 +7,7 @@ import Sparkles from "lucide-solid/icons/sparkles";
 import Star from "lucide-solid/icons/star";
 import { For, Show } from "solid-js";
 import { Field } from "@ark-ui/solid/field";
+import { RatingGroup } from "@ark-ui/solid/rating-group";
 import type { Rating, ReviewDraft, ReviewSuggestion } from "@/features/reviews/review-types";
 import { SuggestionCard } from "~/components/review/suggestion-card";
 
@@ -45,7 +46,6 @@ interface ReviewComposerProps {
   nameLabel?: string;
 }
 
-const ratings: Rating[] = [1, 2, 3, 4, 5];
 const MAX_CHARS = 500;
 
 export function ReviewComposer(props: ReviewComposerProps) {
@@ -118,37 +118,40 @@ export function ReviewComposer(props: ReviewComposerProps) {
       </div>
 
       <fieldset class="mt-6">
-        <legend class="text-sm font-medium text-foreground">{props.ratingLabel ?? "Rating"}</legend>
-        <div class="mt-2 flex items-center gap-1" role="radiogroup" aria-label="Review rating">
-          <For each={ratings}>
-            {(rating) => {
-              const selected = () => rating <= props.draft.rating && props.draft.rating > 0;
-
-              return (
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={selected()}
-                  aria-label={`${rating} out of 5 stars`}
-                  onClick={() => props.actions.setRating(rating as Rating)}
-                  class={`inline-flex size-9 items-center justify-center rounded-md transition-colors ${selected()
-                    ? "text-primary"
-                    : "text-slate-300 hover:bg-muted hover:text-primary"
-                    }`}
-                >
-                  <Star
-                    class="size-6 text-yellow-400"
-                    fill={selected() ? "#fcc800" : "none"}
-                    aria-hidden="true"
-                  />
-                </button>
-              );
-            }}
-          </For>
-          <span class="ml-1.5 text-sm font-medium text-muted-foreground">
-            {props.draft.rating > 0 ? `${props.draft.rating}/5` : "Select a rating"}
-          </span>
-        </div>
+        <RatingGroup.Root
+          value={props.draft.rating}
+          onValueChange={(details) => props.actions.setRating(details.value as Rating)}
+          count={5}
+        >
+          <RatingGroup.Label class="text-sm font-medium text-foreground">
+            {props.ratingLabel ?? "Rating"}
+          </RatingGroup.Label>
+          <RatingGroup.Control class="mt-2 flex items-center gap-1">
+            <RatingGroup.Context>
+              {(api) => (
+                <For each={api().items}>
+                  {(item) => (
+                    <RatingGroup.Item
+                      index={item}
+                      class="inline-flex size-9 items-center justify-center rounded-md transition-colors"
+                    >
+                      <RatingGroup.ItemContext>
+                        {(itemState) => (
+                          <Star
+                            class="size-6 text-yellow-400"
+                            fill={itemState().highlighted ? "#fcc800" : "none"}
+                            aria-hidden="true"
+                          />
+                        )}
+                      </RatingGroup.ItemContext>
+                    </RatingGroup.Item>
+                  )}
+                </For>
+              )}
+            </RatingGroup.Context>
+            <RatingGroup.HiddenInput />
+          </RatingGroup.Control>
+        </RatingGroup.Root>
         <Show when={props.ratingHint}>
           <p class="mt-1.5 text-xs text-muted-foreground italic">{props.ratingHint}</p>
         </Show>

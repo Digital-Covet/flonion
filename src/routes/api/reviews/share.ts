@@ -12,7 +12,7 @@ export async function POST(event: APIEvent) {
   try {
     const body = await event.request.json();
 
-    const { text, rating, keywords, id, reviewerName } = body;
+    const { text, rating, keywords, id, username: businessUsername, reviewerName } = body;
 
     if (id && rating !== 0 && (typeof rating !== "number" || rating < 1 || rating > 5)) {
       return Response.json(
@@ -80,6 +80,39 @@ export async function POST(event: APIEvent) {
       return Response.json({ url: `/company/${username}/review/${review.id}` });
     }
 
+    if (businessUsername && !session) {
+      const business = await prisma.business.findUnique({
+        where: { username: businessUsername },
+        select: { userId: true, keywords: true },
+      });
+
+      if (!business) {
+        return Response.json({ error: "Business not found" }, { status: 404 });
+      }
+
+      if (typeof rating !== "number" || rating < 0 || rating > 5) {
+        return Response.json(
+          { error: "rating must be a number between 0 and 5" },
+          { status: 400 },
+        );
+      }
+
+      await prisma.sharedReview.create({
+        data: {
+          text: typeof text === "string" ? text.trim() : "",
+          rating,
+          reviewerName:
+            typeof reviewerName === "string" && reviewerName.trim()
+              ? reviewerName.trim()
+              : "Anonymous",
+          keywords: business.keywords || null,
+          userId: business.userId,
+        },
+      });
+
+      return Response.json({ ok: true });
+    }
+
     if (!session) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -136,6 +169,48 @@ export async function POST(event: APIEvent) {
 export async function GET(event: APIEvent) {
   const url = new URL(event.request.url);
   const id = url.searchParams.get("id");
+  const username = url.searchParams.get("username");
+
+  if (!id && !username) {
+    return Response.json(
+      { error: "Missing id or username parameter" },
+      { status: 400 },
+    );
+  }
+
+  if (username && !id) {
+    const business = await prisma.business.findUnique({
+      where: { username },
+      select: {
+        logo: true,
+        name: true,
+        phone: true,
+        address: true,
+        placeId: true,
+        reviewLink: true,
+        reviewLinks: true,
+        keywords: true,
+      },
+    });
+
+    if (!business) {
+      return Response.json({ error: "Business not found" }, { status: 404 });
+    }
+
+    return Response.json({
+      keywords: business.keywords,
+      business: {
+        logo: business.logo,
+        name: business.name,
+        phone: business.phone,
+        address: business.address,
+        placeId: business.placeId,
+        reviewLink: business.reviewLink,
+        reviewLinks: business.reviewLinks,
+        username,
+      },
+    });
+  }
 
   if (!id) {
     return Response.json({ error: "Missing id parameter" }, { status: 400 });

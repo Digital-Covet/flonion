@@ -261,6 +261,20 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
               rows={1}
               autofocus
             />
+            <div class="flex justify-center">
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  const trimmed = draftText().trim();
+                  setInstructionText(trimmed || "Scan to leave a review");
+                  setEditing(false);
+                }}
+                class="mt-1 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
+              >
+                Done
+              </button>
+            </div>
           </Show>
           <button
             type="button"

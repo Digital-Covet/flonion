@@ -83,26 +83,30 @@ export default function PublicReviewPage() {
     const username = pathParts[2];
     const id = pathParts[4];
 
-    if (!id) {
-      setError("No review ID provided.");
-      setLoading(false);
-      return;
-    }
-
     if (!username) {
       setError("No username provided.");
       setLoading(false);
       return;
     }
 
-    setReviewId(id);
+    if (id) {
+      setReviewId(id);
+    }
+
+    const query = id
+      ? `id=${encodeURIComponent(id)}`
+      : `username=${encodeURIComponent(username)}`;
 
     try {
-      const response = await fetch(`/api/reviews/share?id=${id}`);
+      const response = await fetch(`/api/reviews/share?${query}`);
 
       if (!response.ok) {
         if (response.status === 404) {
-          setError("Review link not found. It may have expired or been removed.");
+          setError(
+            id
+              ? "Review link not found. It may have expired or been removed."
+              : "Business not found. The link may be invalid.",
+          );
         } else {
           setError("Failed to load review form.");
         }
@@ -118,7 +122,7 @@ export default function PublicReviewPage() {
         setBusiness(data.business);
 
         const expectedUsername = data.business.username;
-        if (expectedUsername && expectedUsername !== username) {
+        if (id && expectedUsername && expectedUsername !== username) {
           setCompanyMismatch(true);
           setError(
             `This review link is not valid for "${data.business.name}".`,
@@ -126,11 +130,13 @@ export default function PublicReviewPage() {
         }
       }
 
-      fetch("/api/reviews/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reviewId: id, type: "visit" }),
-      }).catch(() => {});
+      if (id) {
+        fetch("/api/reviews/track", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reviewId: id, type: "visit" }),
+        }).catch(() => {});
+      }
     } catch {
       setError("Could not connect to the server.");
     } finally {
@@ -159,11 +165,6 @@ export default function PublicReviewPage() {
       return;
     }
 
-    if (!id) {
-      setStatusMessage("Review ID not found. Please reload the page.");
-      return;
-    }
-
     setAiLoading(true);
     setShowSuggestions(true);
     setStatusMessage("Generating AI suggestions...");
@@ -173,7 +174,7 @@ export default function PublicReviewPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          reviewId: id,
+          reviewId: id || undefined,
           draftText: text || undefined,
           starRating: rating,
           keywords: keywords() || undefined,
@@ -243,14 +244,10 @@ export default function PublicReviewPage() {
   const submitReview = async () => {
     const reviewText = draft().text;
     const id = reviewId();
+    const username = window.location.pathname.split("/")[2];
 
     if (!reviewText.trim()) {
       setStatusMessage("Enter review text before submitting.");
-      return;
-    }
-
-    if (!id) {
-      setStatusMessage("Review ID not found. Please reload the page.");
       return;
     }
 
@@ -259,7 +256,8 @@ export default function PublicReviewPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id,
+          ...(id ? { id } : {}),
+          ...(username && !id ? { username } : {}),
           text: reviewText,
           rating: draft().rating,
           reviewerName: visitorName() || undefined,
@@ -272,11 +270,13 @@ export default function PublicReviewPage() {
 
       await navigator.clipboard.writeText(reviewText);
 
-      fetch("/api/reviews/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reviewId: id, type: "review" }),
-      }).catch(() => {});
+      if (id) {
+        fetch("/api/reviews/track", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reviewId: id, type: "review" }),
+        }).catch(() => {});
+      }
 
       setSubmitted(true);
       setStatusMessage("Text Copied");
