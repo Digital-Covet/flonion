@@ -7,6 +7,9 @@ import Inbox from "lucide-solid/icons/inbox";
 import Megaphone from "lucide-solid/icons/megaphone";
 import PenSquare from "lucide-solid/icons/pen-square";
 import SearchCheck from "lucide-solid/icons/search-check";
+import FolderKanban from "lucide-solid/icons/folder-kanban";
+import Store from "lucide-solid/icons/store";
+import Users from "lucide-solid/icons/users";
 import MessageSquare from "lucide-solid/icons/message-square";
 import Settings from "lucide-solid/icons/settings";
 import User from "lucide-solid/icons/user";
@@ -28,6 +31,7 @@ interface NavigationItem {
   label: string;
   href: string;
   icon: typeof Gauge;
+  children?: NavigationItem[];
 }
 
 interface NavigationGroup {
@@ -59,6 +63,21 @@ const navigationGroups: NavigationGroup[] = [
   {
     label: "Marketing",
     items: [
+      {
+        label: "Marketplace",
+        href: "/marketplace",
+        icon: Store,
+      },
+      {
+        label: "Collaborations",
+        href: "/marketplace/collaborations/meeting-schedular",
+        icon: Users,
+      },
+      {
+        label: "Projects",
+        href: "/marketplace/projects",
+        icon: FolderKanban,
+      },
       {
         label: "SEO Optimizer",
         href: "/marketing/seo",
@@ -300,6 +319,40 @@ export function NavigationContent(
                             />
                           </Show>
                         </A>
+
+                        {/* Nested children */}
+                        <Show when={item.children && item.children.length > 0}>
+                          <ul class="mt-1 ml-6 space-y-1 short:space-y-0.5">
+                            <For each={item.children}>
+                              {(child) => {
+                                const ChildIcon = child.icon;
+                                const isChildActive = createMemo(
+                                  () =>
+                                    location.pathname === child.href ||
+                                    location.pathname.startsWith(`${child.href}/`),
+                                );
+                                return (
+                                  <li>
+                                    <A
+                                      href={child.href}
+                                      onClick={props.onNavigate}
+                                      activeClass="bg-primary/10 text-primary"
+                                      inactiveClass="text-muted-foreground hover:bg-muted hover:text-foreground"
+                                      class="group flex w-full items-center rounded-full px-3 py-2 text-sm font-medium transition-colors short:py-1.5"
+                                      aria-current={isChildActive() ? "page" : undefined}
+                                    >
+                                      <ChildIcon class="size-5 shrink-0" aria-hidden="true" />
+                                      <span class="ml-3 truncate">{child.label}</span>
+                                      <Show when={isChildActive()}>
+                                        <ChevronRight class="ml-auto size-5 shrink-0" aria-hidden="true" />
+                                      </Show>
+                                    </A>
+                                  </li>
+                                );
+                              }}
+                            </For>
+                          </ul>
+                        </Show>
                       </li>
                     );
                   }}
