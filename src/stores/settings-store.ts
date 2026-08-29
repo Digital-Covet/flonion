@@ -13,6 +13,7 @@ export interface SettingsData {
   address: string;
   sector: string;
   keywords: string;
+  description: string;
 }
 
 export interface SettingsContextValue {
@@ -36,6 +37,10 @@ export interface SettingsContextValue {
   setSector: Setter<string>;
   keywords: Accessor<string>;
   setKeywords: Setter<string>;
+  description: Accessor<string>;
+  setDescription: Setter<string>;
+  /** Only the business owner may edit the business profile. */
+  isOwner: Accessor<boolean>;
   refetch: () => Promise<SettingsData>;
   updateSettings: (data: Partial<SettingsData>) => void;
 }

@@ -21,14 +21,30 @@ export function FormField(props: FormFieldProps) {
           />
         </Show>
       </div>
-      <Field.Input
-        id={props.id}
-        type={props.type ?? "text"}
-        value={props.value ?? ""}
-        placeholder={props.placeholder}
-        onInput={props.onInput}
-        class="h-10 w-full rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-      />
+      <Show
+        when={props.multiline}
+        fallback={
+          <Field.Input
+            id={props.id}
+            type={props.type ?? "text"}
+            value={props.value ?? ""}
+            placeholder={props.placeholder}
+            maxlength={props.maxLength}
+            onInput={props.onInput}
+            class="h-10 w-full rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+        }
+      >
+        <Field.Textarea
+          id={props.id}
+          value={props.value ?? ""}
+          placeholder={props.placeholder}
+          rows={props.rows ?? 3}
+          maxlength={props.maxLength}
+          onInput={props.onInput}
+          class="w-full resize-y rounded-lg border border-border bg-card px-4 py-2 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        />
+      </Show>
       <Show when={props.hint}>
         <Field.HelperText class="text-xs leading-4 italic text-muted-foreground">
           {props.hint}

@@ -1,4 +1,4 @@
-import { createSignal, Index, type Component } from "solid-js";
+import { createSignal, Index, Show, type Component } from "solid-js";
 import { Field } from "@ark-ui/solid/field";
 import { TagsInput } from "@ark-ui/solid/tags-input";
 import ArrowRight from "lucide-solid/icons/arrow-right";
@@ -18,6 +18,7 @@ export interface BasicsData {
   sector: string;
   customSector: string;
   keywords: string;
+  description: string;
   logo: string | null;
 }
 
@@ -32,6 +33,7 @@ const fieldInputClass =
 
 const USERNAME_REGEX = /^[a-z0-9-]+$/;
 const MAX_USERNAME_LENGTH = 15;
+const MAX_DESCRIPTION_LENGTH = 500;
 
 export const BasicsStep: Component<BasicsStepProps> = (props) => {
   const [usernameError, setUsernameError] = createSignal("");
@@ -186,6 +188,34 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
               class={fieldInputClass}
             />
           </Field.Root>
+        </div>
+      </Field.Root>
+
+      <Field.Root>
+        <Field.Label
+          for="business-description"
+          class="text-sm font-semibold text-foreground"
+        >
+          Business Description
+        </Field.Label>
+        <Field.Textarea
+          id="business-description"
+          rows={3}
+          maxlength={MAX_DESCRIPTION_LENGTH}
+          placeholder="Tell other businesses what you do in a sentence or two."
+          value={props.data.description}
+          onInput={(e) => props.onChange({ description: e.currentTarget.value })}
+          class={`${fieldInputClass} resize-y`}
+        />
+        <div class="mt-1 flex items-center justify-between">
+          <p class="text-xs text-muted-foreground">
+            Shown on your marketplace profile. Optional.
+          </p>
+          <Show when={props.data.description}>
+            <p class="text-xs text-muted-foreground/60">
+              {props.data.description.length}/{MAX_DESCRIPTION_LENGTH}
+            </p>
+          </Show>
         </div>
       </Field.Root>
 

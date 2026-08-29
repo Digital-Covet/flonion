@@ -11,6 +11,8 @@ import X from "lucide-solid/icons/x";
 import Tags from "lucide-solid/icons/tags";
 import Link2 from "lucide-solid/icons/link-2";
 import Plus from "lucide-solid/icons/plus";
+import Users from "lucide-solid/icons/users";
+import ArrowRight from "lucide-solid/icons/arrow-right";
 import { SectionCard } from "./components/SectionCard";
 import { FormField } from "./components/FormField";
 import { ToggleRow } from "./components/ToggleRow";
@@ -56,6 +58,9 @@ export function SettingsPage() {
     setSector,
     keywords,
     setKeywords,
+    description,
+    setDescription,
+    isOwner,
     refetch,
   } = useSettings();
 
@@ -72,6 +77,7 @@ export function SettingsPage() {
   const [aiSuggestions, setAiSuggestions] = createSignal(true);
   const [saving, setSaving] = createSignal(false);
   const [saveSuccess, setSaveSuccess] = createSignal(false);
+  const [saveError, setSaveError] = createSignal("");
   const [addingPlatform, setAddingPlatform] = createSignal(false);
 
   const checkConnection = async () => {
@@ -195,8 +201,9 @@ export function SettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     setSaveSuccess(false);
+    setSaveError("");
     try {
-      await fetch("/api/business", {
+      const res = await fetch("/api/business", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -210,12 +217,22 @@ export function SettingsPage() {
           address: address(),
           sector: finalSector(),
           keywords: keywords(),
+          description: description(),
         }),
       });
+
+      // fetch only rejects on network failure, so a 4xx used to fall straight
+      // through to "Saved!" while nothing had been written.
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setSaveError(data?.error ?? "Couldn't save your changes. Please try again.");
+        return;
+      }
+
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
     } catch {
-      // Save failed -- silently ignore for now
+      setSaveError("Couldn't save your changes. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -279,6 +296,20 @@ export function SettingsPage() {
               value={address()}
               onInput={(e) =>
                 setAddress((e.target as HTMLInputElement).value)
+              }
+              class="md:col-span-2"
+            />
+            <FormField
+              id="business-description"
+              label="Business Description"
+              value={description()}
+              placeholder="What does your business do? This appears on your marketplace card."
+              hint="Shown to other businesses in the marketplace. Max 500 characters."
+              multiline
+              rows={4}
+              maxLength={500}
+              onInput={(e) =>
+                setDescription((e.target as HTMLTextAreaElement).value)
               }
               class="md:col-span-2"
             />
@@ -456,6 +487,19 @@ export function SettingsPage() {
           </div>
         </SectionCard>
 
+        <SectionCard title="Team Management" icon={Users}>
+          <p class="mb-4 text-sm text-muted-foreground">
+            Manage your team members, roles, and invitations.
+          </p>
+          <a
+            href="/settings/team"
+            class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20 transition-colors"
+          >
+            Manage Team
+            <ArrowRight size={16} />
+          </a>
+        </SectionCard>
+
         <SectionCard title="Review Keywords" icon={Tags}>
           <p class="mb-3 text-sm text-muted-foreground">
             Add keywords that guide AI suggestions when customers write reviews
@@ -517,23 +561,38 @@ export function SettingsPage() {
           </p>
         </SectionCard>
 
-        <div class="flex justify-end gap-4 pt-6">
-          <button
-            type="button"
-            class="h-10 rounded-lg border border-border px-6 text-sm font-medium leading-normal text-muted-foreground transition-colors hover:bg-muted"
-          >
-            Discard
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            class="flex h-10 items-center gap-1 rounded-lg bg-teal-50 px-6 text-sm font-medium leading-normal text-teal-700 shadow-md transition-all hover:bg-primary hover:text-primary-foreground disabled:scale-95 disabled:opacity-70"
-            disabled={saving()}
-          >
-            <Save size={18} />
-            {saving() ? "Saving..." : saveSuccess() ? "Saved!" : "Save Changes"}
-          </button>
-        </div>
+        <Show
+          when={isOwner()}
+          fallback={
+            <p class="pt-6 text-right text-sm text-muted-foreground">
+              Only the business owner can change these details.
+            </p>
+          }
+        >
+          <Show when={saveError()}>
+            <p role="alert" class="pt-6 text-right text-sm text-destructive">
+              {saveError()}
+            </p>
+          </Show>
+
+          <div class="flex justify-end gap-4 pt-6">
+            <button
+              type="button"
+              class="h-10 rounded-lg border border-border px-6 text-sm font-medium leading-normal text-muted-foreground transition-colors hover:bg-muted"
+            >
+              Discard
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              class="flex h-10 items-center gap-1 rounded-lg bg-teal-50 px-6 text-sm font-medium leading-normal text-teal-700 shadow-md transition-all hover:bg-primary hover:text-primary-foreground disabled:scale-95 disabled:opacity-70"
+              disabled={saving()}
+            >
+              <Save size={18} />
+              {saving() ? "Saving..." : saveSuccess() ? "Saved!" : "Save Changes"}
+            </button>
+          </div>
+        </Show>
       </div>
     </main>
   );

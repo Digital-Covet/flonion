@@ -17,14 +17,16 @@ const EMPTY: SettingsData = {
   address: "",
   sector: "",
   keywords: "",
+  description: "",
 };
 
-async function fetchBusiness(): Promise<SettingsData> {
+async function fetchBusiness(): Promise<SettingsData & { isOwner: boolean }> {
   try {
     const res = await fetch("/api/business");
-    if (!res.ok) return EMPTY;
+    if (!res.ok) return { ...EMPTY, isOwner: false };
     const data = await res.json();
     return {
+      isOwner: data.isOwner === true,
       placeId: typeof data.placeId === "string" ? data.placeId : "",
       reviewLink: typeof data.reviewLink === "string" ? data.reviewLink : "",
       reviewLinks: typeof data.reviewLinks === "object" && data.reviewLinks !== null
@@ -37,9 +39,10 @@ async function fetchBusiness(): Promise<SettingsData> {
       address: typeof data.address === "string" ? data.address : "",
       sector: typeof data.sector === "string" ? data.sector : "",
       keywords: typeof data.keywords === "string" ? data.keywords : "",
+      description: typeof data.description === "string" ? data.description : "",
     };
   } catch {
-    return EMPTY;
+    return { ...EMPTY, isOwner: false };
   }
 }
 
@@ -54,6 +57,8 @@ export function SettingsProvider(props: ParentProps) {
   const [address, setAddressSignal] = createSignal("");
   const [sector, setSectorSignal] = createSignal("");
   const [keywords, setKeywordsSignal] = createSignal("");
+  const [description, setDescriptionSignal] = createSignal("");
+  const [isOwner, setIsOwner] = createSignal(false);
 
   const refetch = async (): Promise<SettingsData> => {
     const data = await fetchBusiness();
@@ -67,6 +72,8 @@ export function SettingsProvider(props: ParentProps) {
     setAddressSignal(data.address);
     setSectorSignal(data.sector);
     setKeywordsSignal(data.keywords);
+    setDescriptionSignal(data.description);
+    setIsOwner(data.isOwner);
     return data;
   };
 
@@ -81,6 +88,7 @@ export function SettingsProvider(props: ParentProps) {
     if (data.address !== undefined) setAddressSignal(data.address);
     if (data.sector !== undefined) setSectorSignal(data.sector);
     if (data.keywords !== undefined) setKeywordsSignal(data.keywords);
+    if (data.description !== undefined) setDescriptionSignal(data.description);
   };
 
   onMount(async () => {
@@ -127,6 +135,10 @@ export function SettingsProvider(props: ParentProps) {
     return setKeywordsSignal(value);
   };
 
+  const setDescription: typeof setDescriptionSignal = (value) => {
+    return setDescriptionSignal(value);
+  };
+
   const value: SettingsContextValue = {
     placeId,
     setPlaceId,
@@ -148,6 +160,9 @@ export function SettingsProvider(props: ParentProps) {
     setSector,
     keywords,
     setKeywords,
+    description,
+    setDescription,
+    isOwner,
     refetch,
     updateSettings,
   };

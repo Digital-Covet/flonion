@@ -9,6 +9,9 @@ export interface FormFieldProps {
   helpTooltip?: string;
   class?: string;
   id: string;
+  multiline?: boolean;
+  rows?: number;
+  maxLength?: number;
   onInput?: (e: InputEvent) => void;
 }
 
