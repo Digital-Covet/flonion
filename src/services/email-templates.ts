@@ -1336,3 +1336,454 @@ If you did not try to sign in, please ignore this email or contact support at ${
     text: textBody,
   };
 }
+
+/* ---------------- Meeting email templates ---------------- */
+
+interface MeetingRequestEmailParams {
+  ownerName: string;
+  requesterName: string;
+  businessName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  message?: string;
+  acceptUrl: string;
+  rejectUrl: string;
+}
+
+export function renderMeetingRequestEmail({
+  ownerName,
+  requesterName,
+  businessName,
+  date,
+  startTime,
+  endTime,
+  message,
+  acceptUrl,
+  rejectUrl,
+}: MeetingRequestEmailParams): { html: string; text: string } {
+  const safeOwner = escapeHtml(ownerName);
+  const safeRequester = escapeHtml(requesterName);
+  const safeBusiness = escapeHtml(businessName);
+  const safeDate = escapeHtml(date);
+  const safeStart = escapeHtml(startTime);
+  const safeEnd = escapeHtml(endTime);
+  const safeMessage = message ? escapeHtml(message) : null;
+
+  const htmlBody = `
+    <p
+      style="
+        margin: 0 0 16px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      Hello ${safeOwner},
+    </p>
+
+    <p
+      style="
+        margin: 0 0 24px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      <strong>${safeRequester}</strong> has requested a meeting with
+      <strong>${safeBusiness}</strong>.
+    </p>
+
+    <table
+      role="presentation"
+      width="100%"
+      border="0"
+      cellspacing="0"
+      cellpadding="0"
+      style="margin: 0 0 24px 0;"
+    >
+      <tr>
+        <td
+          style="
+            padding: 16px;
+            background-color: #f0f5ff;
+            border-left: 4px solid #0060ff;
+            border-radius: 6px;
+            font-family: Arial, Helvetica, sans-serif;
+          "
+        >
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #555555;">
+            Date: <strong style="color: #111111;">${safeDate}</strong>
+          </p>
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #555555;">
+            Time: <strong style="color: #111111;">${safeStart} &ndash; ${safeEnd}</strong>
+          </p>
+          ${safeMessage ? `
+          <p style="margin: 8px 0 0 0; font-size: 14px; color: #555555;">
+            Message: <span style="color: #111111;">${safeMessage}</span>
+          </p>
+          ` : ""}
+        </td>
+      </tr>
+    </table>
+
+    <p
+      style="
+        margin: 0 0 16px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      Please review this request and respond:
+    </p>
+
+    <table
+      role="presentation"
+      border="0"
+      cellspacing="0"
+      cellpadding="0"
+      align="center"
+      style="margin: 0 auto 16px auto;"
+    >
+      <tr>
+        <td
+          align="center"
+          bgcolor="#16a34a"
+          style="border-radius: 6px; background-color: #16a34a;"
+        >
+          <a
+            href="${escapeHtmlAttr(acceptUrl)}"
+            target="_blank"
+            style="
+              display: inline-block;
+              padding: 13px 24px;
+              border: 1px solid #16a34a;
+              border-radius: 6px;
+              background-color: #16a34a;
+              color: #ffffff;
+              font-family: Arial, Helvetica, sans-serif;
+              font-size: 16px;
+              line-height: 20px;
+              font-weight: 700;
+              text-decoration: none;
+              white-space: nowrap;
+            "
+          >
+            Accept
+          </a>
+        </td>
+        <td style="width: 12px;"></td>
+        <td
+          align="center"
+          bgcolor="#dc2626"
+          style="border-radius: 6px; background-color: #dc2626;"
+        >
+          <a
+            href="${escapeHtmlAttr(rejectUrl)}"
+            target="_blank"
+            style="
+              display: inline-block;
+              padding: 13px 24px;
+              border: 1px solid #dc2626;
+              border-radius: 6px;
+              background-color: #dc2626;
+              color: #ffffff;
+              font-family: Arial, Helvetica, sans-serif;
+              font-size: 16px;
+              line-height: 20px;
+              font-weight: 700;
+              text-decoration: none;
+              white-space: nowrap;
+            "
+          >
+            Reject
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <p
+      style="
+        margin: 16px 0 0 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      If you did not expect this request, you can safely ignore this email
+      or contact support at
+      <a
+        href="mailto:${escapeHtmlAttr(SUPPORT_EMAIL)}"
+        style="color:#0060ff;text-decoration:none;"
+      >
+        ${escapeHtml(SUPPORT_EMAIL)}
+      </a>.
+    </p>
+  `;
+
+  const textBody = `Hello ${ownerName},
+
+${requesterName} has requested a meeting with ${businessName}.
+
+Date: ${date}
+Time: ${startTime} – ${endTime}
+${message ? `\nMessage: ${message}` : ""}
+
+Accept: ${acceptUrl}
+Reject: ${rejectUrl}
+
+If you did not expect this request, you can safely ignore this email or contact support at ${SUPPORT_EMAIL}.`;
+
+  return {
+    html: renderBaseHtml(
+      `New meeting request from ${requesterName}`,
+      htmlBody,
+    ),
+    text: textBody,
+  };
+}
+
+interface MeetingDecisionEmailParams {
+  requesterName: string;
+  businessName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  decision: "accepted" | "rejected";
+}
+
+export function renderMeetingDecisionEmail({
+  requesterName,
+  businessName,
+  date,
+  startTime,
+  endTime,
+  decision,
+}: MeetingDecisionEmailParams): { html: string; text: string } {
+  const safeRequester = escapeHtml(requesterName);
+  const safeBusiness = escapeHtml(businessName);
+  const safeDate = escapeHtml(date);
+  const safeStart = escapeHtml(startTime);
+  const safeEnd = escapeHtml(endTime);
+
+  const isAccepted = decision === "accepted";
+  const decisionLabel = isAccepted ? "Accepted" : "Rejected";
+  const decisionColor = isAccepted ? "#16a34a" : "#dc2626";
+
+  const htmlBody = `
+    <p
+      style="
+        margin: 0 0 16px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      Hello ${safeRequester},
+    </p>
+
+    <p
+      style="
+        margin: 0 0 24px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      Your meeting request with
+      <strong>${safeBusiness}</strong> has been
+      <strong style="color: ${decisionColor};">${decisionLabel}</strong>.
+    </p>
+
+    <table
+      role="presentation"
+      width="100%"
+      border="0"
+      cellspacing="0"
+      cellpadding="0"
+      style="margin: 0 0 24px 0;"
+    >
+      <tr>
+        <td
+          style="
+            padding: 16px;
+            background-color: #f0f5ff;
+            border-left: 4px solid ${decisionColor};
+            border-radius: 6px;
+            font-family: Arial, Helvetica, sans-serif;
+          "
+        >
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #555555;">
+            Date: <strong style="color: #111111;">${safeDate}</strong>
+          </p>
+          <p style="margin: 0; font-size: 14px; color: #555555;">
+            Time: <strong style="color: #111111;">${safeStart} &ndash; ${safeEnd}</strong>
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    ${isAccepted ? `
+    <p
+      style="
+        margin: 0 0 24px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      The meeting has been confirmed. You will receive further details from
+      <strong>${safeBusiness}</strong> shortly.
+    </p>
+    ` : `
+    <p
+      style="
+        margin: 0 0 24px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      Unfortunately, the meeting could not be accommodated at this time.
+      Feel free to browse other available time slots on the marketplace.
+    </p>
+    `}
+
+    <p
+      style="
+        margin: 16px 0 0 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      If you have questions, please contact support at
+      <a
+        href="mailto:${escapeHtmlAttr(SUPPORT_EMAIL)}"
+        style="color:#0060ff;text-decoration:none;"
+      >
+        ${escapeHtml(SUPPORT_EMAIL)}
+      </a>.
+    </p>
+  `;
+
+  const textBody = `Hello ${requesterName},
+
+Your meeting request with ${businessName} has been ${decisionLabel}.
+
+Date: ${date}
+Time: ${startTime} – ${endTime}
+
+${isAccepted
+  ? "The meeting has been confirmed. You will receive further details shortly."
+  : "Unfortunately, the meeting could not be accommodated at this time."}
+
+If you have questions, please contact support at ${SUPPORT_EMAIL}.`;
+
+  return {
+    html: renderBaseHtml(
+      `Meeting ${decisionLabel} by ${businessName}`,
+      htmlBody,
+    ),
+    text: textBody,
+  };
+}
+
+interface TeamInvitationEmailParams {
+  inviterName: string;
+  companyName: string;
+  acceptUrl: string;
+  role: string;
+}
+
+export function renderTeamInvitationEmail({
+  inviterName,
+  companyName,
+  acceptUrl,
+  role,
+}: TeamInvitationEmailParams): { html: string; text: string } {
+  const safeInviter = escapeHtml(inviterName);
+  const safeRole = escapeHtml(role.charAt(0).toUpperCase() + role.slice(1));
+
+  const htmlBody = `
+    <p
+      style="
+        margin: 0 0 24px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    "
+    >
+      You've been invited by <strong>${safeInviter}</strong> to join their team on ${escapeHtml(companyName)} as a <strong>${safeRole}</strong>.
+    </p>
+
+    <p
+      style="
+        margin: 0 0 24px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      Click the button below to accept the invitation and join the team:
+    </p>
+
+    ${renderButton(acceptUrl, "Accept Invitation")}
+
+    ${renderFallbackLink(acceptUrl)}
+
+    <p
+      style="
+        margin: 24px 0 0 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      If you didn't expect this invitation, you can safely ignore this email.
+    </p>
+  `;
+
+  const textBody = `Hello,
+
+You've been invited by ${inviterName} to join their team on ${companyName} as a ${safeRole}.
+
+Accept the invitation by visiting the link below:
+${acceptUrl}
+
+If you didn't expect this invitation, you can safely ignore this email.`;
+
+  return {
+    html: renderBaseHtml(
+      `You've been invited to join ${companyName}`,
+      htmlBody,
+    ),
+    text: textBody,
+  };
+}

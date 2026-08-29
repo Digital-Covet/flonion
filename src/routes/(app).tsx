@@ -14,7 +14,7 @@ export default function AppLayout(props: { children: any }) {
           <LogoComponent class="h-8 w-auto" />
         </header>
 
-        <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-6 sm:px-6 lg:px-8">
+        <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <Suspense>
             {props.children}
           </Suspense>
