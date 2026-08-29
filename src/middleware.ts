@@ -13,6 +13,7 @@ const PUBLIC_PATHS = [
   "/reset-password",
   "/verify-email",
   "/2fa",
+  "/accept-invite",
 ];
 
 const PUBLIC_PREFIXES = [
@@ -83,7 +84,7 @@ export default createMiddleware({
 
     if (!user) return;
 
-    if (!user.onboardingCompleted && pathname !== "/onboarding") {
+    if (!user.onboardingCompleted && pathname !== "/onboarding" && pathname !== "/accept-invite") {
       return new Response(null, {
         status: 302,
         headers: { Location: "/onboarding" },

@@ -1,6 +1,8 @@
 import { BrandMark, ResendVerificationForm, Footer } from '@/components/auth';
 import { FooterLink } from '~/types/auth-ui';
 import { authClient } from '@/lib/auth-client';
+import { useSearchParams } from '@solidjs/router';
+import { inviteCallbackUrl, pickInviteToken, withInvite } from '~/lib/invite-redirect';
 
 const FOOTER_LINKS: readonly FooterLink[] = [
   { label: 'Help', href: '#' },
@@ -14,12 +16,21 @@ export default function VerifyEmailPage() {
     return new URLSearchParams(window.location.search).get('email') ?? '';
   };
 
-  const VERIFY_CALLBACK_URL = `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173'}/onboarding`;
+  const [searchParams] = useSearchParams();
+  const inviteToken = () => pickInviteToken(searchParams.invite);
+
+  // A resend re-issues the link, so it has to carry the invite token too —
+  // otherwise resending strands the invitee back on the onboarding form.
+  const verifyCallbackUrl = () => {
+    const origin =
+      typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
+    return `${origin}${inviteCallbackUrl(inviteToken(), '/onboarding')}`;
+  };
 
   const handleResend = async (email: string) => {
     const { error } = await authClient.sendVerificationEmail({
       email,
-      callbackURL: VERIFY_CALLBACK_URL,
+      callbackURL: verifyCallbackUrl(),
     });
     if (error) {
       throw new Error(error.message || 'Failed to send verification email. Please try again.');
@@ -40,7 +51,7 @@ export default function VerifyEmailPage() {
         <ResendVerificationForm
           onSubmit={handleResend}
           initialEmail={getInitialEmail()}
-          redirectTo="/login"
+          redirectTo={withInvite('/login', inviteToken())}
           redirectLabel="Back to login"
         />
       </div>

@@ -1,6 +1,6 @@
 import { For, type Component } from "solid-js";
 
-const steps = ["Basics", "Platforms", "Review"] as const;
+const steps = ["Basics", "Platforms", "Review", "Team"] as const;
 
 interface ProgressStepperProps {
   currentStep: number;
@@ -9,7 +9,8 @@ interface ProgressStepperProps {
 export const ProgressStepper: Component<ProgressStepperProps> = (props) => {
   const progressWidth = () => {
     if (props.currentStep <= 1) return "w-0";
-    if (props.currentStep === 2) return "w-1/2";
+    if (props.currentStep === 2) return "w-1/3";
+    if (props.currentStep === 3) return "w-2/3";
     return "w-full";
   };
 

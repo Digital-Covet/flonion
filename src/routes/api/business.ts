@@ -1,6 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { fetchBusinessRating } from "~/lib/google-business-rating";
 
 const USERNAME_REGEX = /^[a-z0-9-]+$/;
 const RESERVED_USERNAMES = ["admin", "api", "review", "qr", "dashboard", "settings", "login", "signup"];
@@ -14,10 +15,20 @@ export async function GET(event: APIEvent) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { onboardingCompleted: true, business: true },
+    select: {
+      onboardingCompleted: true,
+      role: true,
+      businessId: true,
+      business: true,
+      team: true,
+    },
   });
 
-  const business = user?.business;
+  // Members have no `business` of their own — the business they work in is the
+  // one `businessId` points at. Reading only the owner relation is what left
+  // Settings, the sidebar and task assignees blank for invited users.
+  const business = user?.team ?? user?.business ?? null;
+  const isOwner = !!business && business.userId === session.user.id;
 
   const reviewLinks =
     business?.reviewLinks &&
@@ -26,7 +37,19 @@ export async function GET(event: APIEvent) {
       ? (business.reviewLinks as Record<string, string>)
       : {};
 
+  let teamMembers: Array<{ id: string; name: string; email: string; image: string | null }> = [];
+  if (business?.id) {
+    const members = await prisma.user.findMany({
+      where: { businessId: business.id },
+      select: { id: true, name: true, email: true, image: true },
+    });
+    teamMembers = members;
+  }
+
   return Response.json({
+    ownerId: business?.userId ?? null,
+    isOwner,
+    role: user?.role ?? "member",
     placeId: business?.placeId ?? "",
     reviewLink: business?.reviewLink ?? "",
     reviewLinks,
@@ -37,7 +60,11 @@ export async function GET(event: APIEvent) {
     address: business?.address ?? "",
     sector: business?.sector ?? "",
     keywords: business?.keywords ?? "",
+    description: business?.description ?? "",
+    rating: business?.rating ?? 0,
+    reviewCount: business?.reviewCount ?? 0,
     onboardingCompleted: user?.onboardingCompleted ?? false,
+    teamMembers,
   });
 }
 
@@ -47,9 +74,24 @@ export async function POST(event: APIEvent) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Guard: block users who belong to a business they do not own (invited
+  // members). Owners keep write access — their own `businessId` points at their
+  // own business, and this route doubles as the Settings save endpoint.
+  const existingUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { businessId: true, business: { select: { id: true } } },
+  });
+
+  if (existingUser?.businessId && existingUser.businessId !== existingUser.business?.id) {
+    return Response.json(
+      { error: "You are already part of a team. Cannot create a new business." },
+      { status: 400 },
+    );
+  }
+
   try {
     const body = await event.request.json();
-    const { placeId, reviewLink, reviewLinks, logo, businessName, username, phone, address, sector, keywords } = body;
+    const { placeId, reviewLink, reviewLinks, logo, businessName, username, phone, address, sector, keywords, description } = body;
 
     if (typeof businessName !== "string" || !businessName.trim()) {
       return Response.json(
@@ -116,6 +158,10 @@ export async function POST(event: APIEvent) {
       address: typeof address === "string" ? address : null,
       sector: typeof sector === "string" ? sector : null,
       keywords: typeof keywords === "string" ? keywords : null,
+      description:
+        typeof description === "string" && description.trim()
+          ? description.trim()
+          : null,
     };
 
     const [business] = await prisma.$transaction([
@@ -124,33 +170,66 @@ export async function POST(event: APIEvent) {
         create: { userId: session.user.id, ...data },
         update: data,
       }),
-      prisma.user.update({
-        where: { id: session.user.id },
-        data: { onboardingCompleted: true },
-      }),
     ]);
 
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { onboardingCompleted: true, businessId: business.id },
+    });
+
+    // Google's aggregate rating is cached on the business so the marketplace
+    // can rank on it without an API round-trip per card. A failed lookup keeps
+    // whatever was stored before rather than blocking the save.
+    let ratedBusiness = business;
+    if (business.placeId) {
+      try {
+        const rating = await fetchBusinessRating(
+          session.user.id,
+          business.placeId,
+        );
+        if (rating) {
+          ratedBusiness = await prisma.business.update({
+            where: { id: business.id },
+            data: { rating: rating.rating, reviewCount: rating.reviewCount },
+          });
+        }
+      } catch (err) {
+        console.error("[business] rating cache update failed:", err);
+      }
+    }
+
     const savedLinks =
-      business.reviewLinks &&
-      typeof business.reviewLinks === "object" &&
-      !Array.isArray(business.reviewLinks)
-        ? (business.reviewLinks as Record<string, string>)
+      ratedBusiness.reviewLinks &&
+      typeof ratedBusiness.reviewLinks === "object" &&
+      !Array.isArray(ratedBusiness.reviewLinks)
+        ? (ratedBusiness.reviewLinks as Record<string, string>)
         : {};
 
     return Response.json({
-      placeId: business.placeId ?? "",
-      reviewLink: business.reviewLink ?? "",
+      placeId: ratedBusiness.placeId ?? "",
+      reviewLink: ratedBusiness.reviewLink ?? "",
       reviewLinks: savedLinks,
-      logo: business.logo ?? null,
-      businessName: business.name,
-      username: business.username ?? "",
-      phone: business.phone ?? "",
-      address: business.address ?? "",
-      sector: business.sector ?? "",
-      keywords: business.keywords ?? "",
+      logo: ratedBusiness.logo ?? null,
+      businessName: ratedBusiness.name,
+      username: ratedBusiness.username ?? "",
+      phone: ratedBusiness.phone ?? "",
+      address: ratedBusiness.address ?? "",
+      sector: ratedBusiness.sector ?? "",
+      keywords: ratedBusiness.keywords ?? "",
+      description: ratedBusiness.description ?? "",
+      rating: ratedBusiness.rating ?? 0,
+      reviewCount: ratedBusiness.reviewCount ?? 0,
       onboardingCompleted: true,
     });
-  } catch {
+  } catch (err) {
+    // The uniqueness probe above is a check-then-write; a concurrent claim of the
+    // same username surfaces here as P2002 and must not read "Invalid request body".
+    if (err && typeof err === "object" && (err as { code?: string }).code === "P2002") {
+      return Response.json(
+        { error: "Username is already taken" },
+        { status: 400 },
+      );
+    }
     return Response.json(
       { error: "Invalid request body" },
       { status: 400 },

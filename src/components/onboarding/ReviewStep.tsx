@@ -70,6 +70,12 @@ export const ReviewStep: Component<ReviewStepProps> = (props) => {
               <span class="ml-1 text-sm text-muted-foreground">4.0</span>
             </div>
 
+            <Show when={props.data.description.trim()}>
+              <p class="mt-2 text-sm text-muted-foreground">
+                {props.data.description}
+              </p>
+            </Show>
+
             <Show when={addressDisplay()}>
               <div class="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
                 <MapPin size={14} strokeWidth={2} aria-hidden="true" />

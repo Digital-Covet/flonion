@@ -5,4 +5,6 @@ export { LogoUpload } from "./LogoUpload";
 export { BasicsStep } from "./BasicsStep";
 export { PlatformsStep } from "./PlatformsStep";
 export { ReviewStep } from "./ReviewStep";
+export { InviteTeamStep } from "./InviteTeamStep";
 export type { BasicsData } from "./BasicsStep";
+export type { TeamInvite } from "./InviteTeamStep";

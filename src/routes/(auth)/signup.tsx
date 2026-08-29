@@ -1,6 +1,8 @@
 import { BrandMark, SignUpForm, Footer, IllustrationPanel } from '@/components/auth';
 import { FooterLink } from '~/types/auth-ui';
 import { authClient } from '@/lib/auth-client';
+import { useSearchParams } from '@solidjs/router';
+import { inviteCallbackUrl, pickInviteToken, withInvite } from '~/lib/invite-redirect';
 
 const FOOTER_LINKS: readonly FooterLink[] = [
   { label: 'Help', href: '#' },
@@ -11,18 +13,28 @@ const FOOTER_LINKS: readonly FooterLink[] = [
 const ILLUSTRATION_IMAGE_URL = '/auth-image.webp';
 
 export default function SignUpPage() {
+  const [searchParams] = useSearchParams();
+  const inviteToken = () => pickInviteToken(searchParams.invite);
+
   const handleEmailSubmit = async (email: string, password: string, name: string) => {
+    const token = inviteToken();
+
     const { error } = await authClient.signUp.email({
       email,
       password,
       name,
-      callbackURL: '/onboarding',
+      // better-auth bakes this into the emailed verification link, and
+      // autoSignInAfterVerification means clicking it lands an invited user on
+      // /accept-invite already signed in.
+      callbackURL: inviteCallbackUrl(token, '/onboarding'),
     });
     if (error) {
       console.error('[SignUpPage] Sign up failed:', error.message);
       throw new Error(error.message);
     }
-    window.location.href = `/verify-email?email=${encodeURIComponent(email)}`;
+    window.location.href = `/verify-email?email=${encodeURIComponent(email)}${
+      token ? `&invite=${token}` : ''
+    }`;
   };
 
   return (
@@ -43,7 +55,11 @@ export default function SignUpPage() {
             </p>
           </header>
 
-          <SignUpForm onSubmit={handleEmailSubmit} redirectTo="/login" redirectLabel="Sign in" />
+          <SignUpForm
+            onSubmit={handleEmailSubmit}
+            redirectTo={withInvite('/login', inviteToken())}
+            redirectLabel="Sign in"
+          />
         </div>
 
         <Footer links={FOOTER_LINKS} />

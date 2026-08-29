@@ -1,6 +1,8 @@
 import { BrandMark, SignInForm, Footer, IllustrationPanel } from '@/components/auth';
 import { FooterLink } from '~/types/auth-ui';
 import { authClient } from '@/lib/auth-client';
+import { useSearchParams } from '@solidjs/router';
+import { inviteCallbackUrl, pickInviteToken, withInvite } from '~/lib/invite-redirect';
 
 const FOOTER_LINKS: readonly FooterLink[] = [
   { label: 'Help', href: '#' },
@@ -11,11 +13,15 @@ const FOOTER_LINKS: readonly FooterLink[] = [
 const ILLUSTRATION_IMAGE_URL = '/auth-image.webp';
 
 export default function LoginPage() {
+  // An invited user arrives here mid-flow; the token has to survive the sign-in.
+  const [searchParams] = useSearchParams();
+  const inviteToken = () => pickInviteToken(searchParams.invite);
+
   const handleEmailSubmit = async (email: string, password: string) => {
     const { error } = await authClient.signIn.email({
       email,
       password,
-      callbackURL: '/dashboard',
+      callbackURL: inviteCallbackUrl(inviteToken(), '/dashboard'),
     });
     if (error) {
       const status = (error as any).status;
@@ -42,7 +48,11 @@ export default function LoginPage() {
               Sign in to your account
             </p>
           </header>
-          <SignInForm onSubmit={handleEmailSubmit} redirectTo="/signup" redirectLabel="Sign up" />
+          <SignInForm
+            onSubmit={handleEmailSubmit}
+            redirectTo={withInvite('/signup', inviteToken())}
+            redirectLabel="Sign up"
+          />
         </div>
         <Footer links={FOOTER_LINKS} />
       </section>
