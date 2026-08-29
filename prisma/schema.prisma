@@ -18,6 +18,7 @@ model User {
   email            String
   emailVerified    Boolean     @default(false)
   image            String?
+  role             String      @default("member")
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   twoFactorEnabled    Boolean?    @default(false)
@@ -25,12 +26,18 @@ model User {
   sessions            Session[]
   accounts         Account[]
   twofactors       TwoFactor[]
-  business         Business?
+  business         Business?   @relation("BusinessOwner")
+  businessId       String?
+  team             Business?   @relation("BusinessMember", fields: [businessId], references: [id], onDelete: SetNull)
   sharedReviews    SharedReview[]
   feedback         Feedback[]
   googleToken      GoogleToken?
+  meetingRequests  MeetingRequest[]
+  assignedTasks    Task[]
+  sentInvitations  Invitation[] @relation("InvitationSender")
 
   @@unique([email])
+  @@index([businessId])
   @@map("user")
 }
 
@@ -53,7 +60,7 @@ model GoogleToken {
 model Business {
   id        String   @id @default(cuid())
   userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation("BusinessOwner", fields: [userId], references: [id], onDelete: Cascade)
   placeId    String?
   reviewLink  String?
   reviewLinks Json?
@@ -64,10 +71,64 @@ model Business {
   address   String?
   sector    String?
   keywords  String?
+  /// Owner-written blurb shown on the marketplace card.
+  description String?
+  /// Average rating cached from the Google Business Profile API.
+  rating      Float?
+  /// Total review count cached from the Google Business Profile API.
+  reviewCount Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  availabilitySlots AvailabilitySlot[]
+  meetingRequests   MeetingRequest[]
+  teamMembers       User[]           @relation("BusinessMember")
+  tasks             Task[]
+  teamMeetings      TeamMeeting[]
+  invitations       Invitation[]
+  services          Service[]
+  projects          Project[]
+  contacts          BusinessContact[]
+  favoritePartners  FavoritePartner[]
+
+  @@index([sector])
+  @@index([rating, createdAt])
   @@map("business")
+}
+
+model AvailabilitySlot {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  date       DateTime
+  startTime  String
+  endTime    String
+  isBooked   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  meetingRequest MeetingRequest?
+
+  @@unique([businessId, date, startTime])
+  @@index([businessId, date])
+  @@map("availability_slot")
+}
+
+model MeetingRequest {
+  id          String   @id @default(cuid())
+  slotId      String   @unique
+  slot        AvailabilitySlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  requesterId String
+  requester   User     @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  status      String   @default("pending") // pending | accepted | rejected | cancelled
+  message     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, status])
+  @@index([requesterId])
+  @@map("meeting_request")
 }
 
 model Session {
@@ -178,4 +239,119 @@ model Feedback {
 
   @@index([userId])
   @@map("feedback")
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  column      String    @default("todo")
+  priority    String    @default("medium")
+  dueDate     DateTime?
+  position    Int       @default(0)
+  assigneeId  String
+  assignee    User      @relation(fields: [assigneeId], references: [id], onDelete: Cascade)
+  businessId  String
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([businessId, column])
+  @@index([assigneeId])
+  @@map("task")
+}
+
+model TeamMeeting {
+  id          String   @id @default(cuid())
+  title       String
+  date        DateTime
+  startTime   String
+  endTime     String
+  location    String
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId, date])
+  @@map("team_meeting")
+}
+
+model Invitation {
+  id           String   @id @default(cuid())
+  email        String
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  role         String   @default("member")
+  invitedById  String
+  invitedBy    User     @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+  token        String   @unique
+  /// pending | accepted | declined | expired | cancelled
+  /// `declined` is set when the invitee chooses to create their own business.
+  status       String   @default("pending")
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([email])
+  @@index([businessId])
+  @@map("invitation")
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  icon        String
+  title       String
+  description String
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId])
+  @@map("service")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  imageUrl    String
+  altText     String
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([businessId])
+  @@map("project")
+}
+
+model BusinessContact {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String
+  role       String
+  avatarUrl  String?
+  email      String?
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([businessId])
+  @@map("business_contact")
+}
+
+model FavoritePartner {
+  id         String   @id @default(cuid())
+  userId     String
+  businessId String
+  createdAt  DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, businessId])
+  @@index([userId])
+  @@index([businessId])
+  @@map("favorite_partner")
 }
