@@ -62,3 +62,82 @@ export interface Review {
   reviewId?: string
   hasReply?: boolean
 }
+
+export type MeetingFilter = "all" | "partner" | "team"
+export type MeetingStatus = "Confirmed" | "Pending"
+export type BadgeTone = "primary" | "orange" | "purple"
+export type CalendarEventTone = "muted" | "primary" | "orange"
+
+export interface Meeting {
+  id: string | number
+  month: string
+  day: string
+  title: string
+  time: string
+  location: string
+  locationIcon: IconComponent
+  category: "partner" | "team"
+  status: MeetingStatus
+  participants: string[]
+  rawStatus?: string
+  requesterName?: string
+}
+
+export interface SegmentControlOption<T extends string> {
+  label: string
+  value: T
+}
+
+export interface SegmentControlProps<T extends string> {
+  options: SegmentControlOption<T>[]
+  value: T
+  onChange: (value: T) => void
+  compact?: boolean
+}
+
+export interface StatusBadgeProps {
+  children: import("solid-js").JSX.Element
+  tone: BadgeTone
+}
+
+export interface AvatarGroupProps {
+  participants: string[]
+}
+
+export interface MeetingRowProps {
+  meeting: Meeting
+  delay: number
+}
+
+export interface CalendarEventProps {
+  class?: string
+  style?: Record<string, string | number>
+  children: import("solid-js").JSX.Element
+  tone?: CalendarEventTone
+}
+
+export interface LoadBarProps {
+  label: string
+  value: number
+  detail: string
+  tone: "orange" | "primary"
+}
+
+export interface AvailabilityWindowProps {
+  title: string
+  schedule: string
+  active: boolean
+  onToggle: () => void
+}
+
+export interface BookableWindow {
+  id: number
+  title: string
+  schedule: string
+  active: boolean
+}
+
+export interface SectionShellProps {
+  children: import("solid-js").JSX.Element
+  class?: string
+}
