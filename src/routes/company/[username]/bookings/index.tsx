@@ -1,4 +1,5 @@
 import { createSignal, createResource, Show, For } from "solid-js";
+import { useParams } from "@solidjs/router";
 import { Title, Meta } from "@solidjs/meta";
 import { AlertTriangle, Loader2 } from "lucide-solid";
 import PublicScheduleHeader from "~/components/company/bookings/PublicScheduleHeader";
@@ -33,15 +34,7 @@ interface ScheduleData {
   events: ScheduleEvent[];
 }
 
-function getUsername(): string | null {
-  if (typeof window === "undefined") return null;
-  const pathParts = window.location.pathname.split("/");
-  // /company/[username]/bookings -> parts = ["", "company", "username", "bookings"]
-  return pathParts[2] || null;
-}
-
-async function fetchSchedule(): Promise<ScheduleData | null> {
-  const username = getUsername();
+async function fetchSchedule(username?: string): Promise<ScheduleData | null> {
   if (!username) return null;
 
   const now = new Date();
@@ -65,7 +58,8 @@ async function fetchSchedule(): Promise<ScheduleData | null> {
 }
 
 export default function PublicBookingsPage() {
-  const [data] = createResource(fetchSchedule);
+  const params = useParams<{ username: string }>();
+  const [data] = createResource(() => params.username, fetchSchedule);
 
   return (
     <>

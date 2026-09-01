@@ -21,6 +21,7 @@ const PUBLIC_PREFIXES = [
   "/api/reviews/share",
   "/api/reviews/track",
   "/api/ai/suggest-review",
+  "/api/company/",
   "/qr/",
   "/review/",
 ];
@@ -38,10 +39,13 @@ function isPublicPath(pathname: string): boolean {
   ) {
     return true;
   }
-  // Allow public access to /company/*/review sub-routes while protecting
+  // Allow public access to /company/*/review and /company/*/bookings sub-routes while protecting
   // the /company/:companyname profile page itself.
   const companyReviewMatch = pathname.match(/^\/company\/[^/]+\/review(?:\/.*)?$/);
   if (companyReviewMatch) return true;
+
+  const companyBookingsMatch = pathname.match(/^\/company\/[^/]+\/bookings(?:\/.*)?$/);
+  if (companyBookingsMatch) return true;
 
   return false;
 }

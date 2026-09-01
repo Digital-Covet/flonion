@@ -76,6 +76,12 @@ export async function GET(event: APIEvent) {
           endTime: true,
           isBooked: true,
           title: true,
+          meetingRequest: {
+            select: {
+              id: true,
+              status: true,
+            },
+          },
         },
       }),
       prisma.meetingRequest.findMany({
@@ -88,6 +94,7 @@ export async function GET(event: APIEvent) {
         },
         select: {
           id: true,
+          slotId: true,
           slot: {
             select: {
               date: true,
@@ -113,27 +120,20 @@ export async function GET(event: APIEvent) {
       }),
     ]);
 
-    const events = slots.map((slot) => ({
-      id: slot.id,
-      type: "slot" as const,
-      date: slot.date.toISOString(),
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      status: slot.isBooked ? ("booked" as const) : ("available" as const),
-      title: slot.title ?? (slot.isBooked ? "Booked" : undefined),
-    }));
+    const slotIdsWithMeeting = new Set(meetings.map((m) => m.slotId));
 
-    for (const meeting of meetings) {
-      events.push({
-        id: `meeting-${meeting.id}`,
+    const events = slots.map((slot) => {
+      const isBooked = slot.isBooked || slotIdsWithMeeting.has(slot.id) || slot.meetingRequest?.status === "accepted";
+      return {
+        id: slot.id,
         type: "slot" as const,
-        date: meeting.slot.date.toISOString(),
-        startTime: meeting.slot.startTime,
-        endTime: meeting.slot.endTime,
-        status: "booked" as const,
-        title: "Meeting",
-      });
-    }
+        date: slot.date.toISOString(),
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        status: isBooked ? ("booked" as const) : ("available" as const),
+        title: slot.title ?? (isBooked ? "Booked" : undefined),
+      };
+    });
 
     for (const tm of teamMeetings) {
       events.push({

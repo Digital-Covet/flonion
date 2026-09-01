@@ -8,19 +8,28 @@ import BookableWindows from "./BookableWindows";
 import ScheduleSettingsModal from "./ScheduleSettingsModal";
 import { APP_DOMAIN } from "~/lib/constants";
 
-async function fetchUsername(): Promise<string | null> {
+async function fetchScheduleSettings() {
   try {
     const res = await fetch("/api/marketplace/schedule-settings");
     if (!res.ok) return null;
-    // We just need the username from the business - reuse the settings endpoint
-    // but we need to get it from somewhere. Let's use a simpler approach.
-    return null;
+    const data = await res.json();
+    return data.settings as {
+      username?: string | null;
+      workingDays: string;
+      workingStartTime: string;
+      workingEndTime: string;
+      bookingStartTime: string;
+      bookingEndTime: string;
+      slotDuration: number;
+      timezone: string;
+    };
   } catch {
     return null;
   }
 }
 
 function MeetingSchedulerApp() {
+  const [settings, { refetch: refetchSettings }] = createResource(fetchScheduleSettings);
   const [view, setView] = createSignal<"upcoming" | "availability">("upcoming");
   const [weekOffset, setWeekOffset] = createSignal(0);
   const [linkMenuOpen, setLinkMenuOpen] = createSignal(false);
@@ -40,22 +49,20 @@ function MeetingSchedulerApp() {
   };
 
   const copyScheduleLink = async () => {
-    // Get username from the page path or fetch it
-    const username = await (async () => {
-      try {
-        const res = await fetch("/api/marketplace/slots/mine");
-        if (!res.ok) return null;
-        // We need a different approach - let's just use the business page
-        return null;
-      } catch {
-        return null;
-      }
-    })();
-    // Fallback: use the marketplace page as the public schedule
-    const url = `${APP_DOMAIN}/marketplace`;
+    const username = settings()?.username;
+    const url = username
+      ? `${APP_DOMAIN}/company/${encodeURIComponent(username)}/bookings`
+      : `${APP_DOMAIN}/marketplace`;
     await navigator.clipboard?.writeText(url);
     setScheduleCopied(true);
     setTimeout(() => setScheduleCopied(false), 1600);
+  };
+
+  const openSchedulePreview = () => {
+    const username = settings()?.username;
+    if (username) {
+      window.open(`/company/${encodeURIComponent(username)}/bookings`, "_blank");
+    }
   };
 
   const copyMeetLink = async () => {
@@ -129,14 +136,16 @@ function MeetingSchedulerApp() {
                     <Copy class="size-4 text-muted-foreground" />
                     {scheduleCopied() ? "Schedule link copied" : "Copy public schedule link"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={copyLink}
-                    class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
-                  >
-                    <ExternalLink class="size-4 text-muted-foreground" />
-                    {copied() ? "Booking link copied" : "Copy booking link"}
-                  </button>
+                  <Show when={settings()?.username}>
+                    <button
+                      type="button"
+                      onClick={openSchedulePreview}
+                      class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                    >
+                      <ExternalLink class="size-4 text-muted-foreground" />
+                      Preview public schedule
+                    </button>
+                  </Show>
                   <button
                     type="button"
                     onClick={copyMeetLink}

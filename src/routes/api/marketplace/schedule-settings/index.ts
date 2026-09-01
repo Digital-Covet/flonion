@@ -23,6 +23,7 @@ export async function GET(event: APIEvent) {
         bookingEndTime: true,
         slotDuration: true,
         timezone: true,
+        username: true,
       },
     });
 

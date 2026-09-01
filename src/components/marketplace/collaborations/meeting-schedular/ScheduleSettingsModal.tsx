@@ -1,4 +1,4 @@
-import { createSignal, createResource, Show, For, onMount } from "solid-js";
+import { createSignal, createResource, createEffect, Show, For } from "solid-js";
 import { Portal } from "solid-js/web";
 import { X, Clock, Calendar, Loader2 } from "lucide-solid";
 import SectionShell from "./SectionShell";
@@ -65,7 +65,7 @@ function ScheduleSettingsModal(props: ScheduleSettingsModalProps) {
   const [generating, setGenerating] = createSignal(false);
   const [statusMsg, setStatusMsg] = createSignal("");
 
-  onMount(() => {
+  createEffect(() => {
     const s = settings();
     if (s) applySettings(s);
   });
