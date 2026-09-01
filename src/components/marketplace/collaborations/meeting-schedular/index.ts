@@ -10,4 +10,5 @@ export { default as LoadBar } from "./LoadBar";
 export { default as LoadOverview } from "./LoadOverview";
 export { default as AvailabilityWindow } from "./AvailabilityWindow";
 export { default as BookableWindows } from "./BookableWindows";
+export { default as ScheduleSettingsModal } from "./ScheduleSettingsModal";
 export { default as MeetingSchedulerApp } from "./MeetingSchedulerApp";

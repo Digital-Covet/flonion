@@ -1,5 +1,5 @@
-import { For, Show } from "solid-js";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-solid";
+import { For, Show, createResource, createMemo } from "solid-js";
+import { ChevronLeft, ChevronRight } from "lucide-solid";
 import SectionShell from "./SectionShell";
 import CalendarEvent from "./CalendarEvent";
 import type { CalendarEventTone } from "~/types";
@@ -9,43 +9,43 @@ interface WeeklyCalendarProps {
   onWeekChange: (change: number) => void;
 }
 
-interface CalendarBlock {
-  day: string;
-  startHour: number;
-  duration: number;
-  label: string;
-  tone: CalendarEventTone;
+interface SlotData {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  isBooked: boolean;
+  title?: string | null;
 }
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-/* Visible day window: 9 AM - 5 PM. */
-const DAY_START = 9;
-const DAY_END = 17;
+const DAY_START = 8;
+const DAY_END = 20;
 const SLOT_COUNT = DAY_END - DAY_START;
 const SLOT_REM = 2.75;
-const GRID_COLUMNS = "grid grid-cols-[3.25rem_repeat(5,minmax(0,1fr))]";
+const GRID_COLUMNS = "grid grid-cols-[3.25rem_repeat(7,minmax(0,1fr))]";
 
-/* Anchor week starts Monday Oct 23 so every offset resolves to real dates. */
-const BASE_MONDAY = new Date(2023, 9, 23);
-
-const TONE_LEGEND: { label: string; dot: string }[] = [
-  { label: "Confirmed", dot: "bg-primary" },
-  { label: "Pending", dot: "bg-orange" },
-  { label: "Unavailable", dot: "bg-muted-foreground/40" },
-];
-
-const events: CalendarBlock[] = [
-  { day: "Tue", startHour: 9, duration: 60, label: "Blocked", tone: "muted" },
-  { day: "Wed", startHour: 10, duration: 90, label: "Vendor Onboard", tone: "primary" },
-  { day: "Thu", startHour: 12, duration: 60, label: "Contract Neg.", tone: "orange" },
-  { day: "Fri", startHour: 9, duration: 480, label: "Out of Office", tone: "muted" },
-];
+async function fetchSlots(): Promise<SlotData[]> {
+  const res = await fetch("/api/marketplace/slots/mine");
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data.slots) ? data.slots : [];
+}
 
 function addDays(date: Date, amount: number) {
   const next = new Date(date);
   next.setDate(next.getDate() + amount);
   return next;
+}
+
+function getMonday(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 function formatMonthDay(date: Date) {
@@ -58,40 +58,80 @@ function formatHour(hour: number) {
   return `${display} ${suffix}`;
 }
 
-function formatTimeRange(startHour: number, duration: number) {
-  const endMinutes = startHour * 60 + duration;
-  const endHour = Math.floor(endMinutes / 60);
-  const trailing = endMinutes % 60;
-  const start = formatHour(startHour).replace(/ [AP]M$/, "");
-  const end = trailing === 0
-    ? formatHour(endHour)
-    : `${formatHour(endHour).replace(/ [AP]M$/, "")}:${String(trailing).padStart(2, "0")}`;
-  return `${start} - ${end}`;
+function formatDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function parseTimeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
 }
 
 function WeeklyCalendar(props: WeeklyCalendarProps) {
-  const weekStart = () => addDays(BASE_MONDAY, props.weekOffset * 7);
+  const [slots] = createResource(fetchSlots);
+
+  const weekStart = () => {
+    const today = new Date();
+    const monday = getMonday(today);
+    return addDays(monday, props.weekOffset * 7);
+  };
+
   const weekDates = () => DAYS.map((_, index) => addDays(weekStart(), index));
+
   const weekRange = () =>
     `${formatMonthDay(weekStart())} - ${formatMonthDay(addDays(weekStart(), 6))}`;
 
-  /* Tuesday of the anchor week stands in for "today". */
-  const isToday = (index: number) => props.weekOffset === 0 && index === 1;
+  const isToday = (index: number) => {
+    const today = new Date();
+    const date = weekDates()[index];
+    return (
+      today.getFullYear() === date.getFullYear() &&
+      today.getMonth() === date.getMonth() &&
+      today.getDate() === date.getDate()
+    );
+  };
 
   const hours = Array.from({ length: SLOT_COUNT + 1 }, (_, index) => DAY_START + index);
   const bodyHeight = `${SLOT_COUNT * SLOT_REM}rem`;
   const hourLines = `repeating-linear-gradient(to bottom, var(--color-border) 0, var(--color-border) 1px, transparent 1px, transparent ${SLOT_REM}rem)`;
 
-  const eventsFor = (day: string) => events.filter(event => event.day === day);
+  const eventsForDay = (dayIndex: number) => {
+    const date = weekDates()[dayIndex];
+    const dateKey = formatDateKey(date);
+    const daySlots = (slots() ?? []).filter((s) => {
+      const slotDate = new Date(s.date);
+      return formatDateKey(slotDate) === dateKey;
+    });
+
+    return daySlots.map((slot) => {
+      const startMinutes = parseTimeToMinutes(slot.startTime);
+      const endMinutes = parseTimeToMinutes(slot.endTime);
+      const startHour = startMinutes / 60;
+      const durationMinutes = endMinutes - startMinutes;
+
+      let tone: CalendarEventTone = "primary";
+      if (slot.isBooked) tone = "orange";
+
+      return {
+        id: slot.id,
+        startHour,
+        duration: durationMinutes,
+        label: slot.title ?? (slot.isBooked ? "Booked" : "Available"),
+        tone,
+      };
+    });
+  };
+
   const offsetPercent = (startHour: number) => ((startHour - DAY_START) / SLOT_COUNT) * 100;
-  const heightPercent = (duration: number) => (duration / (SLOT_COUNT * 60)) * 100;
+  const heightPercent = (durationMinutes: number) =>
+    (durationMinutes / (SLOT_COUNT * 60)) * 100;
 
   return (
     <SectionShell>
       <header class="flex flex-wrap items-center justify-between gap-3 border-b border-border p-5">
         <div>
           <h3>This Week at a Glance</h3>
-          <p class="mt-1 text-sm text-muted-foreground">{weekRange()}</p>
+          <p class="mt-1 text-sm text-muted-foreground">{weekRange()} (IST)</p>
         </div>
         <div class="flex items-center gap-2">
           <Show when={props.weekOffset !== 0}>
@@ -125,9 +165,7 @@ function WeeklyCalendar(props: WeeklyCalendarProps) {
       </header>
 
       <div class="overflow-x-auto px-5 pt-5">
-        {/* pb-3 leaves room for the last hour label, which hangs below the grid. */}
-        <div class="min-w-[34rem] pb-3">
-          {/* Day headers reuse the body column template so the two always line up. */}
+        <div class="min-w-[44rem] pb-3">
           <div class={`${GRID_COLUMNS} border-b border-border pb-2`}>
             <div />
             <For each={DAYS}>
@@ -176,55 +214,37 @@ function WeeklyCalendar(props: WeeklyCalendarProps) {
                   class={`group/day relative border-r border-border/60 last:border-r-0 ${isToday(index()) ? "bg-primary/5" : ""}`}
                   style={{ height: bodyHeight, "background-image": hourLines }}
                 >
-                  <For each={eventsFor(day)}>
+                  <For each={eventsForDay(index())}>
                     {(event) => (
                       <CalendarEvent
-                        class="inset-x-1"
+                        class="inset-x-0.5"
                         style={{
                           top: `${offsetPercent(event.startHour)}%`,
-                          height: `calc(${heightPercent(event.duration)}% - 0.25rem)`,
-                          "min-height": "1.5rem",
+                          height: `calc(${heightPercent(event.duration)}% - 0.125rem)`,
+                          "min-height": "1.25rem",
                         }}
                         tone={event.tone}
                       >
-                        <span class="truncate">{event.label}</span>
-                        <Show when={event.duration >= 60}>
-                          <span class="truncate text-[10px] font-normal opacity-75">
-                            {formatTimeRange(event.startHour, event.duration)}
-                          </span>
-                        </Show>
+                        <span class="truncate text-[11px]">{event.label}</span>
                       </CalendarEvent>
                     )}
                   </For>
-
-                  <Show when={eventsFor(day).length === 0}>
-                    <button
-                      type="button"
-                      class="absolute inset-1 grid place-items-center rounded-md border border-dashed border-primary/30 bg-positive-muted text-xs font-medium text-primary opacity-0 transition-opacity group-hover/day:opacity-100 focus-visible:opacity-100"
-                    >
-                      <span class="flex items-center gap-1">
-                        <Plus class="size-3.5" />
-                        Book
-                      </span>
-                    </button>
-                  </Show>
                 </div>
               )}
             </For>
           </div>
-
         </div>
       </div>
 
       <div class="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 pt-3 pb-5">
-        <For each={TONE_LEGEND}>
-          {(item) => (
-            <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span class={`size-2 rounded-full ${item.dot}`} />
-              {item.label}
-            </span>
-          )}
-        </For>
+        <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span class="size-2 rounded-full bg-primary" />
+          Available
+        </span>
+        <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span class="size-2 rounded-full bg-orange" />
+          Booked
+        </span>
       </div>
     </SectionShell>
   );

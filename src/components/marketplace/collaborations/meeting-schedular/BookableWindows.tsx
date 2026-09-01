@@ -1,7 +1,7 @@
 import { createSignal, createResource, For, Show } from "solid-js";
 import { Index } from "solid-js";
 import { Portal } from "solid-js/web";
-import { Plus, CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-solid";
+import { Plus, CalendarIcon, ChevronLeftIcon, ChevronRightIcon, Clock } from "lucide-solid";
 import { DatePicker } from "@ark-ui/solid/date-picker";
 import { Field } from "@ark-ui/solid/field";
 import type { DateValue } from "@internationalized/date";
@@ -13,33 +13,31 @@ interface Slot {
   startTime: string;
   endTime: string;
   isBooked: boolean;
+  title?: string | null;
 }
 
 async function fetchMySlots(): Promise<Slot[]> {
-  if (typeof window === "undefined") return [];
-  const res = await fetch("/api/marketplace/meetings?type=incoming");
+  const res = await fetch("/api/marketplace/slots/mine");
   if (!res.ok) return [];
   const data = await res.json();
-  const meetings = Array.isArray(data.meetings) ? data.meetings : [];
-  return meetings
-    .filter((m: { status: string }) => m.status === "pending" || m.status === "accepted")
-    .map((m: { id: string; slot: { date: string; startTime: string; endTime: string } }) => ({
-      id: m.id,
-      date: m.slot.date,
-      startTime: m.slot.startTime,
-      endTime: m.slot.endTime,
-      isBooked: true,
-    }));
+  return Array.isArray(data.slots) ? data.slots : [];
 }
 
-function BookableWindows() {
+interface BookableWindowsProps {
+  key?: number;
+}
+
+function BookableWindows(props: BookableWindowsProps) {
   const [dateValue, setDateValue] = createSignal<DateValue[]>([]);
   const [newDate, setNewDate] = createSignal("");
   const [newStart, setNewStart] = createSignal("09:00");
   const [newEnd, setNewEnd] = createSignal("10:00");
   const [adding, setAdding] = createSignal(false);
 
-  const [slots, { mutate }] = createResource(fetchMySlots);
+  const [slots, { refetch }] = createResource(fetchMySlots);
+
+  // Refetch when key changes
+  createResource(() => props.key, () => refetch());
 
   const handleDateChange = (details: { value: DateValue[]; valueAsString: string[] }) => {
     setDateValue(details.value);
@@ -71,6 +69,7 @@ function BookableWindows() {
         setNewDate("");
         setNewStart("09:00");
         setNewEnd("10:00");
+        refetch();
       }
     } finally {
       setAdding(false);
@@ -80,7 +79,13 @@ function BookableWindows() {
   return (
     <SectionShell class="flex flex-1 flex-col">
       <header class="border-b border-border p-5">
-        <h3>Bookable Windows</h3>
+        <div class="flex items-center justify-between">
+          <h3>Bookable Windows</h3>
+          <span class="flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+            <Clock class="size-3" />
+            IST
+          </span>
+        </div>
         <p class="mt-1 text-sm leading-6 text-muted-foreground">
           Configure availability for external meetings.
         </p>
@@ -104,9 +109,12 @@ function BookableWindows() {
                 <div class="flex items-center justify-between rounded-lg border border-border p-3">
                   <div>
                     <p class="text-sm font-medium text-foreground">
-                      {slot.startTime} - {slot.endTime}
+                      {slot.startTime} - {slot.endTime} <span class="text-xs text-muted-foreground">IST</span>
                     </p>
                     <p class="text-xs text-muted-foreground">{dateLabel}</p>
+                    <Show when={slot.title}>
+                      <p class="mt-0.5 text-xs text-muted-foreground italic">{slot.title}</p>
+                    </Show>
                   </div>
                   <Show when={slot.isBooked}>
                     <span class="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
@@ -270,7 +278,7 @@ function BookableWindows() {
             </Field.Root>
 
             <Field.Root>
-              <Field.Label class="text-xs text-muted-foreground">Start Time</Field.Label>
+              <Field.Label class="text-xs text-muted-foreground">Start Time (IST)</Field.Label>
               <input
                 type="time"
                 value={newStart()}
@@ -280,7 +288,7 @@ function BookableWindows() {
             </Field.Root>
 
             <Field.Root>
-              <Field.Label class="text-xs text-muted-foreground">End Time</Field.Label>
+              <Field.Label class="text-xs text-muted-foreground">End Time (IST)</Field.Label>
               <input
                 type="time"
                 value={newEnd()}
