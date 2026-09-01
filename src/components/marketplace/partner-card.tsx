@@ -44,7 +44,7 @@ export default function PartnerCard(props: PartnerCardProps) {
 
   return (
     <A
-      href={`/${props.partner.username ?? props.partner.id}`}
+      href={`/company/${props.partner.username ?? props.partner.id}`}
       class="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all duration-300 animate-[fade-in-up_0.5s_ease-out_both] hover:-translate-y-1 hover:shadow-md no-underline"
       style={{ "animation-delay": `${Math.min(props.index, 8) * 60}ms` }}
     >

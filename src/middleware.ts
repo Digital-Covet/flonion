@@ -23,18 +23,27 @@ const PUBLIC_PREFIXES = [
   "/api/ai/suggest-review",
   "/qr/",
   "/review/",
-  "/company/",
 ];
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;
   // Match whole segments only: a bare `startsWith` would also treat
   // "/api/reviews/shareXYZ" as public.
-  return PUBLIC_PREFIXES.some(
-    (prefix) =>
-      pathname === prefix ||
-      pathname.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`),
-  );
+  if (
+    PUBLIC_PREFIXES.some(
+      (prefix) =>
+        pathname === prefix ||
+        pathname.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`),
+    )
+  ) {
+    return true;
+  }
+  // Allow public access to /company/*/review sub-routes while protecting
+  // the /company/:companyname profile page itself.
+  const companyReviewMatch = pathname.match(/^\/company\/[^/]+\/review(?:\/.*)?$/);
+  if (companyReviewMatch) return true;
+
+  return false;
 }
 
 export default createMiddleware({

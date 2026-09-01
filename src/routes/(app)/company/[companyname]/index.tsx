@@ -24,6 +24,7 @@ const RESERVED_ROUTES = new Set([
   "auth",
   "onboarding",
   "accept-invite",
+  "review",
 ]);
 
 interface BusinessData {
@@ -68,7 +69,11 @@ async function fetchBusiness(username: string): Promise<BusinessData | null> {
     if (!res.ok) return null;
     const data = await res.json();
     const partners = Array.isArray(data.partners) ? data.partners : [];
-    return partners.find((p: BusinessData) => p.username === username) ?? null;
+    return (
+      partners.find(
+        (p: BusinessData) => p.username === username || p.id === username
+      ) ?? null
+    );
   } catch {
     return null;
   }
