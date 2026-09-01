@@ -1559,6 +1559,7 @@ interface MeetingDecisionEmailParams {
   startTime: string;
   endTime: string;
   decision: "accepted" | "rejected";
+  meetUri?: string;
 }
 
 export function renderMeetingDecisionEmail({
@@ -1568,6 +1569,7 @@ export function renderMeetingDecisionEmail({
   startTime,
   endTime,
   decision,
+  meetUri,
 }: MeetingDecisionEmailParams): { html: string; text: string } {
   const safeRequester = escapeHtml(requesterName);
   const safeBusiness = escapeHtml(businessName);
@@ -1650,6 +1652,23 @@ export function renderMeetingDecisionEmail({
       The meeting has been confirmed. You will receive further details from
       <strong>${safeBusiness}</strong> shortly.
     </p>
+    ${meetUri ? `
+    <p
+      style="
+        margin: 0 0 16px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      Join the meeting online:
+    </p>
+    <p style="margin: 0 0 24px 0; text-align: center;">
+      ${renderButton(meetUri, "Join Google Meet")}
+    </p>
+    ` : ""}
     ` : `
     <p
       style="
@@ -1694,7 +1713,7 @@ Date: ${date}
 Time: ${startTime} – ${endTime}
 
 ${isAccepted
-  ? "The meeting has been confirmed. You will receive further details shortly."
+  ? `The meeting has been confirmed.${meetUri ? `\n\nJoin the meeting: ${meetUri}` : ""}`
   : "Unfortunately, the meeting could not be accommodated at this time."}
 
 If you have questions, please contact support at ${SUPPORT_EMAIL}.`;

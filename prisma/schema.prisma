@@ -77,6 +77,17 @@ model Business {
   rating      Float?
   /// Total review count cached from the Google Business Profile API.
   reviewCount Int?
+
+  /// Schedule settings (all times in IST / Asia/Kolkata).
+  /// Comma-separated day-of-week numbers: 0=Sun, 1=Mon, ..., 6=Sat.
+  workingDays      String  @default("1,2,3,4,5")
+  workingStartTime String  @default("09:00")
+  workingEndTime   String  @default("18:00")
+  bookingStartTime String  @default("14:00")
+  bookingEndTime   String  @default("17:00")
+  slotDuration     Int     @default(30)
+  timezone         String  @default("Asia/Kolkata")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -104,6 +115,8 @@ model AvailabilitySlot {
   startTime  String
   endTime    String
   isBooked   Boolean  @default(false)
+  /// Optional label shown on the public calendar (e.g. "Lunch Break").
+  title      String?
   createdAt  DateTime @default(now())
 
   meetingRequest MeetingRequest?
@@ -123,6 +136,8 @@ model MeetingRequest {
   requester   User     @relation(fields: [requesterId], references: [id], onDelete: Cascade)
   status      String   @default("pending") // pending | accepted | rejected | cancelled
   message     String?
+  meetUri     String?
+  meetSpaceId String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -268,6 +283,8 @@ model TeamMeeting {
   startTime   String
   endTime     String
   location    String
+  meetUri     String?
+  meetSpaceId String?
   businessId  String
   business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())

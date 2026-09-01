@@ -1,4 +1,5 @@
 import { Video, DoorOpen } from "lucide-solid";
+import { Show } from "solid-js";
 import type { TeamMeeting } from "~/stores/task-store";
 
 interface MeetingCardProps {
@@ -32,10 +33,25 @@ export default function MeetingCard(props: MeetingCardProps) {
       <h4 class="text-base font-medium text-foreground mb-1 line-clamp-1">
         {props.meeting.title}
       </h4>
-      <p class="text-sm font-sans text-muted-foreground flex items-center gap-1">
-        <DoorOpen size={14} />
-        {props.meeting.location}
-      </p>
+      <Show
+        when={props.meeting.meetUri}
+        fallback={
+          <p class="text-sm font-sans text-muted-foreground flex items-center gap-1">
+            <DoorOpen size={14} />
+            {props.meeting.location}
+          </p>
+        }
+      >
+        <a
+          href={props.meeting.meetUri}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-sm font-sans text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+        >
+          <Video size={14} />
+          Join Google Meet
+        </a>
+      </Show>
     </div>
   );
 }

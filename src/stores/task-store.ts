@@ -30,6 +30,8 @@ export interface TeamMeeting {
   startTime: string;
   endTime: string;
   location: string;
+  meetUri?: string;
+  meetSpaceId?: string;
   businessId: string;
   createdAt: string;
   updatedAt: string;

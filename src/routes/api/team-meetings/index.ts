@@ -1,6 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { createMeetLink } from "~/lib/google-meet";
 
 export async function GET(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -89,6 +90,18 @@ export async function POST(event: APIEvent) {
         businessId: user.businessId,
       },
     });
+
+    // Attempt to create a Google Meet link. Graceful failure --
+    // the meeting is already persisted without one.
+    const meetLink = await createMeetLink(session.user.id);
+    if (meetLink) {
+      await prisma.teamMeeting.update({
+        where: { id: meeting.id },
+        data: { meetUri: meetLink.meetUri, meetSpaceId: meetLink.spaceId },
+      });
+      meeting.meetUri = meetLink.meetUri;
+      meeting.meetSpaceId = meetLink.spaceId;
+    }
 
     return Response.json(meeting, { status: 201 });
   } catch {

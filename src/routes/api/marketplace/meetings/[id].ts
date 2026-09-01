@@ -4,6 +4,7 @@ import { prisma } from "~/db/prisma";
 import { sendEmail } from "~/services/email";
 import { renderMeetingDecisionEmail } from "~/services/email-templates";
 import { APP_DOMAIN } from "~/lib/constants";
+import { createMeetLink } from "~/lib/google-meet";
 
 export async function GET(event: APIEvent) {
   const url = new URL(event.request.url);
@@ -60,6 +61,19 @@ export async function GET(event: APIEvent) {
     }
   });
 
+  // Auto-create a Google Meet link when the meeting is accepted.
+  let meetUri: string | undefined;
+  if (action === "accept") {
+    const meetLink = await createMeetLink(meeting.business.userId);
+    if (meetLink) {
+      await prisma.meetingRequest.update({
+        where: { id },
+        data: { meetUri: meetLink.meetUri, meetSpaceId: meetLink.spaceId },
+      });
+      meetUri = meetLink.meetUri;
+    }
+  }
+
   try {
     const slotDate = new Date(meeting.slot.date).toLocaleDateString("en-US", {
       weekday: "long",
@@ -75,6 +89,7 @@ export async function GET(event: APIEvent) {
       startTime: meeting.slot.startTime,
       endTime: meeting.slot.endTime,
       decision: newStatus as "accepted" | "rejected",
+      meetUri,
     });
 
     await sendEmail({
@@ -175,6 +190,19 @@ export async function PATCH(event: APIEvent) {
       }
     });
 
+    // Auto-create a Google Meet link when the meeting is accepted.
+    let meetUri: string | undefined;
+    if (action === "accept") {
+      const meetLink = await createMeetLink(meeting.business.userId);
+      if (meetLink) {
+        await prisma.meetingRequest.update({
+          where: { id },
+          data: { meetUri: meetLink.meetUri, meetSpaceId: meetLink.spaceId },
+        });
+        meetUri = meetLink.meetUri;
+      }
+    }
+
     try {
       const slotDate = new Date(meeting.slot.date).toLocaleDateString("en-US", {
         weekday: "long",
@@ -190,6 +218,7 @@ export async function PATCH(event: APIEvent) {
         startTime: meeting.slot.startTime,
         endTime: meeting.slot.endTime,
         decision: newStatus as "accepted" | "rejected",
+        meetUri,
       });
 
       await sendEmail({
