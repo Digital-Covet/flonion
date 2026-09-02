@@ -39,6 +39,10 @@ interface BusinessInfo {
 
 const tones = ["Simple", "Professional", "Casual"] as const;
 
+function isCuid(value: string): boolean {
+  return /^c[a-z0-9]{20,}$/.test(value);
+}
+
 function isSuccessMessage(msg: string): boolean {
   return (
     msg.includes("successfully") ||
@@ -64,6 +68,7 @@ export default function PublicReviewPage() {
   const [cooldown, setCooldown] = createSignal(false);
   const [showSuggestions, setShowSuggestions] = createSignal(false);
   const [visitorName, setVisitorName] = createSignal("");
+  const [businessId, setBusinessId] = createSignal<string | null>(null);
 
   let dismissTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -80,13 +85,18 @@ export default function PublicReviewPage() {
   onMount(async () => {
     const pathParts = window.location.pathname.split("/");
 
-    const username = pathParts[2];
+    const urlParam = pathParts[2];
     const id = pathParts[4];
 
-    if (!username) {
+    if (!urlParam) {
       setError("No username provided.");
       setLoading(false);
       return;
+    }
+
+    const isBusinessId = isCuid(urlParam);
+    if (isBusinessId) {
+      setBusinessId(urlParam);
     }
 
     if (id) {
@@ -95,7 +105,9 @@ export default function PublicReviewPage() {
 
     const query = id
       ? `id=${encodeURIComponent(id)}`
-      : `username=${encodeURIComponent(username)}`;
+      : isBusinessId
+        ? `businessId=${encodeURIComponent(urlParam)}`
+        : `username=${encodeURIComponent(urlParam)}`;
 
     try {
       const response = await fetch(`/api/reviews/share?${query}`);
@@ -122,7 +134,7 @@ export default function PublicReviewPage() {
         setBusiness(data.business);
 
         const expectedUsername = data.business.username;
-        if (id && expectedUsername && expectedUsername !== username) {
+        if (id && expectedUsername && expectedUsername !== urlParam && !isBusinessId) {
           setCompanyMismatch(true);
           setError(
             `This review link is not valid for "${data.business.name}".`,
@@ -244,7 +256,8 @@ export default function PublicReviewPage() {
   const submitReview = async () => {
     const reviewText = draft().text;
     const id = reviewId();
-    const username = window.location.pathname.split("/")[2];
+    const urlParam = window.location.pathname.split("/")[2];
+    const isBusinessIdParam = urlParam ? isCuid(urlParam) : false;
 
     if (!reviewText.trim()) {
       setStatusMessage("Enter review text before submitting.");
@@ -257,7 +270,8 @@ export default function PublicReviewPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...(id ? { id } : {}),
-          ...(username && !id ? { username } : {}),
+          ...(urlParam && !id && isBusinessIdParam ? { businessId: urlParam } : {}),
+          ...(urlParam && !id && !isBusinessIdParam ? { username: urlParam } : {}),
           text: reviewText,
           rating: draft().rating,
           reviewerName: visitorName() || undefined,

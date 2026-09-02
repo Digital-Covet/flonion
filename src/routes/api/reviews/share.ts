@@ -12,7 +12,7 @@ export async function POST(event: APIEvent) {
   try {
     const body = await event.request.json();
 
-    const { text, rating, keywords, id, username: businessUsername, reviewerName } = body;
+    const { text, rating, keywords, id, username: businessUsername, businessId, reviewerName } = body;
 
     if (id && rating !== 0 && (typeof rating !== "number" || rating < 1 || rating > 5)) {
       return Response.json(
@@ -80,9 +80,10 @@ export async function POST(event: APIEvent) {
       return Response.json({ url: `/company/${username}/review/${review.id}` });
     }
 
-    if (businessUsername && !session) {
+    if ((businessUsername || businessId) && !session) {
+      const businessWhere = businessUsername ? { username: businessUsername } : { id: businessId! };
       const business = await prisma.business.findUnique({
-        where: { username: businessUsername },
+        where: businessWhere,
         select: { userId: true, keywords: true },
       });
 
@@ -170,17 +171,19 @@ export async function GET(event: APIEvent) {
   const url = new URL(event.request.url);
   const id = url.searchParams.get("id");
   const username = url.searchParams.get("username");
+  const businessId = url.searchParams.get("businessId");
 
-  if (!id && !username) {
+  if (!id && !username && !businessId) {
     return Response.json(
-      { error: "Missing id or username parameter" },
+      { error: "Missing id, username, or businessId parameter" },
       { status: 400 },
     );
   }
 
-  if (username && !id) {
+  if ((username || businessId) && !id) {
+    const businessWhere = username ? { username } : { id: businessId! };
     const business = await prisma.business.findUnique({
-      where: { username },
+      where: businessWhere,
       select: {
         logo: true,
         name: true,
@@ -190,6 +193,7 @@ export async function GET(event: APIEvent) {
         reviewLink: true,
         reviewLinks: true,
         keywords: true,
+        username: true,
       },
     });
 
@@ -207,7 +211,7 @@ export async function GET(event: APIEvent) {
         placeId: business.placeId,
         reviewLink: business.reviewLink,
         reviewLinks: business.reviewLinks,
-        username,
+        username: business.username,
       },
     });
   }
