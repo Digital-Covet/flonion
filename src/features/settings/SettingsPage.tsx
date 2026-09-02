@@ -4,7 +4,6 @@ import { TagsInput } from "@ark-ui/solid/tags-input";
 import Building2 from "lucide-solid/icons/building-2";
 import Puzzle from "lucide-solid/icons/puzzle";
 import SlidersHorizontal from "lucide-solid/icons/sliders-horizontal";
-import Store from "lucide-solid/icons/store";
 import Save from "lucide-solid/icons/save";
 import Zap from "lucide-solid/icons/zap";
 import X from "lucide-solid/icons/x";
@@ -16,11 +15,13 @@ import ArrowRight from "lucide-solid/icons/arrow-right";
 import { SectionCard } from "./components/SectionCard";
 import { FormField } from "./components/FormField";
 import { ToggleRow } from "./components/ToggleRow";
-import { IntegrationCard } from "./components/IntegrationCard";
+import { GoogleBusinessCard } from "./components/GoogleBusinessCard";
+import { GoogleMeetCard } from "./components/GoogleMeetCard";
+import { DisconnectConfirmModal } from "./components/DisconnectConfirmModal";
 import { LogoUploader } from "./components/LogoUploader";
 import { SectorSelect, sectors } from "~/components/onboarding/SectorSelect";
 import { useSettings } from "~/stores/settings-store";
-import type { IntegrationData, GoogleLocationData } from "./types";
+import type { GoogleLocationData } from "./types";
 import {
   REVIEW_PLATFORMS,
   getPlatformBySlug,
@@ -28,13 +29,6 @@ import {
   CUSTOM_LABEL_KEY,
   type ReviewLinksMap,
 } from "./review-platforms";
-
-const googleBusinessIntegration: IntegrationData = {
-  name: "Google Business Profile",
-  connectedSince: "Oct 2023",
-  icon: Store,
-  iconColor: "#4285F4",
-};
 
 export function SettingsPage() {
   const {
@@ -79,6 +73,8 @@ export function SettingsPage() {
   const [saveSuccess, setSaveSuccess] = createSignal(false);
   const [saveError, setSaveError] = createSignal("");
   const [addingPlatform, setAddingPlatform] = createSignal(false);
+  const [disconnectModalOpen, setDisconnectModalOpen] = createSignal(false);
+  const [disconnecting, setDisconnecting] = createSignal(false);
 
   const checkConnection = async () => {
     try {
@@ -113,6 +109,23 @@ export function SettingsPage() {
       }
     } catch {
       // Not connected or error -- stay disconnected
+    }
+  };
+
+  const handleDisconnect = async () => {
+    setDisconnecting(true);
+    try {
+      const res = await fetch("/api/google/disconnect", { method: "POST" });
+      if (res.ok) {
+        setConnected(false);
+        setLocations([]);
+        setSelectedLocationIndex(undefined);
+        setDisconnectModalOpen(false);
+      }
+    } catch {
+      // Disconnect failed
+    } finally {
+      setDisconnecting(false);
     }
   };
 
@@ -325,21 +338,29 @@ export function SettingsPage() {
         </SectionCard>
 
         <SectionCard title="Integrations" icon={Puzzle} showAiBadge>
-          <IntegrationCard
-            integration={googleBusinessIntegration}
-            placeId={placeId()}
-            onPlaceIdInput={(e) =>
-              setPlaceId((e.target as HTMLInputElement).value)
-            }
-            connected={connected()}
-            connecting={connecting()}
-            locations={locations()}
-            selectedLocationIndex={selectedLocationIndex()}
-            onConnect={handleConnect}
-            onLocationSelect={handleLocationSelect}
-            error={locationsError()}
-            errorHint={locationsErrorHint()}
-          />
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <GoogleBusinessCard
+              placeId={placeId()}
+              onPlaceIdInput={(e) =>
+                setPlaceId((e.target as HTMLInputElement).value)
+              }
+              connected={connected()}
+              connecting={connecting()}
+              locations={locations()}
+              selectedLocationIndex={selectedLocationIndex()}
+              onConnect={handleConnect}
+              onRequestDisconnect={() => setDisconnectModalOpen(true)}
+              onLocationSelect={handleLocationSelect}
+              error={locationsError()}
+              errorHint={locationsErrorHint()}
+            />
+            <GoogleMeetCard
+              connected={connected()}
+              connecting={connecting()}
+              onConnect={handleConnect}
+              onRequestDisconnect={() => setDisconnectModalOpen(true)}
+            />
+          </div>
         </SectionCard>
 
         <SectionCard title="Review Links" icon={Link2}>
@@ -594,6 +615,13 @@ export function SettingsPage() {
           </div>
         </Show>
       </div>
+
+      <DisconnectConfirmModal
+        isOpen={disconnectModalOpen()}
+        loading={disconnecting()}
+        onConfirm={handleDisconnect}
+        onClose={() => setDisconnectModalOpen(false)}
+      />
     </main>
   );
 }
