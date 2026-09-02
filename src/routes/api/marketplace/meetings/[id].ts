@@ -103,7 +103,7 @@ export async function GET(event: APIEvent) {
     console.error("[marketplace/meetings] Failed to send decision email:", err);
   }
 
-  const dashboardUrl = `${APP_DOMAIN}/marketplace/collaborations/meeting-schedular`;
+  const dashboardUrl = `${APP_DOMAIN}/collaborations/meeting-schedular`;
   return new Response(
     `<!DOCTYPE html><html><head><title>Meeting ${newStatus}</title>
     <meta http-equiv="refresh" content="3;url=${dashboardUrl}" />

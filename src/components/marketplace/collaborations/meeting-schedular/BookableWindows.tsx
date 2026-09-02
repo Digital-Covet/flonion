@@ -90,44 +90,46 @@ function BookableWindows(props: BookableWindowsProps) {
           Configure availability for external meetings.
         </p>
       </header>
-      <div class="flex flex-1 flex-col gap-4 p-5">
-        <Show
-          when={!slots.loading}
-          fallback={
-            <p class="text-sm text-muted-foreground">Loading slots...</p>
-          }
-        >
-          <For each={slots() ?? []}>
-            {(slot) => {
-              const d = new Date(slot.date);
-              const dateLabel = d.toLocaleDateString("en-US", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              });
-              return (
-                <div class="flex items-center justify-between rounded-lg border border-border p-3">
-                  <div>
-                    <p class="text-sm font-medium text-foreground">
-                      {slot.startTime} - {slot.endTime} <span class="text-xs text-muted-foreground">IST</span>
-                    </p>
-                    <p class="text-xs text-muted-foreground">{dateLabel}</p>
-                    <Show when={slot.title}>
-                      <p class="mt-0.5 text-xs text-muted-foreground italic">{slot.title}</p>
+      <div class="flex flex-1 flex-col">
+        <div class="flex flex-1 flex-col gap-3 overflow-y-auto px-5 pt-5 max-h-80">
+          <Show
+            when={!slots.loading}
+            fallback={
+              <p class="text-sm text-muted-foreground">Loading slots...</p>
+            }
+          >
+            <For each={slots() ?? []}>
+              {(slot) => {
+                const d = new Date(slot.date);
+                const dateLabel = d.toLocaleDateString("en-US", {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                });
+                return (
+                  <div class="flex items-center justify-between rounded-lg border border-border p-3">
+                    <div>
+                      <p class="text-sm font-medium text-foreground">
+                        {slot.startTime} - {slot.endTime} <span class="text-xs text-muted-foreground">IST</span>
+                      </p>
+                      <p class="text-xs text-muted-foreground">{dateLabel}</p>
+                      <Show when={slot.title}>
+                        <p class="mt-0.5 text-xs text-muted-foreground italic">{slot.title}</p>
+                      </Show>
+                    </div>
+                    <Show when={slot.isBooked}>
+                      <span class="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
+                        Booked
+                      </span>
                     </Show>
                   </div>
-                  <Show when={slot.isBooked}>
-                    <span class="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
-                      Booked
-                    </span>
-                  </Show>
-                </div>
-              );
-            }}
-          </For>
-        </Show>
+                );
+              }}
+            </For>
+          </Show>
+        </div>
 
-        <div class="mt-auto rounded-lg border border-dashed border-border p-3">
+        <div class="rounded-lg border border-dashed border-border p-3 mx-5 my-5">
           <p class="text-sm font-medium text-foreground mb-3">Add new slot</p>
           <div class="flex flex-col gap-3">
             <Field.Root>

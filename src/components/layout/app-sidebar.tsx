@@ -70,7 +70,7 @@ const navigationGroups: NavigationGroup[] = [
       },
       {
         label: "Collaborations",
-        href: "/marketplace/collaborations/meeting-schedular",
+        href: "/collaborations/meeting-schedular",
         icon: Users,
       },
       {
