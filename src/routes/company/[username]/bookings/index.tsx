@@ -50,9 +50,14 @@ async function fetchSchedule(username?: string): Promise<ScheduleData | null> {
     const res = await fetch(
       `/api/company/${encodeURIComponent(username)}/schedule?startDate=${formatDate(start)}&endDate=${formatDate(end)}`
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      console.error("[fetchSchedule]", res.status, body?.error ?? "unknown");
+      return null;
+    }
     return await res.json();
-  } catch {
+  } catch (err) {
+    console.error("[fetchSchedule] network error:", err);
     return null;
   }
 }

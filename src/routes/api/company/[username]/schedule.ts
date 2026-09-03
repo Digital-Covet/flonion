@@ -4,13 +4,13 @@ import { prisma } from "~/db/prisma";
 const MAX_RANGE_DAYS = 30;
 
 export async function GET(event: APIEvent) {
-  const url = new URL(event.request.url);
-  const pathParts = url.pathname.split("/");
-  const username = pathParts[pathParts.indexOf("company") + 1];
+  const username = event.params.username;
 
   if (!username) {
     return Response.json({ error: "Username is required" }, { status: 400 });
   }
+
+  const url = new URL(event.request.url);
 
   const startDateParam = url.searchParams.get("startDate");
   const endDateParam = url.searchParams.get("endDate");

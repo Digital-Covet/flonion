@@ -62,9 +62,9 @@ function getFirstDayOfMonth(year: number, month: number): number {
 function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
   const [viewMode, setViewMode] = createSignal<ViewMode>("week");
   const [weekOffset, setWeekOffset] = createSignal(0);
-  const [monthYear, setMonthYear] = createSignal(() => {
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() };
+  const [monthYear, setMonthYear] = createSignal<{ year: number; month: number }>({
+    year: new Date().getFullYear(),
+    month: new Date().getMonth(),
   });
   const [selectedDay, setSelectedDay] = createSignal<string | null>(null);
 
