@@ -14,6 +14,7 @@ interface QRCodeDisplayProps {
 
 const QR_SIZE = 160;
 const CANVAS_SCALE = 2;
+const QR_FOOTER_SRC = "/qr_footer.png";
 
 function getQrUrl(reviewId: string | null | undefined, fallback: string | null): string | null {
   if (reviewId) {
@@ -59,7 +60,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
     if (!url) return;
 
     const canvasSize = 1080;
-    const qrSize = 600;
+    const qrSize = 520;
     const canvas = document.createElement("canvas");
     canvas.width = canvasSize;
     canvas.height = canvasSize;
@@ -78,23 +79,39 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
       ctx.fillRect(0, 0, canvasSize, canvasSize);
 
       const qrX = (canvasSize - qrSize) / 2;
-      const qrY = 120;
+      const qrY = 80;
       ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+
+      const drawFooter = () => {
+        const footer = new Image();
+        footer.onload = () => {
+          const footerWidth = 420;
+          const footerHeight = (footer.naturalHeight / footer.naturalWidth) * footerWidth;
+          const footerX = (canvasSize - footerWidth) / 2;
+          const footerY = canvasSize - footerHeight - 40;
+          ctx.drawImage(footer, footerX, footerY, footerWidth, footerHeight);
+          triggerDownload(canvas);
+        };
+        footer.onerror = () => {
+          triggerDownload(canvas);
+        };
+        footer.src = QR_FOOTER_SRC;
+      };
 
       if (props.logo) {
         const logoImg = new Image();
         logoImg.onload = () => {
           drawLogoAndText(ctx, logoImg, canvasSize, qrSize, qrX, qrY, instructionText());
-          triggerDownload(canvas);
+          drawFooter();
         };
         logoImg.onerror = () => {
           drawTextOnly(ctx, canvasSize, qrSize, qrX, qrY, instructionText());
-          triggerDownload(canvas);
+          drawFooter();
         };
         logoImg.src = props.logo;
       } else {
         drawTextOnly(ctx, canvasSize, qrSize, qrX, qrY, instructionText());
-        triggerDownload(canvas);
+        drawFooter();
       }
     };
 
@@ -276,6 +293,11 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
               </button>
             </div>
           </Show>
+          <img
+            src={QR_FOOTER_SRC}
+            alt="Review footer"
+            class="max-w-[180px] object-contain"
+          />
           <button
             type="button"
             onClick={downloadQR}
