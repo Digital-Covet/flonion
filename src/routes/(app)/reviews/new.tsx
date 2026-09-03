@@ -70,7 +70,6 @@ export default function LeaveReviewPage() {
   const [loading, setLoading] = createSignal(false);
   const [cooldown, setCooldown] = createSignal(false);
   const [shareUrl, setShareUrl] = createSignal<string | null>(null);
-  const [reviewId, setReviewId] = createSignal<string | null>(null);
 
   let dismissTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -99,8 +98,6 @@ export default function LeaveReviewPage() {
       if (response.ok) {
         const { url } = await response.json();
         setShareUrl(`${window.location.origin}${url}`);
-        const parts = url.split("/");
-        setReviewId(parts[parts.length - 1] || null);
       }
     } catch {
       // QR code will remain in placeholder state if initial generation fails
@@ -187,7 +184,6 @@ export default function LeaveReviewPage() {
           text: reviewText,
           rating: draft().rating,
           keywords: keywords(),
-          id: reviewId(),
         }),
       });
 
@@ -200,8 +196,6 @@ export default function LeaveReviewPage() {
       const fullUrl = `${window.location.origin}${url}`;
 
       setShareUrl(fullUrl);
-      const parts = url.split("/");
-      setReviewId(parts[parts.length - 1] || null);
 
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(fullUrl);
@@ -287,7 +281,6 @@ export default function LeaveReviewPage() {
               url={shareUrl()}
               logo={logo()}
               businessName={businessName()}
-              reviewId={reviewId()}
             />
           </div>
         </div>

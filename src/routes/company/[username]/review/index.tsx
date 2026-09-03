@@ -59,7 +59,6 @@ export default function PublicReviewPage() {
   const [error, setError] = createSignal<string | null>(null);
   const [submitted, setSubmitted] = createSignal(false);
   const [business, setBusiness] = createSignal<BusinessInfo | null>(null);
-  const [companyMismatch, setCompanyMismatch] = createSignal(false);
 
   const [draft, setDraft] = createSignal<ReviewDraft>({ rating: 0, text: "" });
   const [suggestions, setSuggestions] = createSignal<ReviewSuggestion[]>([]);
@@ -86,10 +85,9 @@ export default function PublicReviewPage() {
     const pathParts = window.location.pathname.split("/");
 
     const urlParam = pathParts[2];
-    const id = pathParts[4];
 
     if (!urlParam) {
-      setError("No username provided.");
+      setError("No business identifier provided.");
       setLoading(false);
       return;
     }
@@ -99,29 +97,17 @@ export default function PublicReviewPage() {
       setBusinessId(urlParam);
     }
 
-    if (id) {
-      setReviewId(id);
-    }
-
-    const query = id
-      ? `id=${encodeURIComponent(id)}`
-      : isBusinessId
-        ? `businessId=${encodeURIComponent(urlParam)}`
-        : `username=${encodeURIComponent(urlParam)}`;
+    const query = isBusinessId
+      ? `businessId=${encodeURIComponent(urlParam)}`
+      : `username=${encodeURIComponent(urlParam)}`;
 
     try {
       const response = await fetch(`/api/reviews/share?${query}`);
 
       if (!response.ok) {
-        if (response.status === 404) {
-          setError(
-            id
-              ? "Review link not found. It may have expired or been removed."
-              : "Business not found. The link may be invalid.",
-          );
-        } else {
-          setError("Failed to load review form.");
-        }
+        setError(
+          "Business not found. The link may be invalid.",
+        );
         setLoading(false);
         return;
       }
@@ -132,22 +118,28 @@ export default function PublicReviewPage() {
       }
       if (data.business) {
         setBusiness(data.business);
-
-        const expectedUsername = data.business.username;
-        if (id && expectedUsername && expectedUsername !== urlParam && !isBusinessId) {
-          setCompanyMismatch(true);
-          setError(
-            `This review link is not valid for "${data.business.name}".`,
-          );
-        }
       }
 
-      if (id) {
-        fetch("/api/reviews/track", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ reviewId: id, type: "visit" }),
-        }).catch(() => {});
+      const createResponse = await fetch("/api/reviews/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: "",
+          rating: 0,
+          ...(isBusinessId ? { businessId: urlParam } : { username: urlParam }),
+        }),
+      });
+
+      if (createResponse.ok) {
+        const { reviewId: rid } = await createResponse.json();
+        if (rid) {
+          setReviewId(rid);
+          fetch("/api/reviews/track", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reviewId: rid, type: "visit" }),
+          }).catch(() => {});
+        }
       }
     } catch {
       setError("Could not connect to the server.");

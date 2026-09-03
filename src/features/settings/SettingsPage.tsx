@@ -291,7 +291,7 @@ export function SettingsPage() {
                 }
               />
               <p class="mt-1 text-xs text-muted-foreground">
-                Your review link: /company/{username() || "username"}/review/...
+                Your review link: /company/{username() || "username"}
               </p>
             </div>
             <FormField

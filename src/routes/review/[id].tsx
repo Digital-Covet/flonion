@@ -26,13 +26,16 @@ export default function ReviewRedirect() {
 
       const data = await response.json();
       const username = data.business?.username;
+      const businessId = data.business?.id;
 
-      if (!username) {
+      const param = username || businessId;
+
+      if (!param) {
         setErrorTitle("Could not determine business for this review.");
         return;
       }
 
-      window.location.replace(`/company/${username}/review/${id}`);
+      window.location.replace(`/company/${param}`);
     } catch {
       setErrorTitle("Could not connect to the server.");
     }

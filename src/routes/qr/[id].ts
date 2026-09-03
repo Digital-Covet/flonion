@@ -16,7 +16,7 @@ export async function GET(event: APIEvent) {
         user: {
           select: {
             business: {
-              select: { name: true, username: true },
+              select: { id: true, username: true },
             },
           },
         },
@@ -27,7 +27,7 @@ export async function GET(event: APIEvent) {
       return new Response("Not found", { status: 404 });
     }
 
-    const username = review.user?.business?.username || "unknown";
+    const param = review.user?.business?.username || review.user?.business?.id || "unknown";
 
     const userAgent = event.request.headers.get("user-agent") || "";
     const ip =
@@ -46,7 +46,7 @@ export async function GET(event: APIEvent) {
       },
     });
 
-    const destination = `/company/${username}/review/${id}`;
+    const destination = `/company/${param}`;
 
     return new Response(null, {
       status: 302,

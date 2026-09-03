@@ -84,7 +84,7 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
 
   const previewUrl = () => {
     const username = props.data.username.trim().toLowerCase();
-    return username ? `/company/${username}/review/...` : "/company/yourusername/review/...";
+    return username ? `/company/${username}` : "/company/yourusername";
   };
 
   return (
