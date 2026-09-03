@@ -85,10 +85,10 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
       const drawFooter = () => {
         const footer = new Image();
         footer.onload = () => {
-          const footerWidth = 420;
+          const footerWidth = canvasSize;
           const footerHeight = (footer.naturalHeight / footer.naturalWidth) * footerWidth;
-          const footerX = (canvasSize - footerWidth) / 2;
-          const footerY = canvasSize - footerHeight - 40;
+          const footerX = 0;
+          const footerY = canvasSize - footerHeight;
           ctx.drawImage(footer, footerX, footerY, footerWidth, footerHeight);
           triggerDownload(canvas);
         };
