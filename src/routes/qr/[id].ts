@@ -46,7 +46,7 @@ export async function GET(event: APIEvent) {
       },
     });
 
-    const destination = `/company/${param}`;
+    const destination = `/company/${param}/review`;
 
     return new Response(null, {
       status: 302,

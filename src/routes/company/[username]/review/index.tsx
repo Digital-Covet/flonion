@@ -291,6 +291,15 @@ export default function PublicReviewPage() {
     }
   };
 
+  const shareReview = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setStatusMessage("Review link copied to clipboard!");
+    } catch {
+      setStatusMessage(`Review link: ${window.location.href}`);
+    }
+  };
+
   const trackRedirect = (platform?: string) => {
     const id = reviewId();
     if (!id) return;
@@ -476,6 +485,7 @@ export default function PublicReviewPage() {
                       setName: setVisitorName,
                       fetchSuggestions,
                       submitReview,
+                      shareReview,
                       applySuggestion,
                       dismissSuggestion,
                     }}
@@ -492,6 +502,7 @@ export default function PublicReviewPage() {
                     suggestions={suggestions()}
                     showSuggestions={showSuggestions()}
                     showTrustStatement
+                    showShareButton
                     name={visitorName()}
                   />
                 </div>

@@ -35,7 +35,7 @@ export default function ReviewRedirect() {
         return;
       }
 
-      window.location.replace(`/company/${param}`);
+      window.location.replace(`/company/${param}/review`);
     } catch {
       setErrorTitle("Could not connect to the server.");
     }

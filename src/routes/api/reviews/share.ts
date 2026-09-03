@@ -77,7 +77,7 @@ export async function POST(event: APIEvent) {
 
       const param = user?.business?.username || user?.business?.id || "unknown";
 
-      return Response.json({ url: `/company/${param}`, reviewId: review.id });
+      return Response.json({ url: `/company/${param}/review`, reviewId: review.id });
     }
 
     if ((businessUsername || businessId) && !session) {
@@ -130,7 +130,7 @@ export async function POST(event: APIEvent) {
           select: { business: { select: { id: true, username: true } } },
         });
         const param = existingUser?.business?.username || existingUser?.business?.id || "unknown";
-        return Response.json({ url: `/company/${param}`, reviewId: existing.id });
+        return Response.json({ url: `/company/${param}/review`, reviewId: existing.id });
       }
     }
 
@@ -158,7 +158,7 @@ export async function POST(event: APIEvent) {
 
     const param = user?.business?.username || user?.business?.id || "unknown";
 
-    return Response.json({ url: `/company/${param}`, reviewId: review.id });
+    return Response.json({ url: `/company/${param}/review`, reviewId: review.id });
   } catch {
     return Response.json(
       { error: "Invalid request body" },
@@ -235,6 +235,8 @@ export async function GET(event: APIEvent) {
         select: {
           business: {
             select: {
+              id: true,
+              username: true,
               logo: true,
               name: true,
               phone: true,
