@@ -3,6 +3,7 @@ import { FooterLink } from '~/types/auth-ui';
 import { authClient } from '@/lib/auth-client';
 import { useSearchParams } from '@solidjs/router';
 import { inviteCallbackUrl, pickInviteToken, withInvite } from '~/lib/invite-redirect';
+import { AuthError, authErrorCode, EMAIL_NOT_VERIFIED } from '~/lib/auth-errors';
 
 const FOOTER_LINKS: readonly FooterLink[] = [
   { label: 'Help', href: '#' },
@@ -24,11 +25,17 @@ export default function LoginPage() {
       callbackURL: inviteCallbackUrl(inviteToken(), '/dashboard'),
     });
     if (error) {
-      const status = (error as any).status;
-      if (status === 403) {
-        throw new Error('Email is not verified. Please verify your email before signing in.');
+      // Not `status === 403`: an untrusted origin or callbackURL fails with the
+      // same status, and relabelling those as unverified sent verified users to
+      // the resend-verification page.
+      const code = authErrorCode(error);
+      if (code === EMAIL_NOT_VERIFIED) {
+        throw new AuthError(
+          'Email is not verified. Please verify your email before signing in.',
+          code,
+        );
       }
-      throw new Error(error.message || 'Sign in failed. Please try again.');
+      throw new AuthError(error.message || 'Sign in failed. Please try again.', code);
     }
   };
 

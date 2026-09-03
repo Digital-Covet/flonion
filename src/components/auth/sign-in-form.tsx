@@ -13,6 +13,7 @@ import LogIn from 'lucide-solid/icons/log-in';
 import LoaderCircleIcon from 'lucide-solid/icons/loader-circle';
 import Check from 'lucide-solid/icons/check';
 import type { FormStatus, SignInFormProps } from '@/types/auth-ui';
+import { authErrorCode, EMAIL_NOT_VERIFIED } from '@/lib/auth-errors';
 
 const SUBMISSION_DELAY_MS = 1200;
 const SUCCESS_RESET_DELAY_MS = 2000;
@@ -22,6 +23,7 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
   const [email, setEmail] = createSignal('');
   const [password, setPassword] = createSignal('');
   const [errorMessage, setErrorMessage] = createSignal<string | null>(null);
+  const [errorCode, setErrorCode] = createSignal<string | null>(null);
 
   let successTimer: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => {
@@ -36,6 +38,7 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
 
     setStatus('loading');
     setErrorMessage(null);
+    setErrorCode(null);
 
     try {
       await new Promise<void>((resolve) =>
@@ -51,6 +54,7 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
     } catch (e: any) {
       const message = e?.message ?? 'Sign in failed. Please try again.';
       setErrorMessage(message);
+      setErrorCode(authErrorCode(e));
       props.onError?.(message);
       setStatus('idle');
     }
@@ -101,7 +105,7 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
         {errorMessage() && (
           <div class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
             <p class="font-medium">{errorMessage()}</p>
-            {errorMessage()?.includes('not verified') && (
+            {errorCode() === EMAIL_NOT_VERIFIED && (
               <a
                 href={`/verify-email?email=${encodeURIComponent(email())}`}
                 class="mt-1 inline-block font-semibold underline transition-colors hover:text-red-900 dark:hover:text-red-200"
