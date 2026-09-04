@@ -111,7 +111,7 @@ function MeetingSchedulerApp() {
               class="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
             >
               <Settings class="size-4" />
-              IST Schedule Settings
+              Schedule Settings
             </button>
             <div class="relative">
               <button
