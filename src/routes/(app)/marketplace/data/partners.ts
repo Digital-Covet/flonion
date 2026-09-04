@@ -1,4 +1,3 @@
-import { isServer } from "solid-js/web";
 import type { PartnersApiResponse, SortKey } from "~/types/marketplace";
 
 export const RATING_OPTIONS = [3, 4, 5] as const;
@@ -61,17 +60,16 @@ function buildQueryString(params: {
 }
 
 async function fetchFromServer(fullUrl: string): Promise<PartnersApiResponse> {
-  const { GET } = await import("~/routes/api/marketplace/partners");
-  const req = new Request(fullUrl);
-  const res = await GET({ request: req } as never);
-  const data = await res.json();
-  return {
-    partners: Array.isArray(data.partners) ? data.partners : [],
-    totalCount: typeof data.totalCount === "number" ? data.totalCount : 0,
-    page: typeof data.page === "number" ? data.page : 1,
-    pageSize: typeof data.pageSize === "number" ? data.pageSize : MAX_PAGE_SIZE,
-    categories: Array.isArray(data.categories) ? data.categories : [],
-  };
+  // Reached only under `import.meta.env.SSR`, which Vite replaces with a
+  // literal at build time so this whole branch -- and the Prisma client behind
+  // it -- is dead-code eliminated from the browser bundle. `isServer` from
+  // solid-js/web is a runtime binding and does NOT get folded, which is why the
+  // Prisma WASM query compiler was being emitted as a client chunk.
+  const { getPartners, parsePartnersQuery } = await import(
+    "~/lib/partners-query"
+  );
+  const { payload } = await getPartners(parsePartnersQuery(new URL(fullUrl)));
+  return payload;
 }
 
 async function fetchFromClient(path: string, signal?: AbortSignal): Promise<PartnersApiResponse> {
@@ -116,7 +114,7 @@ export async function fetchPartners(
   }
 
   try {
-    const result = isServer
+    const result = import.meta.env.SSR
       ? await fetchFromServer(`http://localhost${cacheKey}`)
       : await fetchFromClient(cacheKey, signal);
 
