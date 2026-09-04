@@ -34,6 +34,14 @@ interface ScheduleData {
   events: ScheduleEvent[];
 }
 
+// This runs on the server during SSR as well as in the browser, and a relative
+// `fetch("/api/...")` has no origin to resolve against on the server -- it threw,
+// the resource serialized as null, and the hydrated page rendered "Schedule Not
+// Found" even for businesses that had published a schedule. On the server we hit
+// the database directly instead. `import.meta.env.SSR` is folded to a literal by
+// Vite, so the dynamic import -- and the Prisma client behind it -- is
+// dead-code eliminated from the browser bundle (see `~/lib/company-profile` for
+// the same pattern).
 async function fetchSchedule(username?: string): Promise<ScheduleData | null> {
   if (!username) return null;
 
@@ -47,6 +55,11 @@ async function fetchSchedule(username?: string): Promise<ScheduleData | null> {
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
   try {
+    if (import.meta.env.SSR) {
+      const { getCompanySchedule } = await import("~/lib/company-schedule");
+      return await getCompanySchedule(username, start, end);
+    }
+
     const res = await fetch(
       `/api/company/${encodeURIComponent(username)}/schedule?startDate=${formatDate(start)}&endDate=${formatDate(end)}`
     );
@@ -57,7 +70,7 @@ async function fetchSchedule(username?: string): Promise<ScheduleData | null> {
     }
     return await res.json();
   } catch (err) {
-    console.error("[fetchSchedule] network error:", err);
+    console.error("[fetchSchedule] failed:", err);
     return null;
   }
 }

@@ -1,7 +1,8 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
-
-const MAX_RANGE_DAYS = 30;
+import {
+  getCompanySchedule,
+  MAX_SCHEDULE_RANGE_DAYS,
+} from "~/lib/company-schedule";
 
 export async function GET(event: APIEvent) {
   const username = event.params.username;
@@ -31,145 +32,21 @@ export async function GET(event: APIEvent) {
   const diffMs = endDate.getTime() - startDate.getTime();
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays > MAX_RANGE_DAYS) {
+  if (diffDays > MAX_SCHEDULE_RANGE_DAYS) {
     return Response.json(
-      { error: `Date range cannot exceed ${MAX_RANGE_DAYS} days` },
+      { error: `Date range cannot exceed ${MAX_SCHEDULE_RANGE_DAYS} days` },
       { status: 400 },
     );
   }
 
   try {
-    const business = await prisma.business.findUnique({
-      where: { username },
-      select: {
-        id: true,
-        name: true,
-        logo: true,
-        sector: true,
-        description: true,
-        username: true,
-        workingDays: true,
-        workingStartTime: true,
-        workingEndTime: true,
-        bookingStartTime: true,
-        bookingEndTime: true,
-        slotDuration: true,
-        timezone: true,
-      },
-    });
+    const schedule = await getCompanySchedule(username, startDate, endDate);
 
-    if (!business) {
+    if (!schedule) {
       return Response.json({ error: "Business not found" }, { status: 404 });
     }
 
-    const [slots, meetings, teamMeetings] = await Promise.all([
-      prisma.availabilitySlot.findMany({
-        where: {
-          businessId: business.id,
-          date: { gte: startDate, lte: endDate },
-        },
-        orderBy: [{ date: "asc" }, { startTime: "asc" }],
-        select: {
-          id: true,
-          date: true,
-          startTime: true,
-          endTime: true,
-          isBooked: true,
-          title: true,
-          meetingRequest: {
-            select: {
-              id: true,
-              status: true,
-            },
-          },
-        },
-      }),
-      prisma.meetingRequest.findMany({
-        where: {
-          businessId: business.id,
-          status: "accepted",
-          slot: {
-            date: { gte: startDate, lte: endDate },
-          },
-        },
-        select: {
-          id: true,
-          slotId: true,
-          slot: {
-            select: {
-              date: true,
-              startTime: true,
-              endTime: true,
-            },
-          },
-        },
-      }),
-      prisma.teamMeeting.findMany({
-        where: {
-          businessId: business.id,
-          date: { gte: startDate, lte: endDate },
-        },
-        orderBy: [{ date: "asc" }, { startTime: "asc" }],
-        select: {
-          id: true,
-          title: true,
-          date: true,
-          startTime: true,
-          endTime: true,
-        },
-      }),
-    ]);
-
-    const slotIdsWithMeeting = new Set(meetings.map((m) => m.slotId));
-
-    const events = slots.map((slot) => {
-      const isBooked = slot.isBooked || slotIdsWithMeeting.has(slot.id) || slot.meetingRequest?.status === "accepted";
-      return {
-        id: slot.id,
-        type: "slot" as const,
-        date: slot.date.toISOString(),
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        status: isBooked ? ("booked" as const) : ("available" as const),
-        title: slot.title ?? (isBooked ? "Booked" : undefined),
-      };
-    });
-
-    for (const tm of teamMeetings) {
-      events.push({
-        id: `team-${tm.id}`,
-        type: "slot" as const,
-        date: tm.date.toISOString(),
-        startTime: tm.startTime,
-        endTime: tm.endTime,
-        status: "booked" as const,
-        title: tm.title || "Team Meeting",
-      });
-    }
-
-    events.sort((a, b) => {
-      const dateComp = a.date.localeCompare(b.date);
-      if (dateComp !== 0) return dateComp;
-      return a.startTime.localeCompare(b.startTime);
-    });
-
-    return Response.json({
-      business: {
-        name: business.name,
-        logo: business.logo,
-        sector: business.sector,
-        description: business.description,
-        username: business.username,
-        workingDays: business.workingDays,
-        workingStartTime: business.workingStartTime,
-        workingEndTime: business.workingEndTime,
-        bookingStartTime: business.bookingStartTime,
-        bookingEndTime: business.bookingEndTime,
-        slotDuration: business.slotDuration,
-        timezone: business.timezone,
-      },
-      events,
-    });
+    return Response.json(schedule);
   } catch (err) {
     console.error("[company/schedule] query failed:", err);
     return Response.json({ error: "Failed to load schedule" }, { status: 500 });
