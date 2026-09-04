@@ -48,6 +48,7 @@ export async function GET(event: APIEvent) {
 
   return Response.json({
     ownerId: business?.userId ?? null,
+    businessId: business?.id ?? "",
     isOwner,
     role: user?.role ?? "member",
     placeId: business?.placeId ?? "",

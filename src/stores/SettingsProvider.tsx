@@ -11,6 +11,7 @@ const EMPTY: SettingsData = {
   reviewLink: "",
   reviewLinks: {},
   logo: null,
+  businessId: "",
   businessName: "",
   username: "",
   phone: "",
@@ -33,6 +34,7 @@ async function fetchBusiness(): Promise<SettingsData & { isOwner: boolean }> {
         ? data.reviewLinks
         : {},
       logo: typeof data.logo === "string" ? data.logo : null,
+      businessId: typeof data.businessId === "string" ? data.businessId : "",
       businessName: typeof data.businessName === "string" ? data.businessName : "",
       username: typeof data.username === "string" ? data.username : "",
       phone: typeof data.phone === "string" ? data.phone : "",
@@ -51,6 +53,7 @@ export function SettingsProvider(props: ParentProps) {
   const [reviewLink, setReviewLinkSignal] = createSignal("");
   const [reviewLinks, setReviewLinksSignal] = createSignal<ReviewLinksMap>({});
   const [logo, setLogoSignal] = createSignal<string | null>(null);
+  const [businessId, setBusinessIdSignal] = createSignal("");
   const [businessName, setBusinessNameSignal] = createSignal("");
   const [username, setUsernameSignal] = createSignal("");
   const [phone, setPhoneSignal] = createSignal("");
@@ -66,6 +69,7 @@ export function SettingsProvider(props: ParentProps) {
     setReviewLinkSignal(data.reviewLink);
     setReviewLinksSignal(data.reviewLinks);
     setLogoSignal(data.logo);
+    setBusinessIdSignal(data.businessId);
     setBusinessNameSignal(data.businessName);
     setUsernameSignal(data.username);
     setPhoneSignal(data.phone);
@@ -82,6 +86,7 @@ export function SettingsProvider(props: ParentProps) {
     if (data.reviewLink !== undefined) setReviewLinkSignal(data.reviewLink);
     if (data.reviewLinks !== undefined) setReviewLinksSignal(data.reviewLinks);
     if (data.logo !== undefined) setLogoSignal(data.logo);
+    if (data.businessId !== undefined) setBusinessIdSignal(data.businessId);
     if (data.businessName !== undefined) setBusinessNameSignal(data.businessName);
     if (data.username !== undefined) setUsernameSignal(data.username);
     if (data.phone !== undefined) setPhoneSignal(data.phone);
@@ -109,6 +114,10 @@ export function SettingsProvider(props: ParentProps) {
 
   const setLogo: typeof setLogoSignal = (value) => {
     return setLogoSignal(value);
+  };
+
+  const setBusinessId: typeof setBusinessIdSignal = (value) => {
+    return setBusinessIdSignal(value);
   };
 
   const setBusinessName: typeof setBusinessNameSignal = (value) => {
@@ -146,9 +155,11 @@ export function SettingsProvider(props: ParentProps) {
     setReviewLink,
     reviewLinks,
     setReviewLinks,
-    logo,
-    setLogo,
-    businessName,
+      logo,
+      setLogo,
+      businessId,
+      setBusinessId,
+      businessName,
     setBusinessName,
     username,
     setUsername,

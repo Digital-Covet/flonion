@@ -8,7 +8,8 @@ interface QRCodeDisplayProps {
   url: string | null;
   logo?: string | null;
   businessName?: string;
-  reviewId?: string | null;
+  businessUsername?: string;
+  businessId?: string;
   instructionText?: string;
 }
 
@@ -16,10 +17,15 @@ const QR_SIZE = 160;
 const CANVAS_SCALE = 2;
 const QR_FOOTER_SRC = "/qr_footer.png";
 
-function getQrUrl(reviewId: string | null | undefined, fallback: string | null): string | null {
-  if (reviewId) {
+function getQrUrl(
+  businessUsername: string | null | undefined,
+  businessId: string | null | undefined,
+  fallback: string | null,
+): string | null {
+  const identifier = businessUsername || businessId;
+  if (identifier) {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    return `${origin}/qr/${reviewId}`;
+    return `${origin}/qr/${identifier}`;
   }
   return fallback;
 }
@@ -41,7 +47,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
   });
 
   createEffect(() => {
-    const url = getQrUrl(props.reviewId, props.url);
+    const url = getQrUrl(props.businessUsername, props.businessId, props.url);
     if (!url) {
       setDataUrl(null);
       return;
@@ -56,7 +62,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
   });
 
   const downloadQR = async () => {
-    const url = getQrUrl(props.reviewId, props.url);
+    const url = getQrUrl(props.businessUsername, props.businessId, props.url);
     if (!url) return;
 
     const canvasSize = 1080;

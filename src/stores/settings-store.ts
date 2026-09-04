@@ -7,6 +7,7 @@ export interface SettingsData {
   reviewLink: string;
   reviewLinks: ReviewLinksMap;
   logo: string | null;
+  businessId: string;
   businessName: string;
   username: string;
   phone: string;
@@ -25,6 +26,8 @@ export interface SettingsContextValue {
   setReviewLinks: Setter<ReviewLinksMap>;
   logo: Accessor<string | null>;
   setLogo: Setter<string | null>;
+  businessId: Accessor<string>;
+  setBusinessId: Setter<string>;
   businessName: Accessor<string>;
   setBusinessName: Setter<string>;
   username: Accessor<string>;

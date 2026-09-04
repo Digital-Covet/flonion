@@ -62,7 +62,7 @@ function isSuccessMessage(msg: string): boolean {
 }
 
 export default function LeaveReviewPage() {
-  const { logo, businessName, phone, address, keywords } = useSettings();
+  const { logo, businessId, businessName, username, phone, address, keywords } = useSettings();
   const [draft, setDraft] = createSignal<ReviewDraft>(initialDraft);
   const [suggestions, setSuggestions] =
     createSignal<ReviewSuggestion[]>([]);
@@ -281,6 +281,8 @@ export default function LeaveReviewPage() {
               url={shareUrl()}
               logo={logo()}
               businessName={businessName()}
+              businessUsername={username()}
+              businessId={businessId()}
             />
           </div>
         </div>
