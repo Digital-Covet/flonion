@@ -106,9 +106,18 @@ export async function PATCH(event: APIEvent) {
       return Response.json({ error: "Unauthorized" }, { status: 403 });
     }
 
+    // Scoped to the business the caller was just authorized for. Matching on
+    // `id` alone let an owner pass their own `businessId` past the check above
+    // and then edit a row belonging to someone else.
     const updated = await prisma.service.update({
-      where: { id },
-      data,
+      where: { id, businessId },
+      data: {
+        icon: typeof data.icon === "string" ? data.icon : undefined,
+        title: typeof data.title === "string" ? data.title : undefined,
+        description:
+          typeof data.description === "string" ? data.description : undefined,
+        position: typeof data.position === "number" ? data.position : undefined,
+      },
       select: {
         id: true,
         icon: true,
@@ -154,7 +163,7 @@ export async function DELETE(event: APIEvent) {
       return Response.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    await prisma.service.delete({ where: { id } });
+    await prisma.service.delete({ where: { id, businessId } });
 
     return Response.json({ deleted: true });
   } catch {

@@ -65,6 +65,18 @@ export async function POST(event: APIEvent) {
       return Response.json({ error: "Assignee is required" }, { status: 400 });
     }
 
+    // The response includes the assignee's name, email and avatar, so an
+    // unchecked id here turned this endpoint into a lookup for any user in the
+    // system -- besides assigning work to someone who cannot see it.
+    const assignee = await prisma.user.findFirst({
+      where: { id: assigneeId, businessId: user.businessId },
+      select: { id: true },
+    });
+
+    if (!assignee) {
+      return Response.json({ error: "Assignee is not a member of this team" }, { status: 400 });
+    }
+
     const validColumns = ["todo", "in_progress", "waiting", "done"];
     const taskColumn = validColumns.includes(column) ? column : "todo";
 

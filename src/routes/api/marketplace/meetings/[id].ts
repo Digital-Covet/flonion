@@ -7,6 +7,11 @@ import { APP_DOMAIN } from "~/lib/constants";
 import { createMeetLink } from "~/lib/google-meet";
 
 export async function GET(event: APIEvent) {
+  const session = await getSessionFromHeaders(event.request.headers);
+  if (!session) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   const url = new URL(event.request.url);
   const id = url.pathname.split("/").pop();
   const action = url.searchParams.get("action");
@@ -36,6 +41,15 @@ export async function GET(event: APIEvent) {
 
   if (!meeting) {
     return new Response("Meeting not found", { status: 404 });
+  }
+
+  // Same check PATCH performs. This handler is reached from a one-click link in
+  // the notification email, but the link only identifies the meeting -- without
+  // this any signed-in user could decide someone else's booking, and the accept
+  // branch below spends the *business owner's* Google tokens to make a Meet
+  // space.
+  if (meeting.business.userId !== session.user.id) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   if (meeting.status !== "pending") {

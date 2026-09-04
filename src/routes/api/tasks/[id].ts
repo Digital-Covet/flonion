@@ -89,6 +89,16 @@ export async function PATCH(event: APIEvent) {
       data.dueDate = dueDate ? new Date(dueDate) : null;
     }
     if (typeof assigneeId === "string") {
+      // Must be a member of this business -- see the note in tasks/index.ts.
+      const assignee = await prisma.user.findFirst({
+        where: { id: assigneeId, businessId: user.businessId },
+        select: { id: true },
+      });
+
+      if (!assignee) {
+        return Response.json({ error: "Assignee is not a member of this team" }, { status: 400 });
+      }
+
       data.assigneeId = assigneeId;
     }
 
