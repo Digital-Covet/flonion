@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { runSuggestionPipeline } from "~/lib/agents/pipeline";
-import { checkRateLimit } from "~/lib/rate-limit";
+import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
 
 const REVIEW_RATE_LIMIT = 10;
 const IP_RATE_LIMIT = 30;
@@ -48,10 +48,7 @@ export async function POST(event: APIEvent) {
       );
     }
 
-    const ip =
-      event.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      event.request.headers.get("x-real-ip") ||
-      "unknown";
+    const ip = getClientIp(event.request);
 
     if (reviewId) {
       const reviewLimit = checkRateLimit(
@@ -92,7 +89,12 @@ export async function POST(event: APIEvent) {
       suggestedReviews: result.suggestedReviews,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return Response.json({ error: message }, { status: 500 });
+    // Returning err.message leaked internals to this public endpoint -- a
+    // missing DEEPSEEK_API_KEY surfaced the env var name verbatim.
+    console.error("[ai/suggest-review] pipeline failed:", err);
+    return Response.json(
+      { error: "Could not generate suggestions. Please try again." },
+      { status: 500 },
+    );
   }
 }

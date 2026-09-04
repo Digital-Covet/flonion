@@ -1,7 +1,23 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "@/db/prisma";
+import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
+
+// Public and unauthenticated, and every call is a DB write. Capped per IP so a
+// single caller cannot inflate a business's metrics or use it as write load.
+const TRACK_RATE_LIMIT = 60;
+const TRACK_WINDOW_MS = 60 * 60 * 1000;
 
 export async function POST(event: APIEvent) {
+  const limit = checkRateLimit(
+    `track:${getClientIp(event.request)}`,
+    TRACK_RATE_LIMIT,
+    TRACK_WINDOW_MS,
+  );
+
+  if (!limit.allowed) {
+    return Response.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
+
   try {
     const body = await event.request.json();
     const { reviewId, type, platform } = body;

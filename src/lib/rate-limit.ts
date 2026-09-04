@@ -29,6 +29,21 @@ function ensureCleanupRunning() {
   setInterval(cleanupExpiredEntries, CLEANUP_INTERVAL_MS);
 }
 
+/**
+ * Best-effort client address for rate-limit keys.
+ *
+ * Trusts `x-forwarded-for` because this app runs behind a proxy that sets it.
+ * A client can forge the header, so never use this for authorization -- only to
+ * spread limits across callers.
+ */
+export function getClientIp(request: Request): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
 export function checkRateLimit(
   key: string,
   maxRequests: number,

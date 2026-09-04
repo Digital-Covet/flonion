@@ -6,7 +6,11 @@ import { getBusinessContext, canManageTeam } from "~/lib/business-context";
 import { sendEmail } from "~/services/email";
 import { renderTeamInvitationEmail } from "~/services/email-templates";
 import { COMPANY_NAME } from "~/lib/constants";
+import { checkRateLimit } from "~/lib/rate-limit";
 import { randomBytes } from "crypto";
+
+const INVITE_RATE_LIMIT = 20;
+const INVITE_WINDOW_MS = 60 * 60 * 1000;
 
 function generateToken(): string {
   return randomBytes(32).toString("hex");
@@ -26,6 +30,21 @@ export async function POST(event: APIEvent) {
 
   if (!canManageTeam(ctx)) {
     return Response.json({ error: "Only admins or the business owner can send invitations" }, { status: 403 });
+  }
+
+  // Every accepted call sends mail from our domain. Without a cap one account
+  // can use this as a mail cannon and burn the sending domain's reputation.
+  const inviteLimit = checkRateLimit(
+    `invite:${ctx.businessId}`,
+    INVITE_RATE_LIMIT,
+    INVITE_WINDOW_MS,
+  );
+
+  if (!inviteLimit.allowed) {
+    return Response.json(
+      { error: "Too many invitations sent. Please try again later." },
+      { status: 429 },
+    );
   }
 
   const inviter = await prisma.user.findUnique({
