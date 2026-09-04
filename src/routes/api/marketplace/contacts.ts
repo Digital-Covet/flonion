@@ -1,6 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { getCompanyContacts } from "~/lib/company-profile";
 
 export async function GET(event: APIEvent) {
   const url = new URL(event.request.url);
@@ -11,18 +12,7 @@ export async function GET(event: APIEvent) {
   }
 
   try {
-    const contacts = await prisma.businessContact.findMany({
-      where: { businessId },
-      orderBy: { position: "asc" },
-      select: {
-        id: true,
-        name: true,
-        role: true,
-        avatarUrl: true,
-        email: true,
-        position: true,
-      },
-    });
+    const contacts = await getCompanyContacts(businessId);
 
     return Response.json({ contacts });
   } catch (err) {

@@ -22,6 +22,8 @@ const PUBLIC_PREFIXES = [
   "/api/reviews/track",
   "/api/ai/suggest-review",
   "/api/company/",
+  "/api/marketplace/partner",
+  "/company/",
   "/qr/",
   "/review/",
 ];

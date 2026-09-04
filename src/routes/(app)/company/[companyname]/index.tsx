@@ -63,46 +63,73 @@ interface ContactData {
   position: number;
 }
 
+// These run on the server during SSR as well as in the browser, and a relative
+// `fetch("/api/...")` has no origin to resolve against on the server -- it threw,
+// the resource serialized as null, and the hydrated page rendered "Profile not
+// found" on every hard refresh. On the server we hit the database directly
+// instead. `import.meta.env.SSR` is folded to a literal by Vite, so the dynamic
+// import -- and the Prisma client behind it -- is dead-code eliminated from the
+// browser bundle (see `~/lib/partners-query` for the same pattern).
 async function fetchBusiness(username: string): Promise<BusinessData | null> {
   try {
+    if (import.meta.env.SSR) {
+      const { getCompanyProfile } = await import("~/lib/company-profile");
+      return await getCompanyProfile(username);
+    }
     const res = await fetch(`/api/marketplace/partner?username=${encodeURIComponent(username)}`);
     if (!res.ok) return null;
     const data = await res.json();
     return data.partner ?? null;
-  } catch {
+  } catch (err) {
+    console.error("[company] business lookup failed:", err);
     return null;
   }
 }
 
 async function fetchServices(businessId: string): Promise<ServiceData[]> {
   try {
+    if (import.meta.env.SSR) {
+      const { getCompanyServices } = await import("~/lib/company-profile");
+      return await getCompanyServices(businessId);
+    }
     const res = await fetch(`/api/marketplace/services?businessId=${businessId}`);
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data.services) ? data.services : [];
-  } catch {
+  } catch (err) {
+    console.error("[company] services lookup failed:", err);
     return [];
   }
 }
 
 async function fetchProjects(businessId: string): Promise<ProjectData[]> {
   try {
+    if (import.meta.env.SSR) {
+      const { getCompanyProjects } = await import("~/lib/company-profile");
+      return await getCompanyProjects(businessId);
+    }
     const res = await fetch(`/api/marketplace/projects?businessId=${businessId}`);
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data.projects) ? data.projects : [];
-  } catch {
+  } catch (err) {
+    console.error("[company] projects lookup failed:", err);
     return [];
   }
 }
 
 async function fetchContacts(businessId: string): Promise<ContactData[]> {
   try {
+    if (import.meta.env.SSR) {
+      const { getCompanyContacts } = await import("~/lib/company-profile");
+      return await getCompanyContacts(businessId);
+    }
     const res = await fetch(`/api/marketplace/contacts?businessId=${businessId}`);
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data.contacts) ? data.contacts : [];
-  } catch {
+  } catch (err) {
+    console.error("[company] contacts lookup failed:", err);
     return [];
   }
 }
