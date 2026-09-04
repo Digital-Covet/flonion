@@ -6,7 +6,7 @@ import WeeklyCalendar from "./WeeklyCalendar";
 import LoadOverview from "./LoadOverview";
 import BookableWindows from "./BookableWindows";
 import ScheduleSettingsModal from "./ScheduleSettingsModal";
-import { APP_DOMAIN } from "~/lib/constants";
+import { APP_DOMAIN, currentOrigin } from "~/lib/constants";
 
 async function fetchScheduleSettings() {
   try {
@@ -50,9 +50,10 @@ function MeetingSchedulerApp() {
 
   const copyScheduleLink = async () => {
     const username = settings()?.username;
+    const origin = currentOrigin();
     const url = username
-      ? `${APP_DOMAIN}/company/${encodeURIComponent(username)}/bookings`
-      : `${APP_DOMAIN}/marketplace`;
+      ? `${origin}/company/${encodeURIComponent(username)}/bookings`
+      : `${origin}/marketplace`;
     await navigator.clipboard?.writeText(url);
     setScheduleCopied(true);
     setTimeout(() => setScheduleCopied(false), 1600);

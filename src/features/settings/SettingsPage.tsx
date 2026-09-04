@@ -9,6 +9,8 @@ import Zap from "lucide-solid/icons/zap";
 import X from "lucide-solid/icons/x";
 import Tags from "lucide-solid/icons/tags";
 import Link2 from "lucide-solid/icons/link-2";
+import CircleHelp from "lucide-solid/icons/circle-help";
+import ExternalLink from "lucide-solid/icons/external-link";
 import Plus from "lucide-solid/icons/plus";
 import Users from "lucide-solid/icons/users";
 import ArrowRight from "lucide-solid/icons/arrow-right";
@@ -368,6 +370,19 @@ export function SettingsPage() {
             Add review links for each platform. Customers will be directed to these
             links after submitting their feedback.
           </p>
+
+          <a
+            href="https://docs.flonion.com/guides/add-review-links/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="mb-4 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-primary transition-colors hover:bg-primary/10"
+          >
+            <CircleHelp size={16} class="shrink-0" />
+            <span>
+              Not sure how to get your review URL? Check the step-by-step guide.
+            </span>
+            <ExternalLink size={12} class="ml-auto shrink-0" />
+          </a>
 
           <div class="space-y-4">
             <For each={enabledPlatforms()}>
