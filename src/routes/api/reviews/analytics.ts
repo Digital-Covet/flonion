@@ -15,6 +15,17 @@ export async function GET(event: APIEvent) {
     orderBy: { createdAt: "desc" },
   });
 
+  const currentUser = await prisma.user.findUnique({
+    where: { id: session.session.userId },
+    select: {
+      businessId: true,
+      business: { select: { id: true, qrScanCount: true } },
+      team: { select: { id: true, qrScanCount: true } },
+    },
+  });
+  const business = currentUser?.business ?? currentUser?.team ?? null;
+  const businessqRScanCount = business?.qrScanCount ?? 0;
+
   const totalVisits = reviews.reduce(
     (sum, r) => sum + (r.analytics?.visitCount ?? 0),
     0,
@@ -23,10 +34,9 @@ export async function GET(event: APIEvent) {
     (sum, r) => sum + (r.analytics?.reviewCount ?? 0),
     0,
   );
-  const totalQrScans = reviews.reduce(
-    (sum, r) => sum + (r.analytics?.qrScanCount ?? 0),
-    0,
-  );
+  const totalQrScans =
+    (reviews.reduce((sum, r) => sum + (r.analytics?.qrScanCount ?? 0), 0)) +
+    businessqRScanCount;
   const totalRedirects = reviews.reduce(
     (sum, r) => sum + (r.analytics?.redirectCount ?? 0),
     0,

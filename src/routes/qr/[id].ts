@@ -9,49 +9,27 @@ export async function GET(event: APIEvent) {
   }
 
   try {
-    const review = await prisma.sharedReview.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        user: {
-          select: {
-            business: {
-              select: { id: true, username: true },
-            },
-          },
-        },
-      },
-    });
+    // Resolve the business by username first, falling back to its id for
+    // businesses that have not yet claimed a username.
+    const business =
+      (await prisma.business.findUnique({ where: { username: id } })) ||
+      (await prisma.business.findUnique({ where: { id } }));
 
-    if (!review) {
+    if (!business) {
       return new Response("Not found", { status: 404 });
     }
 
-    const param = review.user?.business?.username || review.user?.business?.id || "unknown";
-
-    const userAgent = event.request.headers.get("user-agent") || "";
-    const ip =
-      event.request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      event.request.headers.get("x-real-ip") ||
-      "unknown";
-
-    await prisma.reviewAnalytics.upsert({
-      where: { reviewId: id },
-      create: {
-        reviewId: id,
-        qrScanCount: 1,
-      },
-      update: {
-        qrScanCount: { increment: 1 },
-      },
+    await prisma.business.update({
+      where: { id: business.id },
+      data: { qrScanCount: { increment: 1 } },
     });
 
-    const destination = `/company/${param}/review`;
+    const param = business.username || business.id;
 
     return new Response(null, {
       status: 302,
       headers: {
-        Location: destination,
+        Location: `/company/${param}/review`,
         "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });

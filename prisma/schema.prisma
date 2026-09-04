@@ -77,6 +77,8 @@ model Business {
   rating      Float?
   /// Total review count cached from the Google Business Profile API.
   reviewCount Int?
+  /// Number of QR code scans for this business.
+  qrScanCount Int      @default(0)
 
   /// Schedule settings (all times in IST / Asia/Kolkata).
   /// Comma-separated day-of-week numbers: 0=Sun, 1=Mon, ..., 6=Sat.
