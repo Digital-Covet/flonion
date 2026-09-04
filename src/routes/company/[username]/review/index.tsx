@@ -54,6 +54,8 @@ function isSuccessMessage(msg: string): boolean {
 
 export default function PublicReviewPage() {
   const [reviewId, setReviewId] = createSignal<string | null>(null);
+  // Proves this page created the review row it is about to fill in.
+  const [claimToken, setClaimToken] = createSignal<string | null>(null);
   const [keywords, setKeywords] = createSignal("");
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
@@ -131,9 +133,10 @@ export default function PublicReviewPage() {
       });
 
       if (createResponse.ok) {
-        const { reviewId: rid } = await createResponse.json();
+        const { reviewId: rid, claimToken: token } = await createResponse.json();
         if (rid) {
           setReviewId(rid);
+          if (token) setClaimToken(token);
           fetch("/api/reviews/track", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -261,7 +264,7 @@ export default function PublicReviewPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...(id ? { id } : {}),
+          ...(id ? { id, claimToken: claimToken() ?? undefined } : {}),
           ...(urlParam && !id && isBusinessIdParam ? { businessId: urlParam } : {}),
           ...(urlParam && !id && !isBusinessIdParam ? { username: urlParam } : {}),
           text: reviewText,

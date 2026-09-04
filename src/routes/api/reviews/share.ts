@@ -1,6 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "@/db/prisma";
+import { issueReviewClaim, verifyReviewClaim } from "~/lib/review-claim";
 
 const MAX_TEXT_LENGTH = 5000;
 const MAX_NAME_LENGTH = 100;
@@ -12,7 +13,7 @@ export async function POST(event: APIEvent) {
   try {
     const body = await event.request.json();
 
-    const { text, rating, keywords, id, username: businessUsername, businessId, reviewerName } = body;
+    const { text, rating, keywords, id, username: businessUsername, businessId, reviewerName, claimToken } = body;
 
     if (id && rating !== 0 && (typeof rating !== "number" || rating < 1 || rating > 5)) {
       return Response.json(
@@ -49,6 +50,15 @@ export async function POST(event: APIEvent) {
       }
 
       const isOwner = session && existing.userId === session.session.userId;
+
+      // Writing to an existing row requires either owning it or holding the
+      // claim token handed out when it was created. Knowing the id is not
+      // enough: these rows render on the business's public review page, so an
+      // unauthenticated overwrite is content injection on a customer-facing
+      // surface.
+      if (!isOwner && !verifyReviewClaim(claimToken, id)) {
+        return Response.json({ error: "Forbidden" }, { status: 403 });
+      }
 
       const review = await prisma.sharedReview.update({
         where: { id },
@@ -98,7 +108,7 @@ export async function POST(event: APIEvent) {
         );
       }
 
-      await prisma.sharedReview.create({
+      const created = await prisma.sharedReview.create({
         data: {
           text: typeof text === "string" ? text.trim() : "",
           rating,
@@ -109,9 +119,17 @@ export async function POST(event: APIEvent) {
           keywords: business.keywords || null,
           userId: business.userId,
         },
+        select: { id: true },
       });
 
-      return Response.json({ ok: true });
+      // The id and its claim token go back so the visitor can fill in the row
+      // they just created. Without them the page had no usable id and created a
+      // second row on submit, leaving an empty one behind and losing the visit.
+      return Response.json({
+        ok: true,
+        reviewId: created.id,
+        claimToken: issueReviewClaim(created.id),
+      });
     }
 
     if (!session) {
