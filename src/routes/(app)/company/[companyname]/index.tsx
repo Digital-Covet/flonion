@@ -65,15 +65,10 @@ interface ContactData {
 
 async function fetchBusiness(username: string): Promise<BusinessData | null> {
   try {
-    const res = await fetch(`/api/marketplace/partners?search=&pageSize=60`);
+    const res = await fetch(`/api/marketplace/partner?username=${encodeURIComponent(username)}`);
     if (!res.ok) return null;
     const data = await res.json();
-    const partners = Array.isArray(data.partners) ? data.partners : [];
-    return (
-      partners.find(
-        (p: BusinessData) => p.username === username || p.id === username
-      ) ?? null
-    );
+    return data.partner ?? null;
   } catch {
     return null;
   }
