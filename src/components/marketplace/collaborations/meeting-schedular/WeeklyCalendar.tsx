@@ -27,6 +27,7 @@ const SLOT_REM = 2.75;
 const GRID_COLUMNS = "grid grid-cols-[3.25rem_repeat(7,minmax(0,1fr))]";
 
 async function fetchSlots(): Promise<SlotData[]> {
+  if (typeof window === "undefined") return [];
   const res = await fetch("/api/marketplace/slots/mine");
   if (!res.ok) return [];
   const data = await res.json();

@@ -22,6 +22,7 @@ interface Slot {
 }
 
 async function fetchMySlots(): Promise<Slot[]> {
+  if (typeof window === "undefined") return [];
   const res = await fetch("/api/marketplace/slots/mine");
   if (!res.ok) return [];
   const data = await res.json();

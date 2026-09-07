@@ -16,6 +16,7 @@ import UpcomingMeetings from "./UpcomingMeetings";
 import WeeklyCalendar from "./WeeklyCalendar";
 
 async function fetchScheduleSettings() {
+  if (typeof window === "undefined") return null;
   try {
     const res = await fetch("/api/marketplace/schedule-settings");
     if (!res.ok) return null;
