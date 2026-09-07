@@ -65,11 +65,12 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
     const url = getQrUrl(props.businessUsername, props.businessId, props.url);
     if (!url) return;
 
-    const canvasSize = 1080;
-    const qrSize = 520;
+    const canvasWidth = 420;
+    const canvasHeight = 595;
+    const qrSize = 196;
     const canvas = document.createElement("canvas");
-    canvas.width = canvasSize;
-    canvas.height = canvasSize;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -82,20 +83,20 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
 
     const drawFinal = (qrImg: HTMLImageElement) => {
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvasSize, canvasSize);
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-      const qrX = (canvasSize - qrSize) / 2;
-      const qrY = 80;
+      const qrX = (canvasWidth - qrSize) / 2;
+      const qrY = 40;
       ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
 
       const drawFooter = () => {
         const footer = new Image();
         footer.onload = () => {
-          const footerWidth = canvasSize;
+          const footerWidth = canvasWidth;
           const footerHeight =
             (footer.naturalHeight / footer.naturalWidth) * footerWidth;
           const footerX = 0;
-          const footerY = canvasSize - footerHeight;
+          const footerY = canvasHeight - footerHeight;
           ctx.drawImage(footer, footerX, footerY, footerWidth, footerHeight);
           triggerDownload(canvas);
         };
@@ -111,7 +112,8 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
           drawLogoAndText(
             ctx,
             logoImg,
-            canvasSize,
+            canvasWidth,
+            canvasHeight,
             qrSize,
             qrX,
             qrY,
@@ -120,12 +122,12 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
           drawFooter();
         };
         logoImg.onerror = () => {
-          drawTextOnly(ctx, canvasSize, qrSize, qrX, qrY, instructionText());
+          drawTextOnly(ctx, canvasWidth, canvasHeight, qrSize, qrX, qrY, instructionText());
           drawFooter();
         };
         logoImg.src = props.logo;
       } else {
-        drawTextOnly(ctx, canvasSize, qrSize, qrX, qrY, instructionText());
+        drawTextOnly(ctx, canvasWidth, canvasHeight, qrSize, qrX, qrY, instructionText());
         drawFooter();
       }
     };
@@ -147,14 +149,15 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
   const drawLogoAndText = (
     ctx: CanvasRenderingContext2D,
     logoImg: HTMLImageElement,
-    canvasSize: number,
+    canvasWidth: number,
+    canvasHeight: number,
     qrSize: number,
     qrX: number,
     qrY: number,
     instrText: string,
   ) => {
     const logoSize = qrSize * 0.18;
-    const center = canvasSize / 2;
+    const center = canvasWidth / 2;
     const logoCenter = qrY + qrSize / 2;
     const padding = 8;
 
@@ -176,25 +179,26 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
     );
     ctx.restore();
 
-    drawTextOnly(ctx, canvasSize, qrSize, qrX, qrY, instrText);
+    drawTextOnly(ctx, canvasWidth, canvasHeight, qrSize, qrX, qrY, instrText);
   };
 
   const drawTextOnly = (
     ctx: CanvasRenderingContext2D,
-    canvasSize: number,
+    canvasWidth: number,
+    canvasHeight: number,
     qrSize: number,
     _qrX: number,
     qrY: number,
     _instrText: string,
   ) => {
-    const textY = qrY + qrSize + 60;
+    const textY = qrY + qrSize + 30;
 
     if (props.businessName) {
-      ctx.font = "bold 36px sans-serif";
+      ctx.font = "bold 14px sans-serif";
       ctx.fillStyle = "#1a1a2e";
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      const maxWidth = canvasSize - 120;
+      const maxWidth = canvasWidth - 40;
       const name = props.businessName;
       if (ctx.measureText(name).width > maxWidth) {
         let truncated = name;
@@ -204,18 +208,18 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
         ) {
           truncated = truncated.slice(0, -1);
         }
-        ctx.fillText(`${truncated}...`, canvasSize / 2, textY);
+        ctx.fillText(`${truncated}...`, canvasWidth / 2, textY);
       } else {
-        ctx.fillText(name, canvasSize / 2, textY);
+        ctx.fillText(name, canvasWidth / 2, textY);
       }
     }
 
-    const instrY = textY + (props.businessName ? 56 : 0);
-    ctx.font = "24px sans-serif";
+    const instrY = textY + (props.businessName ? 22 : 0);
+    ctx.font = "10px sans-serif";
     ctx.fillStyle = "#6b7280";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.fillText(instructionText(), canvasSize / 2, instrY);
+    ctx.fillText(instructionText(), canvasWidth / 2, instrY);
   };
 
   return (
