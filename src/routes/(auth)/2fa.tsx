@@ -1,11 +1,11 @@
-import { createSignal, Show } from "solid-js";
-import { Title } from "@solidjs/meta";
 import { Field } from "@ark-ui/solid/field";
-import Shield from "lucide-solid/icons/shield";
+import { Title } from "@solidjs/meta";
 import LoaderCircleIcon from "lucide-solid/icons/loader-circle";
+import Shield from "lucide-solid/icons/shield";
+import { createSignal, Show } from "solid-js";
 import { BrandMark, Footer, IllustrationPanel } from "@/components/auth";
-import { FooterLink } from "~/types/auth-ui";
 import { authClient } from "@/lib/auth-client";
+import type { FooterLink } from "~/types/auth-ui";
 
 const FOOTER_LINKS: readonly FooterLink[] = [
   { label: "Help", href: "#" },

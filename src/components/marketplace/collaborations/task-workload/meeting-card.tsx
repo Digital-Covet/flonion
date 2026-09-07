@@ -1,4 +1,4 @@
-import { Video, DoorOpen } from "lucide-solid";
+import { DoorOpen, Video } from "lucide-solid";
 import { Show } from "solid-js";
 import type { TeamMeeting } from "~/stores/task-store";
 
@@ -24,7 +24,8 @@ export default function MeetingCard(props: MeetingCardProps) {
     <div class="border border-border rounded-lg p-4 hover:border-primary transition-colors hover:shadow-sm bg-card">
       <div class="flex justify-between items-start mb-2">
         <span class="bg-purple-muted text-purple text-xs font-medium px-2 py-1 rounded">
-          {formatTime(props.meeting.startTime)} - {formatTime(props.meeting.endTime)}
+          {formatTime(props.meeting.startTime)} -{" "}
+          {formatTime(props.meeting.endTime)}
         </span>
         <span class="text-xs text-muted-foreground">
           {formatDate(props.meeting.date)}

@@ -1,5 +1,4 @@
 import { Progress } from "@ark-ui/solid/progress";
-import type { Component } from "solid-js";
 import type { LoadBarProps } from "~/types";
 
 function LoadBar(props: LoadBarProps) {
@@ -11,7 +10,10 @@ function LoadBar(props: LoadBarProps) {
           {props.detail}
         </span>
       </div>
-      <Progress.Root value={props.value} class="h-2 overflow-hidden rounded-full bg-muted">
+      <Progress.Root
+        value={props.value}
+        class="h-2 overflow-hidden rounded-full bg-muted"
+      >
         <Progress.Track class="h-full">
           <Progress.Range
             class={`h-full rounded-full transition-[width] duration-700 ${

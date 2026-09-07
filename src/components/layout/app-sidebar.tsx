@@ -1,27 +1,22 @@
-import ChevronDown from "lucide-solid/icons/chevron-down";
-import ChevronRight from "lucide-solid/icons/chevron-right";
-import LogOut from "lucide-solid/icons/log-out";
-import BarChart3 from "lucide-solid/icons/bar-chart-3";
-import Gauge from "lucide-solid/icons/gauge";
-import Inbox from "lucide-solid/icons/inbox";
-import Megaphone from "lucide-solid/icons/megaphone";
-import PenSquare from "lucide-solid/icons/pen-square";
-import SearchCheck from "lucide-solid/icons/search-check";
-import FolderKanban from "lucide-solid/icons/folder-kanban";
-import Store from "lucide-solid/icons/store";
-import Users from "lucide-solid/icons/users";
-import MessageSquare from "lucide-solid/icons/message-square";
-import Settings from "lucide-solid/icons/settings";
-import User from "lucide-solid/icons/user";
-import UserCircle from "lucide-solid/icons/user-circle";
-
 import { Menu } from "@ark-ui/solid/menu";
 import { A, useLocation, useNavigate } from "@solidjs/router";
-import {
-  For,
-  Show,
-  createMemo,
-} from "solid-js";
+import BarChart3 from "lucide-solid/icons/bar-chart-3";
+import ChevronDown from "lucide-solid/icons/chevron-down";
+import ChevronRight from "lucide-solid/icons/chevron-right";
+import FolderKanban from "lucide-solid/icons/folder-kanban";
+import Gauge from "lucide-solid/icons/gauge";
+import Inbox from "lucide-solid/icons/inbox";
+import LogOut from "lucide-solid/icons/log-out";
+import Megaphone from "lucide-solid/icons/megaphone";
+import MessageSquare from "lucide-solid/icons/message-square";
+import PenSquare from "lucide-solid/icons/pen-square";
+import SearchCheck from "lucide-solid/icons/search-check";
+import Settings from "lucide-solid/icons/settings";
+import Store from "lucide-solid/icons/store";
+import User from "lucide-solid/icons/user";
+import UserCircle from "lucide-solid/icons/user-circle";
+import Users from "lucide-solid/icons/users";
+import { createMemo, For, Show } from "solid-js";
 
 import InlineCombinationMark from "@/assets/inline-combination-mark";
 import { authClient } from "~/lib/auth-client";
@@ -124,10 +119,7 @@ export function Brand() {
     <div class="w-full">
       {/* Flonion logo */}
       <div class="flex items-center">
-        <InlineCombinationMark
-          class="h-6 w-auto shrink-0"
-          aria-hidden="true"
-        />
+        <InlineCombinationMark class="h-6 w-auto shrink-0" aria-hidden="true" />
       </div>
 
       {/* Divider */}
@@ -152,9 +144,7 @@ export function ProfileSummary() {
     return user?.name || user?.email || "User";
   });
 
-  const email = createMemo(
-    () => session()?.data?.user?.email || "",
-  );
+  const email = createMemo(() => session()?.data?.user?.email || "");
 
   const initials = createMemo(() => {
     const name = session()?.data?.user?.name;
@@ -218,10 +208,7 @@ export function ProfileSummary() {
             class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
             onSelect={() => navigate("/account")}
           >
-            <User
-              class="size-4 shrink-0"
-              aria-hidden="true"
-            />
+            <User class="size-4 shrink-0" aria-hidden="true" />
             Account Settings
           </Menu.Item>
 
@@ -232,10 +219,7 @@ export function ProfileSummary() {
             class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
             onSelect={handleLogout}
           >
-            <LogOut
-              class="size-4 shrink-0"
-              aria-hidden="true"
-            />
+            <LogOut class="size-4 shrink-0" aria-hidden="true" />
             Logout
           </Menu.Item>
         </Menu.Content>
@@ -244,18 +228,11 @@ export function ProfileSummary() {
   );
 }
 
-export function NavigationContent(
-  props: {
-    onNavigate?: () => void;
-  },
-) {
+export function NavigationContent(props: { onNavigate?: () => void }) {
   const location = useLocation();
 
   return (
-    <nav
-      aria-label="Primary navigation"
-      class="space-y-7 short:space-y-4"
-    >
+    <nav aria-label="Primary navigation" class="space-y-7 short:space-y-4">
       <For each={navigationGroups}>
         {(group) => {
           const headingId = `navigation-${group.label
@@ -263,9 +240,7 @@ export function NavigationContent(
             .replace(/\s+/g, "-")}`;
 
           return (
-            <section
-              aria-labelledby={headingId}
-            >
+            <section aria-labelledby={headingId}>
               {/* Section heading */}
               <h2
                 id={headingId}
@@ -283,9 +258,7 @@ export function NavigationContent(
                     const isActive = createMemo(
                       () =>
                         location.pathname === item.href ||
-                        location.pathname.startsWith(
-                          `${item.href}/`,
-                        ),
+                        location.pathname.startsWith(`${item.href}/`),
                     );
 
                     return (
@@ -296,20 +269,11 @@ export function NavigationContent(
                           activeClass="bg-primary/10 text-primary"
                           inactiveClass="text-muted-foreground hover:bg-muted hover:text-foreground"
                           class="group flex w-full items-center rounded-full px-4 py-2.5 text-base font-medium transition-colors short:py-2"
-                          aria-current={
-                            isActive()
-                              ? "page"
-                              : undefined
-                          }
+                          aria-current={isActive() ? "page" : undefined}
                         >
-                          <Icon
-                            class="size-6 shrink-0"
-                            aria-hidden="true"
-                          />
+                          <Icon class="size-6 shrink-0" aria-hidden="true" />
 
-                          <span class="ml-4 truncate">
-                            {item.label}
-                          </span>
+                          <span class="ml-4 truncate">{item.label}</span>
 
                           {/* Arrow only on active item */}
                           <Show when={isActive()}>
@@ -329,7 +293,9 @@ export function NavigationContent(
                                 const isChildActive = createMemo(
                                   () =>
                                     location.pathname === child.href ||
-                                    location.pathname.startsWith(`${child.href}/`),
+                                    location.pathname.startsWith(
+                                      `${child.href}/`,
+                                    ),
                                 );
                                 return (
                                   <li>
@@ -339,12 +305,22 @@ export function NavigationContent(
                                       activeClass="bg-primary/10 text-primary"
                                       inactiveClass="text-muted-foreground hover:bg-muted hover:text-foreground"
                                       class="group flex w-full items-center rounded-full px-3 py-2 text-sm font-medium transition-colors short:py-1.5"
-                                      aria-current={isChildActive() ? "page" : undefined}
+                                      aria-current={
+                                        isChildActive() ? "page" : undefined
+                                      }
                                     >
-                                      <ChildIcon class="size-5 shrink-0" aria-hidden="true" />
-                                      <span class="ml-3 truncate">{child.label}</span>
+                                      <ChildIcon
+                                        class="size-5 shrink-0"
+                                        aria-hidden="true"
+                                      />
+                                      <span class="ml-3 truncate">
+                                        {child.label}
+                                      </span>
                                       <Show when={isChildActive()}>
-                                        <ChevronRight class="ml-auto size-5 shrink-0" aria-hidden="true" />
+                                        <ChevronRight
+                                          class="ml-auto size-5 shrink-0"
+                                          aria-hidden="true"
+                                        />
                                       </Show>
                                     </A>
                                   </li>

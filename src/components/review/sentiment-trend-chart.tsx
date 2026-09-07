@@ -15,11 +15,17 @@ export function SentimentTrendChart() {
       class="rounded-lg border border-border bg-card p-5 shadow-sm"
     >
       <div class="flex flex-wrap items-center justify-between gap-4">
-        <h2 id="sentiment-trend-heading" class="text-lg font-semibold text-foreground">
+        <h2
+          id="sentiment-trend-heading"
+          class="text-lg font-semibold text-foreground"
+        >
           Sentiment Trend
         </h2>
 
-        <div class="flex items-center gap-4 text-xs text-muted-foreground" aria-label="Chart legend">
+        <div
+          class="flex items-center gap-4 text-xs text-muted-foreground"
+          aria-label="Chart legend"
+        >
           <span class="flex items-center gap-2">
             <span class="size-3 rounded-sm bg-primary" aria-hidden="true" />
             Positive
@@ -60,10 +66,11 @@ export function SentimentTrendChart() {
               </button>
 
               <span
-                class={`mt-2 text-xs ${point.date === "5 Jul"
-                  ? "font-semibold text-foreground"
-                  : "text-muted-foreground"
-                  }`}
+                class={`mt-2 text-xs ${
+                  point.date === "5 Jul"
+                    ? "font-semibold text-foreground"
+                    : "text-muted-foreground"
+                }`}
               >
                 {point.date}
               </span>

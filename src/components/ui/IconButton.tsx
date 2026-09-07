@@ -1,11 +1,11 @@
-import { Tooltip } from '@ark-ui/solid'
-import { Dynamic } from 'solid-js/web'
-import type { Component } from 'solid-js'
-import type { IconComponent } from '../../types'
+import { Tooltip } from "@ark-ui/solid";
+import type { Component } from "solid-js";
+import { Dynamic } from "solid-js/web";
+import type { IconComponent } from "../../types";
 
 interface IconButtonProps {
-  icon: IconComponent
-  label: string
+  icon: IconComponent;
+  label: string;
 }
 
 const IconButton: Component<IconButtonProps> = (props) => {
@@ -23,7 +23,7 @@ const IconButton: Component<IconButtonProps> = (props) => {
         </Tooltip.Content>
       </Tooltip.Positioner>
     </Tooltip.Root>
-  )
-}
+  );
+};
 
-export default IconButton
+export default IconButton;

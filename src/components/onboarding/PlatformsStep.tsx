@@ -1,8 +1,8 @@
-import { createSignal, onMount, type Component } from "solid-js";
-import ArrowRight from "lucide-solid/icons/arrow-right";
 import ArrowLeft from "lucide-solid/icons/arrow-left";
-import Store from "lucide-solid/icons/store";
+import ArrowRight from "lucide-solid/icons/arrow-right";
 import Check from "lucide-solid/icons/check";
+import Store from "lucide-solid/icons/store";
+import { type Component, createSignal, onMount } from "solid-js";
 
 interface PlatformsStepProps {
   onContinue: () => void;
@@ -33,14 +33,20 @@ export const PlatformsStep: Component<PlatformsStepProps> = (props) => {
       <div class="rounded-lg border border-border bg-muted/50 p-6">
         <div class="flex items-start gap-4">
           <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#4285F4]/10">
-            <Store size={24} class="text-[#4285F4]" strokeWidth={2} aria-hidden="true" />
+            <Store
+              size={24}
+              class="text-[#4285F4]"
+              strokeWidth={2}
+              aria-hidden="true"
+            />
           </div>
           <div class="flex-1">
             <h3 class="text-base font-semibold text-foreground">
               Google Business Profile
             </h3>
             <p class="mt-1 text-sm text-muted-foreground">
-              Connect your Google Business Profile to import reviews, reply to customers, and track your online presence.
+              Connect your Google Business Profile to import reviews, reply to
+              customers, and track your online presence.
             </p>
 
             {connected() ? (

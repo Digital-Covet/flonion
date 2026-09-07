@@ -1,7 +1,7 @@
 import { Suspense } from "solid-js";
+import LogoComponent from "~/assets/logomark";
 import { AppSidebar } from "~/components/layout/app-sidebar";
 import { MobileNavigation } from "~/components/layout/mobile-navigation";
-import LogoComponent from "~/assets/logomark";
 
 export default function AppLayout(props: { children: any }) {
   return (
@@ -15,12 +15,9 @@ export default function AppLayout(props: { children: any }) {
         </header>
 
         <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <Suspense>
-            {props.children}
-          </Suspense>
+          <Suspense>{props.children}</Suspense>
         </main>
       </div>
     </div>
   );
 }
-

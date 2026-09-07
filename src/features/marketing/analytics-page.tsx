@@ -1,13 +1,13 @@
 import { Title } from "@solidjs/meta";
-import { For, Show, createSignal, onMount } from "solid-js";
 import BarChart3 from "lucide-solid/icons/bar-chart-3";
-import Eye from "lucide-solid/icons/eye";
-import MessageSquare from "lucide-solid/icons/message-square";
-import Link2 from "lucide-solid/icons/link-2";
-import ExternalLink from "lucide-solid/icons/external-link";
-import Star from "lucide-solid/icons/star";
 import ClipboardCheck from "lucide-solid/icons/clipboard-check";
+import ExternalLink from "lucide-solid/icons/external-link";
+import Eye from "lucide-solid/icons/eye";
+import Link2 from "lucide-solid/icons/link-2";
+import MessageSquare from "lucide-solid/icons/message-square";
 import MousePointerClick from "lucide-solid/icons/mouse-pointer-click";
+import Star from "lucide-solid/icons/star";
+import { createSignal, For, onMount, Show } from "solid-js";
 import { REVIEW_PLATFORMS } from "~/features/settings/review-platforms";
 
 interface ReviewAnalyticsRow {
@@ -49,7 +49,9 @@ function StatCard(props: {
         <props.icon size={22} />
       </div>
       <div>
-        <p class="text-2xl font-bold text-slate-900">{props.value.toLocaleString()}</p>
+        <p class="text-2xl font-bold text-slate-900">
+          {props.value.toLocaleString()}
+        </p>
         <p class="text-xs text-slate-500">{props.label}</p>
       </div>
     </div>
@@ -70,7 +72,9 @@ function PlatformStatCard(props: {
         <MousePointerClick size={22} />
       </div>
       <div>
-        <p class="text-2xl font-bold text-slate-900">{props.value.toLocaleString()}</p>
+        <p class="text-2xl font-bold text-slate-900">
+          {props.value.toLocaleString()}
+        </p>
         <p class="text-xs text-slate-500">{props.label} Clicks</p>
       </div>
     </div>
@@ -188,7 +192,8 @@ export function AnalyticsPage() {
               Analytics
             </h1>
             <p class="mt-1 text-sm text-muted-foreground">
-              Track how many people interact with your review links and QR codes.
+              Track how many people interact with your review links and QR
+              codes.
             </p>
           </div>
           <button
@@ -254,7 +259,9 @@ export function AnalyticsPage() {
                     {(platform) => (
                       <PlatformStatCard
                         label={platform.label}
-                        value={analytics().totalPlatformRedirects[platform.slug] || 0}
+                        value={
+                          analytics().totalPlatformRedirects[platform.slug] || 0
+                        }
                         color={platform.color}
                       />
                     )}
@@ -268,7 +275,8 @@ export function AnalyticsPage() {
                         Per-Link Breakdown
                       </h2>
                       <p class="text-xs text-slate-500">
-                        QR scans, visits, reviews, and redirects for each shared link.
+                        QR scans, visits, reviews, and redirects for each shared
+                        link.
                       </p>
                     </div>
                     <div class="overflow-x-auto">
@@ -306,7 +314,13 @@ export function AnalyticsPage() {
                                       )}
                                     </div>
                                   </Show>
-                                  <Show when={row.reviews > 0 || row.visits > 0 || row.qrScans > 0}>
+                                  <Show
+                                    when={
+                                      row.reviews > 0 ||
+                                      row.visits > 0 ||
+                                      row.qrScans > 0
+                                    }
+                                  >
                                     <p class="text-xs text-slate-500">
                                       by {row.reviewerName || "Anonymous"}
                                     </p>

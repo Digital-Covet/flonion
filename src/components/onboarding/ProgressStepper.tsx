@@ -1,4 +1,4 @@
-import { For, type Component } from "solid-js";
+import { type Component, For } from "solid-js";
 
 const steps = ["Basics", "Platforms", "Review", "Team"] as const;
 
@@ -40,7 +40,8 @@ export const ProgressStepper: Component<ProgressStepperProps> = (props) => {
                 <span
                   class="flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors duration-300"
                   classList={{
-                    "border-primary bg-primary text-primary-foreground": reached(),
+                    "border-primary bg-primary text-primary-foreground":
+                      reached(),
                     "border-border bg-muted text-muted-foreground": !reached(),
                     "ring-4 ring-primary/20": active(),
                   }}

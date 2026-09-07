@@ -2,8 +2,10 @@ import type { CalendarEventProps, CalendarEventTone } from "~/types";
 
 const tones: Record<CalendarEventTone, string> = {
   muted: "border-border bg-muted text-muted-foreground",
-  primary: "border-primary/25 bg-positive-muted text-primary shadow-sm hover:shadow-md",
-  orange: "border-orange/25 bg-orange-muted text-orange shadow-sm hover:shadow-md",
+  primary:
+    "border-primary/25 bg-positive-muted text-primary shadow-sm hover:shadow-md",
+  orange:
+    "border-orange/25 bg-orange-muted text-orange shadow-sm hover:shadow-md",
 };
 
 function CalendarEvent(props: CalendarEventProps) {

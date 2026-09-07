@@ -1,14 +1,14 @@
 import { createSignal } from "solid-js";
-import { useReducedMotion } from "~/hooks/useReducedMotion";
-import Navbar from "~/components/landing/Navbar";
-import MobileMenu from "~/components/landing/MobileMenu";
-import HeroSection from "~/components/landing/HeroSection";
-import TrustedBySection from "~/components/landing/TrustedBySection";
-import FeaturesSection from "~/components/landing/FeaturesSection";
-import TestimonialsSection from "~/components/landing/TestimonialsSection";
-import FAQSection from "~/components/landing/FAQSection";
 import CTASection from "~/components/landing/CTASection";
+import FAQSection from "~/components/landing/FAQSection";
+import FeaturesSection from "~/components/landing/FeaturesSection";
 import Footer from "~/components/landing/Footer";
+import HeroSection from "~/components/landing/HeroSection";
+import MobileMenu from "~/components/landing/MobileMenu";
+import Navbar from "~/components/landing/Navbar";
+import TestimonialsSection from "~/components/landing/TestimonialsSection";
+import TrustedBySection from "~/components/landing/TrustedBySection";
+import { useReducedMotion } from "~/hooks/useReducedMotion";
 
 export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = createSignal(false);

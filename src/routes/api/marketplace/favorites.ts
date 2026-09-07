@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 export async function GET(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -17,7 +17,10 @@ export async function GET(event: APIEvent) {
     return Response.json({ favorites: favorites.map((f) => f.businessId) });
   } catch (err) {
     console.error("[marketplace/favorites] GET failed:", err);
-    return Response.json({ error: "Failed to load favorites" }, { status: 500 });
+    return Response.json(
+      { error: "Failed to load favorites" },
+      { status: 500 },
+    );
   }
 }
 
@@ -32,7 +35,10 @@ export async function POST(event: APIEvent) {
     const { businessId } = body;
 
     if (typeof businessId !== "string" || !businessId) {
-      return Response.json({ error: "businessId is required" }, { status: 400 });
+      return Response.json(
+        { error: "businessId is required" },
+        { status: 400 },
+      );
     }
 
     const business = await prisma.business.findUnique({
@@ -63,6 +69,9 @@ export async function POST(event: APIEvent) {
       return Response.json({ error: "Invalid request body" }, { status: 400 });
     }
     console.error("[marketplace/favorites] POST failed:", err);
-    return Response.json({ error: "Failed to update favorite" }, { status: 500 });
+    return Response.json(
+      { error: "Failed to update favorite" },
+      { status: 500 },
+    );
   }
 }

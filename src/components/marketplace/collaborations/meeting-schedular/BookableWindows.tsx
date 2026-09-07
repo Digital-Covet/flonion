@@ -1,10 +1,15 @@
-import { createSignal, createResource, For, Show } from "solid-js";
-import { Index } from "solid-js";
-import { Portal } from "solid-js/web";
-import { Plus, CalendarIcon, ChevronLeftIcon, ChevronRightIcon, Clock } from "lucide-solid";
 import { DatePicker } from "@ark-ui/solid/date-picker";
 import { Field } from "@ark-ui/solid/field";
 import type { DateValue } from "@internationalized/date";
+import {
+  CalendarIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  Clock,
+  Plus,
+} from "lucide-solid";
+import { createResource, createSignal, For, Index, Show } from "solid-js";
+import { Portal } from "solid-js/web";
 import SectionShell from "./SectionShell";
 
 interface Slot {
@@ -37,9 +42,15 @@ function BookableWindows(props: BookableWindowsProps) {
   const [slots, { refetch }] = createResource(fetchMySlots);
 
   // Refetch when key changes
-  createResource(() => props.key, () => refetch());
+  createResource(
+    () => props.key,
+    () => refetch(),
+  );
 
-  const handleDateChange = (details: { value: DateValue[]; valueAsString: string[] }) => {
+  const handleDateChange = (details: {
+    value: DateValue[];
+    valueAsString: string[];
+  }) => {
     setDateValue(details.value);
     setNewDate(details.valueAsString[0] ?? "");
   };
@@ -110,11 +121,14 @@ function BookableWindows(props: BookableWindowsProps) {
                   <div class="flex items-center justify-between rounded-lg border border-border p-3">
                     <div>
                       <p class="text-sm font-medium text-foreground">
-                        {slot.startTime} - {slot.endTime} <span class="text-xs text-muted-foreground">IST</span>
+                        {slot.startTime} - {slot.endTime}{" "}
+                        <span class="text-xs text-muted-foreground">IST</span>
                       </p>
                       <p class="text-xs text-muted-foreground">{dateLabel}</p>
                       <Show when={slot.title}>
-                        <p class="mt-0.5 text-xs text-muted-foreground italic">{slot.title}</p>
+                        <p class="mt-0.5 text-xs text-muted-foreground italic">
+                          {slot.title}
+                        </p>
                       </Show>
                     </div>
                     <Show when={slot.isBooked}>
@@ -133,7 +147,9 @@ function BookableWindows(props: BookableWindowsProps) {
           <p class="text-sm font-medium text-foreground mb-3">Add new slot</p>
           <div class="flex flex-col gap-3">
             <Field.Root>
-              <Field.Label class="text-xs text-muted-foreground">Date</Field.Label>
+              <Field.Label class="text-xs text-muted-foreground">
+                Date
+              </Field.Label>
               <DatePicker.Root
                 value={dateValue()}
                 onValueChange={handleDateChange}
@@ -214,12 +230,19 @@ function BookableWindows(props: BookableWindowsProps) {
                               </DatePicker.ViewControl>
                               <DatePicker.Table>
                                 <DatePicker.TableBody>
-                                  <Index each={context().getMonthsGrid({ columns: 4, format: "short" })}>
+                                  <Index
+                                    each={context().getMonthsGrid({
+                                      columns: 4,
+                                      format: "short",
+                                    })}
+                                  >
                                     {(months) => (
                                       <DatePicker.TableRow>
                                         <Index each={months()}>
                                           {(month) => (
-                                            <DatePicker.TableCell value={month().value}>
+                                            <DatePicker.TableCell
+                                              value={month().value}
+                                            >
                                               <DatePicker.TableCellTrigger class="flex items-center justify-center h-8 px-2 text-sm rounded-md data-[selected]:bg-primary data-[selected]:text-primary-foreground hover:bg-muted">
                                                 {month().label}
                                               </DatePicker.TableCellTrigger>
@@ -252,12 +275,18 @@ function BookableWindows(props: BookableWindowsProps) {
                               </DatePicker.ViewControl>
                               <DatePicker.Table>
                                 <DatePicker.TableBody>
-                                  <Index each={context().getYearsGrid({ columns: 4 })}>
+                                  <Index
+                                    each={context().getYearsGrid({
+                                      columns: 4,
+                                    })}
+                                  >
                                     {(years) => (
                                       <DatePicker.TableRow>
                                         <Index each={years()}>
                                           {(year) => (
-                                            <DatePicker.TableCell value={year().value}>
+                                            <DatePicker.TableCell
+                                              value={year().value}
+                                            >
                                               <DatePicker.TableCellTrigger class="flex items-center justify-center h-8 px-2 text-sm rounded-md data-[selected]:bg-primary data-[selected]:text-primary-foreground hover:bg-muted">
                                                 {year().label}
                                               </DatePicker.TableCellTrigger>
@@ -280,7 +309,9 @@ function BookableWindows(props: BookableWindowsProps) {
             </Field.Root>
 
             <Field.Root>
-              <Field.Label class="text-xs text-muted-foreground">Start Time (IST)</Field.Label>
+              <Field.Label class="text-xs text-muted-foreground">
+                Start Time (IST)
+              </Field.Label>
               <input
                 type="time"
                 value={newStart()}
@@ -290,7 +321,9 @@ function BookableWindows(props: BookableWindowsProps) {
             </Field.Root>
 
             <Field.Root>
-              <Field.Label class="text-xs text-muted-foreground">End Time (IST)</Field.Label>
+              <Field.Label class="text-xs text-muted-foreground">
+                End Time (IST)
+              </Field.Label>
               <input
                 type="time"
                 value={newEnd()}

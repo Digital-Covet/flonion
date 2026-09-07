@@ -1,7 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
 import { getCompanyProjects } from "~/lib/company-profile";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 export async function GET(event: APIEvent) {
   const url = new URL(event.request.url);
@@ -32,7 +32,10 @@ export async function POST(event: APIEvent) {
     const { businessId, projects } = body;
 
     if (typeof businessId !== "string" || !businessId) {
-      return Response.json({ error: "businessId is required" }, { status: 400 });
+      return Response.json(
+        { error: "businessId is required" },
+        { status: 400 },
+      );
     }
 
     if (!Array.isArray(projects) || projects.length === 0) {
@@ -52,20 +55,19 @@ export async function POST(event: APIEvent) {
     }
 
     const created = await prisma.project.createMany({
-      data: projects.map((p: { imageUrl: string; altText: string; position?: number }) => ({
-        businessId,
-        imageUrl: p.imageUrl,
-        altText: p.altText,
-        position: p.position ?? 0,
-      })),
+      data: projects.map(
+        (p: { imageUrl: string; altText: string; position?: number }) => ({
+          businessId,
+          imageUrl: p.imageUrl,
+          altText: p.altText,
+          position: p.position ?? 0,
+        }),
+      ),
     });
 
     return Response.json({ created: created.count });
   } catch {
-    return Response.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 }
 
@@ -84,7 +86,10 @@ export async function PATCH(event: APIEvent) {
     }
 
     if (typeof businessId !== "string" || !businessId) {
-      return Response.json({ error: "businessId is required" }, { status: 400 });
+      return Response.json(
+        { error: "businessId is required" },
+        { status: 400 },
+      );
     }
 
     const business = await prisma.business.findUnique({
@@ -116,10 +121,7 @@ export async function PATCH(event: APIEvent) {
 
     return Response.json({ project: updated });
   } catch {
-    return Response.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 }
 
@@ -138,7 +140,10 @@ export async function DELETE(event: APIEvent) {
     }
 
     if (typeof businessId !== "string" || !businessId) {
-      return Response.json({ error: "businessId is required" }, { status: 400 });
+      return Response.json(
+        { error: "businessId is required" },
+        { status: 400 },
+      );
     }
 
     const business = await prisma.business.findUnique({
@@ -154,9 +159,6 @@ export async function DELETE(event: APIEvent) {
 
     return Response.json({ deleted: true });
   } catch {
-    return Response.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 }

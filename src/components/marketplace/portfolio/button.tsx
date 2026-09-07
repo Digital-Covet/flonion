@@ -20,8 +20,7 @@ const variants: Record<ButtonVariant, string> = {
     "bg-primary text-primary-foreground hover:bg-primary-hover px-6 py-2.5 text-base shadow-sm",
   outline:
     "bg-card text-foreground border border-border hover:bg-muted px-6 py-2.5 text-base",
-  ghost:
-    "text-primary hover:bg-positive-muted px-3 py-2 text-sm font-medium",
+  ghost: "text-primary hover:bg-positive-muted px-3 py-2 text-sm font-medium",
   dark: "bg-foreground text-primary-foreground hover:bg-foreground/90 w-full py-2.5 text-base shadow-sm",
 };
 

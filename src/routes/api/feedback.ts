@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 const CATEGORIES = [
   "General",
@@ -63,9 +63,6 @@ export async function POST(event: APIEvent) {
 
     return Response.json({ id: feedback.id, success: true });
   } catch {
-    return Response.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 }

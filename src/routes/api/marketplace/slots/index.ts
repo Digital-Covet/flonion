@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 export async function GET(event: APIEvent) {
   const url = new URL(event.request.url);
@@ -20,8 +20,11 @@ export async function GET(event: APIEvent) {
 
   if (dateParam) {
     const targetDate = new Date(dateParam);
-    if (isNaN(targetDate.getTime())) {
-      return Response.json({ error: "Invalid date parameter" }, { status: 400 });
+    if (Number.isNaN(targetDate.getTime())) {
+      return Response.json(
+        { error: "Invalid date parameter" },
+        { status: 400 },
+      );
     }
     const startOfDay = new Date(targetDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -77,20 +80,19 @@ export async function POST(event: APIEvent) {
     }
 
     const created = await prisma.availabilitySlot.createMany({
-      data: slots.map((slot: { date: string; startTime: string; endTime: string }) => ({
-        businessId: business.id,
-        date: new Date(slot.date),
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-      })),
+      data: slots.map(
+        (slot: { date: string; startTime: string; endTime: string }) => ({
+          businessId: business.id,
+          date: new Date(slot.date),
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        }),
+      ),
       skipDuplicates: true,
     });
 
     return Response.json({ created: created.count });
   } catch {
-    return Response.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 }

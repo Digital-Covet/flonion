@@ -1,9 +1,9 @@
-import { createSignal, For, Show } from "solid-js";
 import { Field } from "@ark-ui/solid/field";
-import ExternalLink from "lucide-solid/icons/external-link";
 import CheckCircle from "lucide-solid/icons/check-circle";
+import ExternalLink from "lucide-solid/icons/external-link";
 import Loader2 from "lucide-solid/icons/loader-2";
-import type { IntegrationData, GoogleLocationData } from "../types";
+import { createSignal, For, Show } from "solid-js";
+import type { GoogleLocationData, IntegrationData } from "../types";
 
 interface IntegrationCardProps {
   integration: IntegrationData;
@@ -27,7 +27,9 @@ export function IntegrationCard(props: IntegrationCardProps) {
       <div class="mb-4 flex items-center gap-4">
         <div
           class="flex h-10 w-10 items-center justify-center rounded-lg"
-          style={{ "background-color": props.integration.iconColor ?? "#4285F4" }}
+          style={{
+            "background-color": props.integration.iconColor ?? "#4285F4",
+          }}
         >
           <props.integration.icon size={20} class="text-white" />
         </div>
@@ -63,7 +65,9 @@ export function IntegrationCard(props: IntegrationCardProps) {
             class="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-medium leading-5 text-foreground transition-all hover:bg-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
           >
             {props.connecting && <Loader2 size={16} class="animate-spin" />}
-            {props.connecting ? "Connecting..." : "Connect Google Business Profile"}
+            {props.connecting
+              ? "Connecting..."
+              : "Connect Google Business Profile"}
             <Show when={!props.connecting}>
               <ExternalLink size={14} class="text-muted-foreground" />
             </Show>
@@ -84,7 +88,7 @@ export function IntegrationCard(props: IntegrationCardProps) {
                 value={props.selectedLocationIndex ?? ""}
                 onChange={(e) => {
                   const idx = parseInt(e.currentTarget.value, 10);
-                  if (!isNaN(idx)) {
+                  if (!Number.isNaN(idx)) {
                     props.onLocationSelect?.(idx);
                   }
                 }}

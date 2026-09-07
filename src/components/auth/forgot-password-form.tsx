@@ -1,43 +1,45 @@
+import { Field } from "@ark-ui/solid/field";
+import Check from "lucide-solid/icons/check";
+import LoaderCircleIcon from "lucide-solid/icons/loader-circle";
+import Send from "lucide-solid/icons/send";
 import {
+  type Component,
   createSignal,
+  Match,
   onCleanup,
   Switch,
-  Match,
-  type Component,
-} from 'solid-js';
-import { Field } from '@ark-ui/solid/field';
-import Send from 'lucide-solid/icons/send';
-import LoaderCircleIcon from 'lucide-solid/icons/loader-circle';
-import Check from 'lucide-solid/icons/check';
-import type { FormStatus, ForgotPasswordFormProps } from '@/types/auth-ui';
+} from "solid-js";
+import type { ForgotPasswordFormProps, FormStatus } from "@/types/auth-ui";
 
 const SUBMISSION_DELAY_MS = 1200;
 
-export const ForgotPasswordForm: Component<ForgotPasswordFormProps> = (props) => {
-  const [status, setStatus] = createSignal<FormStatus>('idle');
-  const [email, setEmail] = createSignal('');
+export const ForgotPasswordForm: Component<ForgotPasswordFormProps> = (
+  props,
+) => {
+  const [status, setStatus] = createSignal<FormStatus>("idle");
+  const [email, setEmail] = createSignal("");
 
   let successTimer: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => {
     if (successTimer) clearTimeout(successTimer);
   });
 
-  const isInteractive = () => status() === 'idle';
+  const isInteractive = () => status() === "idle";
 
   const handleSubmit = async (event: SubmitEvent) => {
     event.preventDefault();
     if (!isInteractive()) return;
 
-    setStatus('loading');
+    setStatus("loading");
 
     try {
       await new Promise<void>((resolve) =>
         setTimeout(resolve, SUBMISSION_DELAY_MS),
       );
       await props.onSubmit?.(email());
-      setStatus('success');
+      setStatus("success");
     } catch {
-      setStatus('idle');
+      setStatus("idle");
     }
   };
 
@@ -61,34 +63,36 @@ export const ForgotPasswordForm: Component<ForgotPasswordFormProps> = (props) =>
         <button
           type="submit"
           disabled={!isInteractive()}
-          aria-busy={status() === 'loading'}
+          aria-busy={status() === "loading"}
           aria-live="polite"
           class="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary py-4 font-semibold text-primary-foreground transition-all hover:bg-primary-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:active:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
-          <Switch fallback={<span>{props.submitLabel ?? 'Send reset link'}</span>}>
-            <Match when={status() === 'loading'}>
+          <Switch
+            fallback={<span>{props.submitLabel ?? "Send reset link"}</span>}
+          >
+            <Match when={status() === "loading"}>
               <LoaderCircleIcon class="h-5 w-5 animate-spin" />
               <span>Sending...</span>
             </Match>
-            <Match when={status() === 'success'}>
+            <Match when={status() === "success"}>
               <Check class="h-5 w-5" />
               <span>Check your email</span>
             </Match>
-            <Match when={status() === 'idle'}>
+            <Match when={status() === "idle"}>
               <Send class="h-4 w-4" />
-              <span>{props.submitLabel ?? 'Send reset link'}</span>
+              <span>{props.submitLabel ?? "Send reset link"}</span>
             </Match>
           </Switch>
         </button>
       </form>
 
       <p class="mt-6 text-center text-sm text-muted-foreground">
-        {props.redirectText ?? 'Remember your password?'}{' '}
+        {props.redirectText ?? "Remember your password?"}{" "}
         <a
-          href={props.redirectTo ?? '/login'}
+          href={props.redirectTo ?? "/login"}
           class="border-b border-foreground font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
         >
-          {props.redirectLabel ?? 'Back to login'}
+          {props.redirectLabel ?? "Back to login"}
         </a>
       </p>
     </div>

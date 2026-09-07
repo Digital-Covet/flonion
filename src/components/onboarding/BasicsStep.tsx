@@ -1,9 +1,9 @@
-import { createSignal, Index, Show, type Component } from "solid-js";
 import { Field } from "@ark-ui/solid/field";
 import { TagsInput } from "@ark-ui/solid/tags-input";
 import ArrowRight from "lucide-solid/icons/arrow-right";
 import Search from "lucide-solid/icons/search";
 import X from "lucide-solid/icons/x";
+import { type Component, createSignal, Index, Show } from "solid-js";
 import { CategoryChips } from "./CategoryChips";
 import { LogoUpload } from "./LogoUpload";
 import { SectorSelect } from "./SectorSelect";
@@ -37,7 +37,9 @@ const MAX_DESCRIPTION_LENGTH = 500;
 
 export const BasicsStep: Component<BasicsStepProps> = (props) => {
   const [usernameError, setUsernameError] = createSignal("");
-  const [usernameAvailable, setUsernameAvailable] = createSignal<boolean | null>(null);
+  const [usernameAvailable, setUsernameAvailable] = createSignal<
+    boolean | null
+  >(null);
 
   const parsedKeywords = () =>
     props.data.keywords
@@ -47,7 +49,7 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
 
   const validateUsername = (value: string) => {
     const trimmed = value.toLowerCase();
-    
+
     if (!trimmed) {
       setUsernameError("");
       setUsernameAvailable(null);
@@ -101,7 +103,9 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
           type="text"
           placeholder="Search your business name..."
           value={props.data.businessName}
-          onInput={(e) => props.onChange({ businessName: e.currentTarget.value })}
+          onInput={(e) =>
+            props.onChange({ businessName: e.currentTarget.value })
+          }
           class={fieldInputClass}
         />
       </Field.Root>
@@ -123,8 +127,11 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
           class={`${fieldInputClass} ${usernameError() ? "border-destructive" : ""} ${usernameAvailable() === true ? "border-positive" : ""}`}
         />
         <div class="mt-1 flex items-center justify-between">
-          <p class={`text-xs ${usernameError() ? "text-destructive" : "text-muted-foreground"}`}>
-            {usernameError() || "Lowercase letters, numbers, hyphens. Max 15 characters."}
+          <p
+            class={`text-xs ${usernameError() ? "text-destructive" : "text-muted-foreground"}`}
+          >
+            {usernameError() ||
+              "Lowercase letters, numbers, hyphens. Max 15 characters."}
           </p>
           {props.data.username && (
             <p class="text-xs text-muted-foreground/60">
@@ -184,7 +191,9 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
               inputmode="numeric"
               placeholder="PIN Code"
               value={props.data.pinCode}
-              onInput={(e) => props.onChange({ pinCode: e.currentTarget.value })}
+              onInput={(e) =>
+                props.onChange({ pinCode: e.currentTarget.value })
+              }
               class={fieldInputClass}
             />
           </Field.Root>
@@ -204,7 +213,9 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
           maxlength={MAX_DESCRIPTION_LENGTH}
           placeholder="Tell other businesses what you do in a sentence or two."
           value={props.data.description}
-          onInput={(e) => props.onChange({ description: e.currentTarget.value })}
+          onInput={(e) =>
+            props.onChange({ description: e.currentTarget.value })
+          }
           class={`${fieldInputClass} resize-y`}
         />
         <div class="mt-1 flex items-center justify-between">

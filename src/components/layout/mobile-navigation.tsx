@@ -2,17 +2,16 @@ import { Dialog } from "@ark-ui/solid/dialog";
 import Menu from "lucide-solid/icons/menu";
 import X from "lucide-solid/icons/x";
 import { createSignal } from "solid-js";
-import {
-  Brand,
-  NavigationContent,
-  ProfileSummary,
-} from "./app-sidebar";
+import { Brand, NavigationContent, ProfileSummary } from "./app-sidebar";
 
 export function MobileNavigation() {
   const [isOpen, setIsOpen] = createSignal(false);
 
   return (
-    <Dialog.Root open={isOpen()} onOpenChange={(details) => setIsOpen(details.open)}>
+    <Dialog.Root
+      open={isOpen()}
+      onOpenChange={(details) => setIsOpen(details.open)}
+    >
       <Dialog.Trigger
         aria-label="Open navigation menu"
         class="inline-flex size-9 items-center justify-center rounded-md border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-muted lg:hidden"

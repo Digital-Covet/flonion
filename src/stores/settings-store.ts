@@ -1,5 +1,5 @@
-import { createContext, useContext } from "solid-js";
 import type { Accessor, Setter } from "solid-js";
+import { createContext, useContext } from "solid-js";
 import type { ReviewLinksMap } from "~/features/settings/review-platforms";
 
 export interface SettingsData {

@@ -1,10 +1,10 @@
-import { Show, For, createSignal } from "solid-js";
-import { MoreHorizontal, Plus, ChevronRight } from "lucide-solid";
 import { Collapsible } from "@ark-ui/solid/collapsible";
 import { Tooltip } from "@ark-ui/solid/tooltip";
+import { ChevronRight, MoreHorizontal, Plus } from "lucide-solid";
+import { createSignal, For, Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import TaskCard from "./task-card";
 import type { Task } from "~/stores/task-store";
+import TaskCard from "./task-card";
 
 interface TaskColumnProps {
   id: string;
@@ -60,7 +60,9 @@ export default function TaskColumn(props: TaskColumnProps) {
         <Collapsible.Trigger class="flex items-center gap-1 text-xs font-medium uppercase tracking-wider cursor-pointer hover:opacity-80 transition-opacity">
           <span class={props.headerColorClass}>
             {props.title}{" "}
-            <span class={`px-1.5 rounded ml-1 ${props.badgeBgClass}`}>{props.count}</span>
+            <span class={`px-1.5 rounded ml-1 ${props.badgeBgClass}`}>
+              {props.count}
+            </span>
           </span>
           <Collapsible.Indicator class="transition-transform duration-200 data-[state=open]:rotate-90">
             <ChevronRight size={12} />
@@ -85,9 +87,7 @@ export default function TaskColumn(props: TaskColumnProps) {
           onDragOver={handleDragOver}
           onDrop={handleDrop}
         >
-          <For each={props.tasks}>
-            {(task) => <TaskCard task={task} />}
-          </For>
+          <For each={props.tasks}>{(task) => <TaskCard task={task} />}</For>
         </div>
       </Collapsible.Content>
       <Show when={props.showAddTask}>

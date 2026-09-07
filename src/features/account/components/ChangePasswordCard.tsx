@@ -1,8 +1,8 @@
-import { createSignal, Show } from "solid-js";
 import { Field } from "@ark-ui/solid/field";
 import type { LucideIcon } from "lucide-solid";
-import { authClient } from "~/lib/auth-client";
+import { createSignal, Show } from "solid-js";
 import { SectionCard } from "~/features/settings/components/SectionCard";
+import { authClient } from "~/lib/auth-client";
 
 interface ChangePasswordCardProps {
   icon: LucideIcon;
@@ -79,7 +79,9 @@ export function ChangePasswordCard(props: ChangePasswordCardProps) {
       });
 
       if (changeError) {
-        setError(changeError.message || "Failed to change password. Please try again.");
+        setError(
+          changeError.message || "Failed to change password. Please try again.",
+        );
         return;
       }
 

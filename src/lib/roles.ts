@@ -1,10 +1,26 @@
 export const ROLE_DEFINITIONS = [
-  { value: "admin", label: "Admin", description: "Full access to all features" },
+  {
+    value: "admin",
+    label: "Admin",
+    description: "Full access to all features",
+  },
   { value: "member", label: "Member", description: "Standard team member" },
   { value: "designer", label: "Designer", description: "Design-focused role" },
-  { value: "developer", label: "Developer", description: "Development-focused role" },
-  { value: "manager", label: "Manager", description: "Project management role" },
-  { value: "marketing", label: "Marketing", description: "Marketing-focused role" },
+  {
+    value: "developer",
+    label: "Developer",
+    description: "Development-focused role",
+  },
+  {
+    value: "manager",
+    label: "Manager",
+    description: "Project management role",
+  },
+  {
+    value: "marketing",
+    label: "Marketing",
+    description: "Marketing-focused role",
+  },
 ] as const;
 
 export type UserRole = (typeof ROLE_DEFINITIONS)[number]["value"];

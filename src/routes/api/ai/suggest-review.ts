@@ -59,7 +59,10 @@ export async function POST(event: APIEvent) {
 
       if (!reviewLimit.allowed) {
         return Response.json(
-          { error: "Rate limit exceeded for this review. Please try again later." },
+          {
+            error:
+              "Rate limit exceeded for this review. Please try again later.",
+          },
           { status: 429 },
         );
       }

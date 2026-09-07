@@ -1,13 +1,16 @@
+import type { LucideProps } from "lucide-solid";
 import Briefcase from "lucide-solid/icons/briefcase";
 import Check from "lucide-solid/icons/check";
 import Coffee from "lucide-solid/icons/coffee";
 import MessageSquare from "lucide-solid/icons/message-square";
 import Star from "lucide-solid/icons/star";
 import X from "lucide-solid/icons/x";
-import { Show } from "solid-js";
 import type { Component } from "solid-js";
-import type { LucideProps } from "lucide-solid";
-import type { ReviewSuggestion, SuggestionTone } from "@/features/reviews/review-types";
+import { Show } from "solid-js";
+import type {
+  ReviewSuggestion,
+  SuggestionTone,
+} from "@/features/reviews/review-types";
 
 interface ToneConfig {
   icon: Component<LucideProps>;

@@ -1,6 +1,6 @@
-import { createEffect, createSignal, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 import { useNavigate, useSearchParams } from "@solidjs/router";
+import { createEffect, createSignal, Show } from "solid-js";
 import { authClient } from "~/lib/auth-client";
 import { withInvite } from "~/lib/invite-redirect";
 
@@ -9,12 +9,16 @@ export default function AcceptInvitePage() {
   const [searchParams] = useSearchParams();
   const session = authClient.useSession();
 
-  const [status, setStatus] = createSignal<"loading" | "error" | "success">("loading");
+  const [status, setStatus] = createSignal<"loading" | "error" | "success">(
+    "loading",
+  );
   const [errorMessage, setErrorMessage] = createSignal("");
 
   const getToken = () => {
     if (typeof window === "undefined") return null;
-    const raw = searchParams.token ?? new URLSearchParams(window.location.search).get("token");
+    const raw =
+      searchParams.token ??
+      new URLSearchParams(window.location.search).get("token");
     if (Array.isArray(raw)) return raw[0];
     return raw;
   };
@@ -52,7 +56,9 @@ export default function AcceptInvitePage() {
     const token = getToken();
     if (!token) {
       setStarted(true);
-      setErrorMessage("No invitation token found. Please check your invitation link.");
+      setErrorMessage(
+        "No invitation token found. Please check your invitation link.",
+      );
       setStatus("error");
       return;
     }
@@ -81,12 +87,18 @@ export default function AcceptInvitePage() {
             fallback={
               status() === "success" ? (
                 <>
-                  <div class="text-lg font-medium text-foreground">Invitation accepted!</div>
-                  <p class="text-sm text-muted-foreground">Redirecting you to the dashboard...</p>
+                  <div class="text-lg font-medium text-foreground">
+                    Invitation accepted!
+                  </div>
+                  <p class="text-sm text-muted-foreground">
+                    Redirecting you to the dashboard...
+                  </p>
                 </>
               ) : (
                 <>
-                  <div class="text-lg font-medium text-destructive">Invitation failed</div>
+                  <div class="text-lg font-medium text-destructive">
+                    Invitation failed
+                  </div>
                   <p class="text-sm text-muted-foreground">{errorMessage()}</p>
                   <button
                     onClick={() => navigate("/dashboard")}
@@ -98,8 +110,12 @@ export default function AcceptInvitePage() {
               )
             }
           >
-            <div class="text-lg font-medium text-foreground">Accepting invitation...</div>
-            <p class="text-sm text-muted-foreground">Please wait while we process your request.</p>
+            <div class="text-lg font-medium text-foreground">
+              Accepting invitation...
+            </div>
+            <p class="text-sm text-muted-foreground">
+              Please wait while we process your request.
+            </p>
           </Show>
         </div>
       </main>

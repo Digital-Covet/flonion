@@ -1,6 +1,6 @@
-import { Show, type JSX } from "solid-js";
-import Sparkles from "lucide-solid/icons/sparkles";
 import type { LucideIcon } from "lucide-solid";
+import Sparkles from "lucide-solid/icons/sparkles";
+import { type JSX, Show } from "solid-js";
 
 interface SectionCardProps {
   title: string;

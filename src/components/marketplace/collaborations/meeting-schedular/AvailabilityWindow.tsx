@@ -1,5 +1,4 @@
 import { Switch } from "@ark-ui/solid/switch";
-import type { Component } from "solid-js";
 import type { AvailabilityWindowProps } from "~/types";
 
 function AvailabilityWindow(props: AvailabilityWindowProps) {
@@ -7,7 +6,9 @@ function AvailabilityWindow(props: AvailabilityWindowProps) {
     <div class="rounded-lg border border-border p-3 transition-colors hover:border-primary/40">
       <div class="mb-2 flex items-start justify-between gap-3">
         <div class="flex items-center gap-2">
-          <span class={`size-2 rounded-full ${props.active ? "bg-primary" : "bg-border"}`} />
+          <span
+            class={`size-2 rounded-full ${props.active ? "bg-primary" : "bg-border"}`}
+          />
           <h4 class="text-base">{props.title}</h4>
         </div>
         <Switch.Root

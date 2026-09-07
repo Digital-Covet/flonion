@@ -1,7 +1,7 @@
-import { createSignal, For, Show, type Component } from "solid-js";
 import { FileUpload } from "@ark-ui/solid/file-upload";
 import CloudUpload from "lucide-solid/icons/cloud-upload";
 import Trash2 from "lucide-solid/icons/trash-2";
+import { type Component, createSignal, For, Show } from "solid-js";
 
 interface LogoUploadProps {
   logo: string | null;
@@ -27,7 +27,8 @@ export const LogoUpload: Component<LogoUploadProps> = (props) => {
   return (
     <div class="flex flex-col gap-1.5">
       <span class="text-sm font-semibold text-foreground">
-        Business Logo <span class="font-normal text-muted-foreground">(Optional)</span>
+        Business Logo{" "}
+        <span class="font-normal text-muted-foreground">(Optional)</span>
       </span>
 
       <FileUpload.Root

@@ -1,10 +1,10 @@
-export { ProgressStepper } from "./ProgressStepper";
-export { CategoryChips } from "./CategoryChips";
-export { SectorSelect } from "./SectorSelect";
-export { LogoUpload } from "./LogoUpload";
-export { BasicsStep } from "./BasicsStep";
-export { PlatformsStep } from "./PlatformsStep";
-export { ReviewStep } from "./ReviewStep";
-export { InviteTeamStep } from "./InviteTeamStep";
 export type { BasicsData } from "./BasicsStep";
+export { BasicsStep } from "./BasicsStep";
+export { CategoryChips } from "./CategoryChips";
 export type { TeamInvite } from "./InviteTeamStep";
+export { InviteTeamStep } from "./InviteTeamStep";
+export { LogoUpload } from "./LogoUpload";
+export { PlatformsStep } from "./PlatformsStep";
+export { ProgressStepper } from "./ProgressStepper";
+export { ReviewStep } from "./ReviewStep";
+export { SectorSelect } from "./SectorSelect";

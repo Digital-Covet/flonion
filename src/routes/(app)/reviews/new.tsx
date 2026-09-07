@@ -1,5 +1,6 @@
-import CheckCircle from "lucide-solid/icons/check-circle";
+import { Title } from "@solidjs/meta";
 import AlertTriangle from "lucide-solid/icons/alert-triangle";
+import CheckCircle from "lucide-solid/icons/check-circle";
 import {
   createEffect,
   createSignal,
@@ -8,16 +9,15 @@ import {
   onMount,
   Show,
 } from "solid-js";
-import { Title } from "@solidjs/meta";
 import type {
   Rating,
   ReviewDraft,
   ReviewSuggestion,
   SharedReview,
 } from "@/features/reviews/review-types";
+import { QRCodeDisplay } from "~/components/review/qr-code-display";
 import { RecentReviewsWidget } from "~/components/review/recent-reviews-widget";
 import { ReviewComposer } from "~/components/review/review-composer";
-import { QRCodeDisplay } from "~/components/review/qr-code-display";
 import { SuggestionCard } from "~/components/review/suggestion-card";
 import { useSettings } from "~/stores/settings-store";
 
@@ -62,10 +62,10 @@ function isSuccessMessage(msg: string): boolean {
 }
 
 export default function LeaveReviewPage() {
-  const { logo, businessId, businessName, username, phone, address, keywords } = useSettings();
+  const { logo, businessId, businessName, username, phone, address, keywords } =
+    useSettings();
   const [draft, setDraft] = createSignal<ReviewDraft>(initialDraft);
-  const [suggestions, setSuggestions] =
-    createSignal<ReviewSuggestion[]>([]);
+  const [suggestions, setSuggestions] = createSignal<ReviewSuggestion[]>([]);
   const [statusMessage, setStatusMessage] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [cooldown, setCooldown] = createSignal(false);
@@ -296,7 +296,9 @@ export default function LeaveReviewPage() {
               AI Suggestions
             </h2>
             <Show when={loading()}>
-              <span class="text-xs text-muted-foreground animate-pulse">Thinking...</span>
+              <span class="text-xs text-muted-foreground animate-pulse">
+                Thinking...
+              </span>
             </Show>
           </div>
 
@@ -314,7 +316,8 @@ export default function LeaveReviewPage() {
 
             <Show when={suggestions().length === 0 && !loading()}>
               <p class="rounded-lg border border-dashed border-border bg-muted/40 px-4 py-5 text-sm text-muted-foreground">
-                Write a message and click Improve with AI to generate clearer, more engaging versions.
+                Write a message and click Improve with AI to generate clearer,
+                more engaging versions.
               </p>
             </Show>
           </div>
@@ -340,9 +343,17 @@ export default function LeaveReviewPage() {
           >
             <Show
               when={isSuccessMessage(statusMessage())}
-              fallback={<AlertTriangle class="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden="true" />}
+              fallback={
+                <AlertTriangle
+                  class="mt-0.5 size-4 shrink-0 text-destructive"
+                  aria-hidden="true"
+                />
+              }
             >
-              <CheckCircle class="mt-0.5 size-4 shrink-0 text-positive" aria-hidden="true" />
+              <CheckCircle
+                class="mt-0.5 size-4 shrink-0 text-positive"
+                aria-hidden="true"
+              />
             </Show>
             <p class="flex-1">{statusMessage()}</p>
           </div>

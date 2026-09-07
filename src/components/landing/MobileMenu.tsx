@@ -1,7 +1,7 @@
 import { Drawer, type DrawerOpenChangeDetails } from "@ark-ui/solid/drawer";
 import X from "lucide-solid/icons/x";
-import { navLinks } from "~/constants/landing";
 import Wordmark from "~/assets/wordmark";
+import { navLinks } from "~/constants/landing";
 
 interface MobileMenuProps {
   open: boolean;
@@ -24,11 +24,7 @@ export default function MobileMenu(props: MobileMenuProps) {
             </Drawer.Grabber>
 
             <div class="flex items-center justify-between px-4 pb-6">
-              <a
-                class="flex items-center"
-                href="#"
-                onClick={props.onClose}
-              >
+              <a class="flex items-center" href="#" onClick={props.onClose}>
                 <Wordmark class="h-8" />
               </a>
               <Drawer.CloseTrigger
@@ -39,7 +35,10 @@ export default function MobileMenu(props: MobileMenuProps) {
               </Drawer.CloseTrigger>
             </div>
 
-            <nav class="mb-10 flex flex-1 flex-col gap-6 px-4" aria-label="Mobile navigation">
+            <nav
+              class="mb-10 flex flex-1 flex-col gap-6 px-4"
+              aria-label="Mobile navigation"
+            >
               {navLinks.map((link) => (
                 <a
                   class="text-xl text-card-foreground transition-colors hover:text-primary"

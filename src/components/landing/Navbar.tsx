@@ -1,7 +1,7 @@
-import Menu from "lucide-solid/icons/menu";
 import { A } from "@solidjs/router";
-import { navLinks } from "~/constants/landing";
+import Menu from "lucide-solid/icons/menu";
 import InlineCombinationMark from "~/assets/inline-combination-mark";
+import { navLinks } from "~/constants/landing";
 
 interface NavbarProps {
   mobileMenuOpen: boolean;
@@ -12,11 +12,7 @@ export default function Navbar(props: NavbarProps) {
   return (
     <nav class="fixed top-0 z-50 w-full border-b border-border bg-card/80 shadow-sm backdrop-blur-md">
       <div class="w-full flex items-center justify-between px-4 py-4 md:px-16">
-        <a
-          class="flex items-center"
-          href="#"
-          aria-label="Flonion home"
-        >
+        <a class="flex items-center" href="#" aria-label="Flonion home">
           <InlineCombinationMark class="h-4" />
         </a>
 

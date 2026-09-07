@@ -1,8 +1,8 @@
-import { For, Show, createResource, createMemo } from "solid-js";
 import { ChevronLeft, ChevronRight } from "lucide-solid";
-import SectionShell from "./SectionShell";
-import CalendarEvent from "./CalendarEvent";
+import { createResource, For, Show } from "solid-js";
 import type { CalendarEventTone } from "~/types";
+import CalendarEvent from "./CalendarEvent";
+import SectionShell from "./SectionShell";
 
 interface WeeklyCalendarProps {
   weekOffset: number;
@@ -91,7 +91,10 @@ function WeeklyCalendar(props: WeeklyCalendarProps) {
     );
   };
 
-  const hours = Array.from({ length: SLOT_COUNT + 1 }, (_, index) => DAY_START + index);
+  const hours = Array.from(
+    { length: SLOT_COUNT + 1 },
+    (_, index) => DAY_START + index,
+  );
   const bodyHeight = `${SLOT_COUNT * SLOT_REM}rem`;
   const hourLines = `repeating-linear-gradient(to bottom, var(--color-border) 0, var(--color-border) 1px, transparent 1px, transparent ${SLOT_REM}rem)`;
 
@@ -122,7 +125,8 @@ function WeeklyCalendar(props: WeeklyCalendarProps) {
     });
   };
 
-  const offsetPercent = (startHour: number) => ((startHour - DAY_START) / SLOT_COUNT) * 100;
+  const offsetPercent = (startHour: number) =>
+    ((startHour - DAY_START) / SLOT_COUNT) * 100;
   const heightPercent = (durationMinutes: number) =>
     (durationMinutes / (SLOT_COUNT * 60)) * 100;
 
@@ -209,7 +213,7 @@ function WeeklyCalendar(props: WeeklyCalendarProps) {
             </div>
 
             <For each={DAYS}>
-              {(day, index) => (
+              {(_day, index) => (
                 <div
                   class={`group/day relative border-r border-border/60 last:border-r-0 ${isToday(index()) ? "bg-primary/5" : ""}`}
                   style={{ height: bodyHeight, "background-image": hourLines }}

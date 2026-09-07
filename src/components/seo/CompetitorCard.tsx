@@ -1,11 +1,11 @@
-import { type Component, For } from 'solid-js'
-import Users from 'lucide-solid/icons/users'
-import Star from 'lucide-solid/icons/star'
-import type { Competitor } from '~/features/seo/seo-types'
-import { scoreColor } from '~/features/seo/seo-data'
+import Star from "lucide-solid/icons/star";
+import Users from "lucide-solid/icons/users";
+import { type Component, For } from "solid-js";
+import { scoreColor } from "~/features/seo/seo-data";
+import type { Competitor } from "~/features/seo/seo-types";
 
 interface CompetitorCardProps {
-  competitors: Competitor[]
+  competitors: Competitor[];
 }
 
 const CompetitorItem: Component<{ competitor: Competitor }> = (props) => (
@@ -26,19 +26,29 @@ const CompetitorItem: Component<{ competitor: Competitor }> = (props) => (
           {(i) => (
             <Star
               size={12}
-              class={i <= Math.round(props.competitor.rating) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}
+              class={
+                i <= Math.round(props.competitor.rating)
+                  ? "fill-amber-400 text-amber-400"
+                  : "text-slate-200"
+              }
             />
           )}
         </For>
       </div>
-      <span class="text-sm font-semibold text-slate-900">{props.competitor.rating}</span>
-      <span class="text-xs text-slate-500">({props.competitor.reviewCount})</span>
+      <span class="text-sm font-semibold text-slate-900">
+        {props.competitor.rating}
+      </span>
+      <span class="text-xs text-slate-500">
+        ({props.competitor.reviewCount})
+      </span>
     </div>
 
     <div class="mb-4">
       <div class="mb-1 flex items-center justify-between text-xs text-slate-500">
         <span>Profile completeness</span>
-        <span class="font-medium text-slate-700">{props.competitor.profileCompleteness}%</span>
+        <span class="font-medium text-slate-700">
+          {props.competitor.profileCompleteness}%
+        </span>
       </div>
       <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
         <div
@@ -58,7 +68,7 @@ const CompetitorItem: Component<{ competitor: Competitor }> = (props) => (
       </For>
     </div>
   </div>
-)
+);
 
 const CompetitorCard: Component<CompetitorCardProps> = (props) => (
   <div>
@@ -77,6 +87,6 @@ const CompetitorCard: Component<CompetitorCardProps> = (props) => (
       </For>
     </div>
   </div>
-)
+);
 
-export default CompetitorCard
+export default CompetitorCard;

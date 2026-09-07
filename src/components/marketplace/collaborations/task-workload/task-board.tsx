@@ -1,13 +1,33 @@
-import { For } from "solid-js";
 import { LayoutDashboard } from "lucide-solid";
-import TaskColumn from "./task-column";
+import { For } from "solid-js";
 import { useTaskContext } from "~/stores/task-store";
+import TaskColumn from "./task-column";
 
 const columns = [
-  { id: "todo", title: "To Do", headerColorClass: "text-muted-foreground", badgeBgClass: "bg-border text-muted-foreground" },
-  { id: "in_progress", title: "In Progress", headerColorClass: "text-primary", badgeBgClass: "bg-primary/10 text-primary" },
-  { id: "waiting", title: "Waiting", headerColorClass: "text-orange", badgeBgClass: "bg-orange-muted text-orange" },
-  { id: "done", title: "Done", headerColorClass: "text-positive", badgeBgClass: "bg-positive-muted text-positive" },
+  {
+    id: "todo",
+    title: "To Do",
+    headerColorClass: "text-muted-foreground",
+    badgeBgClass: "bg-border text-muted-foreground",
+  },
+  {
+    id: "in_progress",
+    title: "In Progress",
+    headerColorClass: "text-primary",
+    badgeBgClass: "bg-primary/10 text-primary",
+  },
+  {
+    id: "waiting",
+    title: "Waiting",
+    headerColorClass: "text-orange",
+    badgeBgClass: "bg-orange-muted text-orange",
+  },
+  {
+    id: "done",
+    title: "Done",
+    headerColorClass: "text-positive",
+    badgeBgClass: "bg-positive-muted text-positive",
+  },
 ];
 
 interface TaskBoardProps {

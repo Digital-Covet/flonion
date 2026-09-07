@@ -16,7 +16,7 @@ export const REVIEW_PLATFORMS: ReviewPlatform[] = [
   {
     slug: "justdial",
     label: "JustDial",
-    placeholder: "https://www.justdial.com/..." ,
+    placeholder: "https://www.justdial.com/...",
     color: "#F57224",
   },
   {

@@ -1,7 +1,7 @@
-import { Show } from "solid-js";
-import X from "lucide-solid/icons/x";
 import AlertTriangle from "lucide-solid/icons/alert-triangle";
 import Loader2 from "lucide-solid/icons/loader-2";
+import X from "lucide-solid/icons/x";
+import { Show } from "solid-js";
 
 interface DisconnectConfirmModalProps {
   isOpen: boolean;
@@ -37,9 +37,13 @@ export function DisconnectConfirmModal(props: DisconnectConfirmModalProps) {
                 Disconnect Google Account
               </h3>
               <p class="mt-1 text-sm leading-5 text-muted-foreground">
-                Disconnecting will unlink your Google account and revoke access for both{" "}
-                <span class="font-medium text-foreground">Google Business Profile</span> and{" "}
-                <span class="font-medium text-foreground">Google Meet</span>.
+                Disconnecting will unlink your Google account and revoke access
+                for both{" "}
+                <span class="font-medium text-foreground">
+                  Google Business Profile
+                </span>{" "}
+                and <span class="font-medium text-foreground">Google Meet</span>
+                .
               </p>
             </div>
           </div>

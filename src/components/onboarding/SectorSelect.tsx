@@ -1,9 +1,9 @@
 import { Field } from "@ark-ui/solid/field";
-import { Select, createListCollection } from "@ark-ui/solid/select";
-import { For, Show, type Component } from "solid-js";
-import { Portal } from "solid-js/web";
+import { createListCollection, Select } from "@ark-ui/solid/select";
 import Check from "lucide-solid/icons/check";
 import ChevronDown from "lucide-solid/icons/chevron-down";
+import { type Component, For, Show } from "solid-js";
+import { Portal } from "solid-js/web";
 
 export const sectors: string[] = [
   "Agriculture",
@@ -49,48 +49,48 @@ export const SectorSelect: Component<SectorSelectProps> = (props) => {
   return (
     <>
       <Select.Root
-      collection={sectorCollection}
-      value={props.value ? [props.value] : []}
-      onValueChange={(details) => props.onChange(details.value[0] ?? "")}
-      positioning={{ placement: "bottom-start", sameWidth: true }}
-    >
-      <Select.Label class="text-sm font-semibold text-foreground">
-        Business Sector
-      </Select.Label>
-      <Select.Control>
-        <Select.Trigger class={triggerClass}>
-          <Select.ValueText
-            placeholder="Select your business sector"
-            class={props.value ? "text-foreground" : "text-muted-foreground"}
-          />
-          <ChevronDown
-            class="size-4 shrink-0 text-muted-foreground"
-            aria-hidden="true"
-          />
-        </Select.Trigger>
-      </Select.Control>
+        collection={sectorCollection}
+        value={props.value ? [props.value] : []}
+        onValueChange={(details) => props.onChange(details.value[0] ?? "")}
+        positioning={{ placement: "bottom-start", sameWidth: true }}
+      >
+        <Select.Label class="text-sm font-semibold text-foreground">
+          Business Sector
+        </Select.Label>
+        <Select.Control>
+          <Select.Trigger class={triggerClass}>
+            <Select.ValueText
+              placeholder="Select your business sector"
+              class={props.value ? "text-foreground" : "text-muted-foreground"}
+            />
+            <ChevronDown
+              class="size-4 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
+          </Select.Trigger>
+        </Select.Control>
 
-      <Portal>
-        <Select.Positioner>
-          <Select.Content class="z-50 mt-1 max-h-64 min-w-52 overflow-y-auto rounded-md border border-border bg-card p-1 shadow-sm">
-            <For each={sectorItems}>
-              {(item) => (
-                <Select.Item
-                  item={item}
-                  class="flex cursor-pointer items-center justify-between rounded-sm px-3 py-2 text-sm text-foreground outline-none data-highlighted:bg-muted"
-                >
-                  <Select.ItemText>{item.label}</Select.ItemText>
-                  <Select.ItemIndicator>
-                    <Check class="size-4 text-primary" aria-hidden="true" />
-                  </Select.ItemIndicator>
-                </Select.Item>
-              )}
-            </For>
-          </Select.Content>
-        </Select.Positioner>
-      </Portal>
+        <Portal>
+          <Select.Positioner>
+            <Select.Content class="z-50 mt-1 max-h-64 min-w-52 overflow-y-auto rounded-md border border-border bg-card p-1 shadow-sm">
+              <For each={sectorItems}>
+                {(item) => (
+                  <Select.Item
+                    item={item}
+                    class="flex cursor-pointer items-center justify-between rounded-sm px-3 py-2 text-sm text-foreground outline-none data-highlighted:bg-muted"
+                  >
+                    <Select.ItemText>{item.label}</Select.ItemText>
+                    <Select.ItemIndicator>
+                      <Check class="size-4 text-primary" aria-hidden="true" />
+                    </Select.ItemIndicator>
+                  </Select.Item>
+                )}
+              </For>
+            </Select.Content>
+          </Select.Positioner>
+        </Portal>
 
-      <Select.HiddenSelect />
+        <Select.HiddenSelect />
       </Select.Root>
 
       <Show when={props.value === "Other"}>

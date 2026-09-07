@@ -1,36 +1,34 @@
-import { createSignal, For, Index, onMount, Show } from "solid-js";
-import { Title } from "@solidjs/meta";
 import { TagsInput } from "@ark-ui/solid/tags-input";
+import { Title } from "@solidjs/meta";
+import ArrowRight from "lucide-solid/icons/arrow-right";
 import Building2 from "lucide-solid/icons/building-2";
-import Puzzle from "lucide-solid/icons/puzzle";
-import SlidersHorizontal from "lucide-solid/icons/sliders-horizontal";
-import Save from "lucide-solid/icons/save";
-import Zap from "lucide-solid/icons/zap";
-import X from "lucide-solid/icons/x";
-import Tags from "lucide-solid/icons/tags";
-import Link2 from "lucide-solid/icons/link-2";
 import CircleHelp from "lucide-solid/icons/circle-help";
 import ExternalLink from "lucide-solid/icons/external-link";
+import Link2 from "lucide-solid/icons/link-2";
 import Plus from "lucide-solid/icons/plus";
+import Puzzle from "lucide-solid/icons/puzzle";
+import Save from "lucide-solid/icons/save";
+import SlidersHorizontal from "lucide-solid/icons/sliders-horizontal";
+import Tags from "lucide-solid/icons/tags";
 import Users from "lucide-solid/icons/users";
-import ArrowRight from "lucide-solid/icons/arrow-right";
-import { SectionCard } from "./components/SectionCard";
-import { FormField } from "./components/FormField";
-import { ToggleRow } from "./components/ToggleRow";
-import { GoogleBusinessCard } from "./components/GoogleBusinessCard";
-import { GoogleMeetCard } from "./components/GoogleMeetCard";
-import { DisconnectConfirmModal } from "./components/DisconnectConfirmModal";
-import { LogoUploader } from "./components/LogoUploader";
+import X from "lucide-solid/icons/x";
+import Zap from "lucide-solid/icons/zap";
+import { createSignal, For, Index, onMount, Show } from "solid-js";
 import { SectorSelect, sectors } from "~/components/onboarding/SectorSelect";
 import { useSettings } from "~/stores/settings-store";
-import type { GoogleLocationData } from "./types";
+import { DisconnectConfirmModal } from "./components/DisconnectConfirmModal";
+import { FormField } from "./components/FormField";
+import { GoogleBusinessCard } from "./components/GoogleBusinessCard";
+import { GoogleMeetCard } from "./components/GoogleMeetCard";
+import { LogoUploader } from "./components/LogoUploader";
+import { SectionCard } from "./components/SectionCard";
+import { ToggleRow } from "./components/ToggleRow";
 import {
-  REVIEW_PLATFORMS,
-  getPlatformBySlug,
-  getPlatformLabel,
   CUSTOM_LABEL_KEY,
-  type ReviewLinksMap,
+  getPlatformBySlug,
+  REVIEW_PLATFORMS,
 } from "./review-platforms";
+import type { GoogleLocationData } from "./types";
 
 export function SettingsPage() {
   const {
@@ -190,14 +188,9 @@ export function SettingsPage() {
   };
 
   const selectedSector = () =>
-    sectors.includes(sector())
-      ? sector()
-      : sector()
-        ? "Other"
-        : "";
+    sectors.includes(sector()) ? sector() : sector() ? "Other" : "";
 
-  const customSectorValue = () =>
-    sectors.includes(sector()) ? "" : sector();
+  const customSectorValue = () => (sectors.includes(sector()) ? "" : sector());
 
   const handleSectorChange = (value: string) => {
     setSector(value === "Other" ? "Other" : value);
@@ -240,7 +233,9 @@ export function SettingsPage() {
       // through to "Saved!" while nothing had been written.
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setSaveError(data?.error ?? "Couldn't save your changes. Please try again.");
+        setSaveError(
+          data?.error ?? "Couldn't save your changes. Please try again.",
+        );
         return;
       }
 
@@ -289,7 +284,9 @@ export function SettingsPage() {
                 label="Username"
                 value={username()}
                 onInput={(e) =>
-                  setUsername((e.target as HTMLInputElement).value.toLowerCase())
+                  setUsername(
+                    (e.target as HTMLInputElement).value.toLowerCase(),
+                  )
                 }
               />
               <p class="mt-1 text-xs text-muted-foreground">
@@ -301,17 +298,13 @@ export function SettingsPage() {
               label="Phone Number"
               type="tel"
               value={phone()}
-              onInput={(e) =>
-                setPhone((e.target as HTMLInputElement).value)
-              }
+              onInput={(e) => setPhone((e.target as HTMLInputElement).value)}
             />
             <FormField
               id="address"
               label="Address"
               value={address()}
-              onInput={(e) =>
-                setAddress((e.target as HTMLInputElement).value)
-              }
+              onInput={(e) => setAddress((e.target as HTMLInputElement).value)}
               class="md:col-span-2"
             />
             <FormField
@@ -367,8 +360,8 @@ export function SettingsPage() {
 
         <SectionCard title="Review Links" icon={Link2}>
           <p class="mb-4 text-sm text-muted-foreground">
-            Add review links for each platform. Customers will be directed to these
-            links after submitting their feedback.
+            Add review links for each platform. Customers will be directed to
+            these links after submitting their feedback.
           </p>
 
           <a
@@ -396,7 +389,9 @@ export function SettingsPage() {
                       style={{ "background-color": platform.color }}
                     >
                       {platform.isCustom && reviewLinks()[CUSTOM_LABEL_KEY]
-                        ? reviewLinks()[CUSTOM_LABEL_KEY].charAt(0).toUpperCase()
+                        ? reviewLinks()
+                            [CUSTOM_LABEL_KEY].charAt(0)
+                            .toUpperCase()
                         : platform.label.charAt(0)}
                     </div>
                     <div class="flex-1 space-y-3">
@@ -410,9 +405,8 @@ export function SettingsPage() {
                           onInput={(e) =>
                             setReviewLinks((prev) => ({
                               ...prev,
-                              [CUSTOM_LABEL_KEY]: (
-                                e.target as HTMLInputElement
-                              ).value,
+                              [CUSTOM_LABEL_KEY]: (e.target as HTMLInputElement)
+                                .value,
                             }))
                           }
                         />
@@ -422,7 +416,7 @@ export function SettingsPage() {
                         label={
                           platform.isCustom && reviewLinks()[CUSTOM_LABEL_KEY]
                             ? reviewLinks()[CUSTOM_LABEL_KEY]
-                            : platform.label + " Review Link"
+                            : `${platform.label} Review Link`
                         }
                         value={reviewLinks()[slug] ?? ""}
                         placeholder={platform.placeholder}
@@ -625,7 +619,11 @@ export function SettingsPage() {
               disabled={saving()}
             >
               <Save size={18} />
-              {saving() ? "Saving..." : saveSuccess() ? "Saved!" : "Save Changes"}
+              {saving()
+                ? "Saving..."
+                : saveSuccess()
+                  ? "Saved!"
+                  : "Save Changes"}
             </button>
           </div>
         </Show>

@@ -1,5 +1,5 @@
-import type { Component } from "solid-js";
 import type { LucideProps } from "lucide-solid";
+import type { Component } from "solid-js";
 
 export type Rating = 0 | 1 | 2 | 3 | 4 | 5;
 

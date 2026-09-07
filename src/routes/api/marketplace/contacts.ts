@@ -1,7 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
 import { getCompanyContacts } from "~/lib/company-profile";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 export async function GET(event: APIEvent) {
   const url = new URL(event.request.url);
@@ -32,7 +32,10 @@ export async function POST(event: APIEvent) {
     const { businessId, contacts } = body;
 
     if (typeof businessId !== "string" || !businessId) {
-      return Response.json({ error: "businessId is required" }, { status: 400 });
+      return Response.json(
+        { error: "businessId is required" },
+        { status: 400 },
+      );
     }
 
     if (!Array.isArray(contacts) || contacts.length === 0) {
@@ -52,22 +55,27 @@ export async function POST(event: APIEvent) {
     }
 
     const created = await prisma.businessContact.createMany({
-      data: contacts.map((c: { name: string; role: string; avatarUrl?: string; email?: string; position?: number }) => ({
-        businessId,
-        name: c.name,
-        role: c.role,
-        avatarUrl: c.avatarUrl ?? null,
-        email: c.email ?? null,
-        position: c.position ?? 0,
-      })),
+      data: contacts.map(
+        (c: {
+          name: string;
+          role: string;
+          avatarUrl?: string;
+          email?: string;
+          position?: number;
+        }) => ({
+          businessId,
+          name: c.name,
+          role: c.role,
+          avatarUrl: c.avatarUrl ?? null,
+          email: c.email ?? null,
+          position: c.position ?? 0,
+        }),
+      ),
     });
 
     return Response.json({ created: created.count });
   } catch {
-    return Response.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 }
 
@@ -86,7 +94,10 @@ export async function PATCH(event: APIEvent) {
     }
 
     if (typeof businessId !== "string" || !businessId) {
-      return Response.json({ error: "businessId is required" }, { status: 400 });
+      return Response.json(
+        { error: "businessId is required" },
+        { status: 400 },
+      );
     }
 
     const business = await prisma.business.findUnique({
@@ -123,10 +134,7 @@ export async function PATCH(event: APIEvent) {
 
     return Response.json({ contact: updated });
   } catch {
-    return Response.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 }
 
@@ -145,7 +153,10 @@ export async function DELETE(event: APIEvent) {
     }
 
     if (typeof businessId !== "string" || !businessId) {
-      return Response.json({ error: "businessId is required" }, { status: 400 });
+      return Response.json(
+        { error: "businessId is required" },
+        { status: 400 },
+      );
     }
 
     const business = await prisma.business.findUnique({
@@ -161,9 +172,6 @@ export async function DELETE(event: APIEvent) {
 
     return Response.json({ deleted: true });
   } catch {
-    return Response.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 }

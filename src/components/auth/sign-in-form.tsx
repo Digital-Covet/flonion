@@ -1,27 +1,27 @@
+import { Field } from "@ark-ui/solid/field";
+import { PasswordInput } from "@ark-ui/solid/password-input";
+import Check from "lucide-solid/icons/check";
+import EyeIcon from "lucide-solid/icons/eye";
+import EyeOffIcon from "lucide-solid/icons/eye-off";
+import LoaderCircleIcon from "lucide-solid/icons/loader-circle";
+import LogIn from "lucide-solid/icons/log-in";
 import {
+  type Component,
   createSignal,
+  Match,
   onCleanup,
   Switch,
-  Match,
-  type Component,
-} from 'solid-js';
-import { Field } from '@ark-ui/solid/field';
-import { PasswordInput } from '@ark-ui/solid/password-input';
-import EyeIcon from 'lucide-solid/icons/eye';
-import EyeOffIcon from 'lucide-solid/icons/eye-off';
-import LogIn from 'lucide-solid/icons/log-in';
-import LoaderCircleIcon from 'lucide-solid/icons/loader-circle';
-import Check from 'lucide-solid/icons/check';
-import type { FormStatus, SignInFormProps } from '@/types/auth-ui';
-import { authErrorCode, EMAIL_NOT_VERIFIED } from '@/lib/auth-errors';
+} from "solid-js";
+import { authErrorCode, EMAIL_NOT_VERIFIED } from "@/lib/auth-errors";
+import type { FormStatus, SignInFormProps } from "@/types/auth-ui";
 
 const SUBMISSION_DELAY_MS = 1200;
 const SUCCESS_RESET_DELAY_MS = 2000;
 
 export const SignInForm: Component<SignInFormProps> = (props) => {
-  const [status, setStatus] = createSignal<FormStatus>('idle');
-  const [email, setEmail] = createSignal('');
-  const [password, setPassword] = createSignal('');
+  const [status, setStatus] = createSignal<FormStatus>("idle");
+  const [email, setEmail] = createSignal("");
+  const [password, setPassword] = createSignal("");
   const [errorMessage, setErrorMessage] = createSignal<string | null>(null);
   const [errorCode, setErrorCode] = createSignal<string | null>(null);
 
@@ -30,13 +30,13 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
     if (successTimer) clearTimeout(successTimer);
   });
 
-  const isInteractive = () => status() === 'idle';
+  const isInteractive = () => status() === "idle";
 
   const handleSubmit = async (event: SubmitEvent) => {
     event.preventDefault();
     if (!isInteractive()) return;
 
-    setStatus('loading');
+    setStatus("loading");
     setErrorMessage(null);
     setErrorCode(null);
 
@@ -45,18 +45,18 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
         setTimeout(resolve, SUBMISSION_DELAY_MS),
       );
       await props.onSubmit?.(email(), password());
-      setStatus('success');
+      setStatus("success");
       successTimer = setTimeout(() => {
-        setStatus('idle');
-        setEmail('');
-        setPassword('');
+        setStatus("idle");
+        setEmail("");
+        setPassword("");
       }, SUCCESS_RESET_DELAY_MS);
     } catch (e: any) {
-      const message = e?.message ?? 'Sign in failed. Please try again.';
+      const message = e?.message ?? "Sign in failed. Please try again.";
       setErrorMessage(message);
       setErrorCode(authErrorCode(e));
       props.onError?.(message);
-      setStatus('idle');
+      setStatus("idle");
     }
   };
 
@@ -93,8 +93,13 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
                 onInput={(event) => setPassword(event.currentTarget.value)}
                 class="w-full bg-transparent text-base text-foreground outline-none disabled:opacity-60"
               />
-              <PasswordInput.VisibilityTrigger disabled={!isInteractive()} class="ml-2 shrink-0 text-muted-foreground transition-colors hover:text-foreground">
-                <PasswordInput.Indicator fallback={<EyeOffIcon class="h-4 w-4" />}>
+              <PasswordInput.VisibilityTrigger
+                disabled={!isInteractive()}
+                class="ml-2 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <PasswordInput.Indicator
+                  fallback={<EyeOffIcon class="h-4 w-4" />}
+                >
                   <EyeIcon class="h-4 w-4" />
                 </PasswordInput.Indicator>
               </PasswordInput.VisibilityTrigger>
@@ -118,7 +123,7 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
 
         <div class="flex justify-end">
           <a
-            href={props.forgotPasswordHref ?? '/forgot-password'}
+            href={props.forgotPasswordHref ?? "/forgot-password"}
             class="text-base font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Forgot password?
@@ -128,34 +133,34 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
         <button
           type="submit"
           disabled={!isInteractive()}
-          aria-busy={status() === 'loading'}
+          aria-busy={status() === "loading"}
           aria-live="polite"
           class="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary py-4 font-semibold text-primary-foreground transition-all hover:bg-primary-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:active:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
-          <Switch fallback={<span>{props.submitLabel ?? 'Sign in'}</span>}>
-            <Match when={status() === 'loading'}>
+          <Switch fallback={<span>{props.submitLabel ?? "Sign in"}</span>}>
+            <Match when={status() === "loading"}>
               <LoaderCircleIcon class="h-5 w-5 animate-spin" />
               <span>Signing in...</span>
             </Match>
-            <Match when={status() === 'success'}>
+            <Match when={status() === "success"}>
               <Check class="h-5 w-5" />
               <span>Success!</span>
             </Match>
-            <Match when={status() === 'idle'}>
+            <Match when={status() === "idle"}>
               <LogIn class="h-4 w-4" />
-              <span>{props.submitLabel ?? 'Sign in'}</span>
+              <span>{props.submitLabel ?? "Sign in"}</span>
             </Match>
           </Switch>
         </button>
       </form>
 
       <p class="mt-6 text-center text-base text-muted-foreground">
-        {props.redirectText ?? "Don't have an account?"}{' '}
+        {props.redirectText ?? "Don't have an account?"}{" "}
         <a
-          href={props.redirectTo ?? '/signup'}
+          href={props.redirectTo ?? "/signup"}
           class="font-semibold text-foreground transition-colors hover:text-primary"
         >
-          {props.redirectLabel ?? 'Sign up'}
+          {props.redirectLabel ?? "Sign up"}
         </a>
       </p>
     </div>

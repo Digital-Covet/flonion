@@ -1,10 +1,37 @@
-import { createSignal, createMemo, createEffect, createResource, onCleanup, For, Show } from "solid-js";
-import { isServer } from "solid-js/web";
-import { ArrowUpDown, Search, SearchX, SlidersHorizontal, Star, ChevronLeft, ChevronRight } from "lucide-solid";
 import { Menu } from "@ark-ui/solid/menu";
+import {
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  SearchX,
+  SlidersHorizontal,
+  Star,
+} from "lucide-solid";
+import {
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+} from "solid-js";
+import { isServer } from "solid-js/web";
 import PartnerCard from "~/components/marketplace/partner-card";
-import { fetchPartners, PAGE_SIZE, RATING_MIN, RATING_MAX, RATING_FILTER_PRESETS } from "./data/partners";
-import type { Partner, PartnerRaw, SortKey, RatingRange } from "~/types/marketplace";
+import type {
+  Partner,
+  PartnerRaw,
+  RatingRange,
+  SortKey,
+} from "~/types/marketplace";
+import {
+  fetchPartners,
+  PAGE_SIZE,
+  RATING_FILTER_PRESETS,
+  RATING_MAX,
+  RATING_MIN,
+} from "./data/partners";
 
 const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "rating", label: "Rating" },
@@ -42,7 +69,10 @@ function mapPartner(raw: PartnerRaw, favoritedIds: Set<string>): Partner {
 
 export default function App() {
   const [categories, setCategories] = createSignal<string[]>([]);
-  const [ratingRange, setRatingRange] = createSignal<RatingRange>({ min: RATING_MIN, max: RATING_MAX });
+  const [ratingRange, setRatingRange] = createSignal<RatingRange>({
+    min: RATING_MIN,
+    max: RATING_MAX,
+  });
   const [sort, setSort] = createSignal<SortKey>("rating");
   const [searchQuery, setSearchQuery] = createSignal("");
   const [debouncedQuery, setDebouncedQuery] = createSignal("");
@@ -100,37 +130,53 @@ export default function App() {
 
   const partners = createMemo(() => {
     const favoritedIds = new Set<string>(favoritesData() ?? []);
-    return (data.latest?.partners ?? []).map((raw) => mapPartner(raw, favoritedIds));
+    return (data.latest?.partners ?? []).map((raw) =>
+      mapPartner(raw, favoritedIds),
+    );
   });
   const totalCount = createMemo(() => data.latest?.totalCount ?? 0);
-  const allCategories = createMemo(() => data.latest?.categories?.filter((c) => c !== "All Categories") ?? []);
+  const allCategories = createMemo(
+    () => data.latest?.categories?.filter((c) => c !== "All Categories") ?? [],
+  );
 
-  const totalPages = createMemo(() => Math.max(1, Math.ceil(totalCount() / PAGE_SIZE)));
+  const totalPages = createMemo(() =>
+    Math.max(1, Math.ceil(totalCount() / PAGE_SIZE)),
+  );
 
   const toggleCategory = (category: string) => {
     setCategories((prev) =>
-      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category],
+      prev.includes(category)
+        ? prev.filter((c) => c !== category)
+        : [...prev, category],
     );
   };
 
   const activeRatingPreset = createMemo(() => {
     const { min, max } = ratingRange();
-    return RATING_FILTER_PRESETS.find((p) => p.min === min && p.max === max) ?? RATING_FILTER_PRESETS[0];
+    return (
+      RATING_FILTER_PRESETS.find((p) => p.min === min && p.max === max) ??
+      RATING_FILTER_PRESETS[0]
+    );
   });
 
-  const chips = createMemo(() => {
+  const _chips = createMemo(() => {
     const result: { key: string; label: string }[] = [];
-    for (const c of categories()) result.push({ key: `cat:${c}`, label: `Category: ${c}` });
+    for (const c of categories())
+      result.push({ key: `cat:${c}`, label: `Category: ${c}` });
     const { min, max } = ratingRange();
     if (min > RATING_MIN || max < RATING_MAX) {
-      result.push({ key: "rating", label: `Rating: ${min.toFixed(1)} - ${max.toFixed(1)}` });
+      result.push({
+        key: "rating",
+        label: `Rating: ${min.toFixed(1)} - ${max.toFixed(1)}`,
+      });
     }
     return result;
   });
 
-  const removeChip = (key: string) => {
+  const _removeChip = (key: string) => {
     if (key.startsWith("cat:")) toggleCategory(key.slice(4));
-    else if (key === "rating") setRatingRange({ min: RATING_MIN, max: RATING_MAX });
+    else if (key === "rating")
+      setRatingRange({ min: RATING_MIN, max: RATING_MAX });
   };
 
   const clearAll = () => {
@@ -142,7 +188,6 @@ export default function App() {
 
   return (
     <div class="flex min-h-screen flex-col bg-background text-foreground">
-
       <main class="flex flex-1">
         {/* Main content area */}
         <div class="min-w-0 flex-1 p-4 sm:p-6 lg:p-8 lg:short:p-6">
@@ -151,9 +196,16 @@ export default function App() {
               <div class="mb-1 flex items-center gap-2">
                 <h1 class="text-foreground">Partners</h1>
               </div>
-              <p class="text-sm text-muted-foreground" role="status" aria-live="polite">
-                Showing <span class="font-semibold text-foreground">{partners().length}</span> of{" "}
-                {totalCount()} partners
+              <p
+                class="text-sm text-muted-foreground"
+                role="status"
+                aria-live="polite"
+              >
+                Showing{" "}
+                <span class="font-semibold text-foreground">
+                  {partners().length}
+                </span>{" "}
+                of {totalCount()} partners
               </p>
             </div>
 
@@ -208,7 +260,9 @@ export default function App() {
                       {(preset) => (
                         <Menu.Item
                           value={preset.label}
-                          onSelect={() => setRatingRange({ min: preset.min, max: preset.max })}
+                          onSelect={() =>
+                            setRatingRange({ min: preset.min, max: preset.max })
+                          }
                           class="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
                         >
                           {preset.label}
@@ -274,9 +328,9 @@ export default function App() {
                   type="button"
                   onClick={() => setCategories([])}
                   classList={{
-                    "shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors":
-                      true,
-                    "border-primary bg-primary/10 text-primary": categories().length === 0,
+                    "shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors": true,
+                    "border-primary bg-primary/10 text-primary":
+                      categories().length === 0,
                     "border-border text-muted-foreground hover:border-primary hover:text-primary":
                       categories().length > 0,
                   }}
@@ -289,9 +343,9 @@ export default function App() {
                       type="button"
                       onClick={() => toggleCategory(cat)}
                       classList={{
-                        "shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors":
-                          true,
-                        "border-primary bg-primary/10 text-primary": categories().includes(cat),
+                        "shrink-0 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors": true,
+                        "border-primary bg-primary/10 text-primary":
+                          categories().includes(cat),
                         "border-border text-muted-foreground hover:border-primary hover:text-primary":
                           !categories().includes(cat),
                       }}
@@ -317,7 +371,8 @@ export default function App() {
                     No partners found
                   </h3>
                   <p class="mb-6 max-w-xs text-sm text-muted-foreground">
-                    Try adjusting your search or clearing a few filters to see more results.
+                    Try adjusting your search or clearing a few filters to see
+                    more results.
                   </p>
                   <button
                     type="button"
@@ -346,7 +401,10 @@ export default function App() {
 
           {/* Pagination */}
           <Show when={totalPages() > 1}>
-            <nav class="mt-8 flex items-center justify-center gap-4" aria-label="Pagination">
+            <nav
+              class="mt-8 flex items-center justify-center gap-4"
+              aria-label="Pagination"
+            >
               <button
                 type="button"
                 disabled={page() <= 1}

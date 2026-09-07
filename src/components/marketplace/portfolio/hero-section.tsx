@@ -1,7 +1,6 @@
 import { Show } from "solid-js";
-import { GlassCard } from "./glass-card";
-import { Button } from "./button";
 import { Badge } from "./badge";
+import { Button } from "./button";
 import { MetaItem } from "./meta-item";
 
 interface HeroSectionProps {

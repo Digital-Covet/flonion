@@ -1,73 +1,73 @@
 export interface GoogleAccount {
-  name: string
-  accountId: string
-  accountName: string
-  type: string
-  role: string
-  state: string
+  name: string;
+  accountId: string;
+  accountName: string;
+  type: string;
+  role: string;
+  state: string;
 }
 
 export interface GoogleLocation {
-  name: string
-  locationId: string
-  displayName: string
-  primaryPhone: string
-  websiteUrl: string
-  category: string
-  address: string
+  name: string;
+  locationId: string;
+  displayName: string;
+  primaryPhone: string;
+  websiteUrl: string;
+  category: string;
+  address: string;
   addressComponents: {
-    street: string
-    city: string
-    state: string
-    postalCode: string
-  }
-  placeId: string
+    street: string;
+    city: string;
+    state: string;
+    postalCode: string;
+  };
+  placeId: string;
   metadata: {
-    canReview: boolean
-    canUpdateInsights: boolean
-  }
+    canReview: boolean;
+    canUpdateInsights: boolean;
+  };
   locationState: {
-    isGoogleUpdated: boolean
-    isGoogleVerified: boolean
-  }
+    isGoogleUpdated: boolean;
+    isGoogleVerified: boolean;
+  };
 }
 
 export interface GoogleReviewer {
-  displayName: string
-  profilePhotoUrl?: string
-  isAnonymous?: boolean
+  displayName: string;
+  profilePhotoUrl?: string;
+  isAnonymous?: boolean;
 }
 
 export interface GoogleReview {
-  reviewId: string
-  reviewer: GoogleReviewer
-  starRating: "ONE" | "TWO" | "THREE" | "FOUR" | "FIVE"
-  comment: string
-  createTime: string
-  updateTime: string
+  reviewId: string;
+  reviewer: GoogleReviewer;
+  starRating: "ONE" | "TWO" | "THREE" | "FOUR" | "FIVE";
+  comment: string;
+  createTime: string;
+  updateTime: string;
   reviewReply?: {
-    comment: string
-    updateTime: string
-  }
+    comment: string;
+    updateTime: string;
+  };
   reviewMedia?: Array<{
-    mediaUrl: string
-    mediaType: string
-  }>
+    mediaUrl: string;
+    mediaType: string;
+  }>;
 }
 
 export interface GoogleReviewsResponse {
-  reviews: GoogleReview[]
-  averageRating: number
-  totalReviewCount: number
-  nextPageToken?: string
+  reviews: GoogleReview[];
+  averageRating: number;
+  totalReviewCount: number;
+  nextPageToken?: string;
 }
 
 export interface GoogleLocationWithReviews extends GoogleLocation {
-  averageRating: number
-  totalReviewCount: number
+  averageRating: number;
+  totalReviewCount: number;
 }
 
-export type StarRating = 1 | 2 | 3 | 4 | 5
+export type StarRating = 1 | 2 | 3 | 4 | 5;
 
 export function googleStarRatingToNumber(rating: string): StarRating {
   const map: Record<string, StarRating> = {
@@ -76,8 +76,8 @@ export function googleStarRatingToNumber(rating: string): StarRating {
     THREE: 3,
     FOUR: 4,
     FIVE: 5,
-  }
-  return map[rating] ?? 3
+  };
+  return map[rating] ?? 3;
 }
 
 export function numberToGoogleStarRating(rating: StarRating): string {
@@ -87,6 +87,6 @@ export function numberToGoogleStarRating(rating: StarRating): string {
     3: "THREE",
     4: "FOUR",
     5: "FIVE",
-  }
-  return map[rating] ?? "THREE"
+  };
+  return map[rating] ?? "THREE";
 }

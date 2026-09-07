@@ -1,7 +1,13 @@
-import { For, Show, createSignal, type Component } from "solid-js";
 import CircleCheck from "lucide-solid/icons/circle-check";
+import { type Component, For, Show } from "solid-js";
 
-const categories = ["Restaurant", "Salon/Spa", "Retail", "Healthcare", "Other"] as const;
+const categories = [
+  "Restaurant",
+  "Salon/Spa",
+  "Retail",
+  "Healthcare",
+  "Other",
+] as const;
 
 interface CategoryChipsProps {
   value: string;
@@ -11,7 +17,9 @@ interface CategoryChipsProps {
 export const CategoryChips: Component<CategoryChipsProps> = (props) => {
   return (
     <fieldset class="flex flex-col gap-2">
-      <legend class="text-sm font-semibold text-foreground">Business Category</legend>
+      <legend class="text-sm font-semibold text-foreground">
+        Business Category
+      </legend>
       <div class="flex flex-wrap gap-2">
         <For each={categories}>
           {(category) => {
@@ -22,8 +30,10 @@ export const CategoryChips: Component<CategoryChipsProps> = (props) => {
                 type="button"
                 class="flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-semibold transition-colors"
                 classList={{
-                  "border-primary bg-primary text-primary-foreground": isSelected(),
-                  "border-border bg-background text-foreground hover:bg-muted": !isSelected(),
+                  "border-primary bg-primary text-primary-foreground":
+                    isSelected(),
+                  "border-border bg-background text-foreground hover:bg-muted":
+                    !isSelected(),
                 }}
                 aria-pressed={isSelected()}
                 onClick={() => props.onChange(category)}

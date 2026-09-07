@@ -1,14 +1,14 @@
-import { createSignal, Show } from "solid-js";
-import Video from "lucide-solid/icons/video";
-import ExternalLink from "lucide-solid/icons/external-link";
-import CheckCircle2 from "lucide-solid/icons/check-circle-2";
-import Loader2 from "lucide-solid/icons/loader-2";
-import Copy from "lucide-solid/icons/copy";
-import Check from "lucide-solid/icons/check";
 import Calendar from "lucide-solid/icons/calendar";
-import Users from "lucide-solid/icons/users";
+import Check from "lucide-solid/icons/check";
+import CheckCircle2 from "lucide-solid/icons/check-circle-2";
+import Copy from "lucide-solid/icons/copy";
+import ExternalLink from "lucide-solid/icons/external-link";
+import Loader2 from "lucide-solid/icons/loader-2";
 import Sparkles from "lucide-solid/icons/sparkles";
 import Unlink from "lucide-solid/icons/unlink";
+import Users from "lucide-solid/icons/users";
+import Video from "lucide-solid/icons/video";
+import { createSignal, Show } from "solid-js";
 
 interface GoogleMeetCardProps {
   connected?: boolean;
@@ -34,7 +34,8 @@ export function GoogleMeetCard(props: GoogleMeetCardProps) {
 
       if (!res.ok || !data.meetUri) {
         setGenerateError(
-          data.error || "Failed to create Google Meet link. Please re-authenticate."
+          data.error ||
+            "Failed to create Google Meet link. Please re-authenticate.",
         );
         return;
       }
@@ -96,8 +97,9 @@ export function GoogleMeetCard(props: GoogleMeetCardProps) {
           fallback={
             <div class="my-3 space-y-3">
               <p class="text-xs leading-relaxed text-muted-foreground">
-                Connect your Google account to automatically create instant Google Meet
-                links when marketplace clients book calls or team meetings are scheduled.
+                Connect your Google account to automatically create instant
+                Google Meet links when marketplace clients book calls or team
+                meetings are scheduled.
               </p>
               <button
                 type="button"
@@ -125,7 +127,10 @@ export function GoogleMeetCard(props: GoogleMeetCardProps) {
             <div class="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-3">
               <div class="flex items-center justify-between text-xs">
                 <span class="flex items-center gap-2 text-foreground font-medium">
-                  <Calendar size={14} class="text-teal-600 dark:text-teal-400" />
+                  <Calendar
+                    size={14}
+                    class="text-teal-600 dark:text-teal-400"
+                  />
                   Marketplace Bookings
                 </span>
                 <span class="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">

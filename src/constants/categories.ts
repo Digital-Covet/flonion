@@ -198,7 +198,7 @@ export const CATEGORY_KEYWORDS: Record<MarketplaceCategory, string[]> = {
     "home theater",
     "smart home",
   ],
-  "Automotive": [
+  Automotive: [
     "auto",
     "car",
     "vehicle",
@@ -491,7 +491,9 @@ export function matchBusinessToCategory(
   let bestMatch: MarketplaceCategory | null = null;
   let bestScore = 0;
 
-  for (const [category, categoryKeywords] of Object.entries(CATEGORY_KEYWORDS)) {
+  for (const [category, categoryKeywords] of Object.entries(
+    CATEGORY_KEYWORDS,
+  )) {
     let score = 0;
     for (const keyword of categoryKeywords) {
       if (searchText.includes(keyword.toLowerCase())) {

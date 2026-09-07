@@ -1,9 +1,9 @@
-import { createSignal, Show } from "solid-js";
 import { Field } from "@ark-ui/solid/field";
 import type { LucideIcon } from "lucide-solid";
 import ArrowRight from "lucide-solid/icons/arrow-right";
-import { authClient } from "~/lib/auth-client";
+import { createSignal, Show } from "solid-js";
 import { SectionCard } from "~/features/settings/components/SectionCard";
+import { authClient } from "~/lib/auth-client";
 
 interface ChangeEmailCardProps {
   icon: LucideIcon;
@@ -51,7 +51,9 @@ export function ChangeEmailCard(props: ChangeEmailCardProps) {
       });
 
       if (changeError) {
-        setError(changeError.message || "Failed to change email. Please try again.");
+        setError(
+          changeError.message || "Failed to change email. Please try again.",
+        );
         return;
       }
 

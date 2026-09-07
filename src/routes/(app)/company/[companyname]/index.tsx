@@ -1,16 +1,16 @@
-import { For, Show, createResource } from "solid-js";
 import { useParams } from "@solidjs/router";
+import { createResource, For, Show } from "solid-js";
 import {
+  ContactRow,
+  FeaturedBanner,
+  FeaturedProjectTile,
   GlassCard,
+  HeroSection,
+  Scheduler,
   SectionHeading,
+  ServiceTile,
   StarRating,
   StatTile,
-  ServiceTile,
-  FeaturedProjectTile,
-  ContactRow,
-  HeroSection,
-  FeaturedBanner,
-  Scheduler,
 } from "~/components/marketplace/portfolio";
 
 const RESERVED_ROUTES = new Set([
@@ -76,7 +76,9 @@ async function fetchBusiness(username: string): Promise<BusinessData | null> {
       const { getCompanyProfile } = await import("~/lib/company-profile");
       return await getCompanyProfile(username);
     }
-    const res = await fetch(`/api/marketplace/partner?username=${encodeURIComponent(username)}`);
+    const res = await fetch(
+      `/api/marketplace/partner?username=${encodeURIComponent(username)}`,
+    );
     if (!res.ok) return null;
     const data = await res.json();
     return data.partner ?? null;
@@ -92,7 +94,9 @@ async function fetchServices(businessId: string): Promise<ServiceData[]> {
       const { getCompanyServices } = await import("~/lib/company-profile");
       return await getCompanyServices(businessId);
     }
-    const res = await fetch(`/api/marketplace/services?businessId=${businessId}`);
+    const res = await fetch(
+      `/api/marketplace/services?businessId=${businessId}`,
+    );
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data.services) ? data.services : [];
@@ -108,7 +112,9 @@ async function fetchProjects(businessId: string): Promise<ProjectData[]> {
       const { getCompanyProjects } = await import("~/lib/company-profile");
       return await getCompanyProjects(businessId);
     }
-    const res = await fetch(`/api/marketplace/projects?businessId=${businessId}`);
+    const res = await fetch(
+      `/api/marketplace/projects?businessId=${businessId}`,
+    );
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data.projects) ? data.projects : [];
@@ -124,7 +130,9 @@ async function fetchContacts(businessId: string): Promise<ContactData[]> {
       const { getCompanyContacts } = await import("~/lib/company-profile");
       return await getCompanyContacts(businessId);
     }
-    const res = await fetch(`/api/marketplace/contacts?businessId=${businessId}`);
+    const res = await fetch(
+      `/api/marketplace/contacts?businessId=${businessId}`,
+    );
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data.contacts) ? data.contacts : [];
@@ -155,7 +163,8 @@ export const StudioProfile = () => {
               Profile not found
             </h3>
             <p class="mb-6 max-w-xs text-sm text-muted-foreground">
-              The studio you're looking for doesn't exist or isn't available yet.
+              The studio you're looking for doesn't exist or isn't available
+              yet.
             </p>
           </div>
         }
@@ -181,13 +190,11 @@ export const StudioProfile = () => {
               <Show
                 when={services() && services()!.length > 0}
                 fallback={
-                  <>
-                    <ServiceTile
-                      icon="box"
-                      title="No Services Listed"
-                      description="This studio hasn't added services yet."
-                    />
-                  </>
+                  <ServiceTile
+                    icon="box"
+                    title="No Services Listed"
+                    description="This studio hasn't added services yet."
+                  />
                 }
               >
                 <For each={services()}>

@@ -1,13 +1,13 @@
-import { getValidAccessToken, hasValidTokens } from "./google-tokens"
+import { getValidAccessToken, hasValidTokens } from "./google-tokens";
 
 export interface BusinessRating {
-  rating: number
-  reviewCount: number
+  rating: number;
+  reviewCount: number;
 }
 
 interface RawLocation {
-  name?: string
-  locationKey?: { placeId?: string }
+  name?: string;
+  locationKey?: { placeId?: string };
 }
 
 /**
@@ -24,39 +24,39 @@ async function findLocationParent(
   const accountsResponse = await fetch(
     "https://mybusinessbusinessinformation.googleapis.com/v1/accounts",
     { headers: { Authorization: `Bearer ${accessToken}` } },
-  )
+  );
 
-  if (!accountsResponse.ok) return null
+  if (!accountsResponse.ok) return null;
 
   const accountsData: { accounts?: Array<{ name?: string }> } =
-    await accountsResponse.json()
+    await accountsResponse.json();
 
   for (const account of accountsData.accounts ?? []) {
-    if (!account.name) continue
+    if (!account.name) continue;
 
     const locationsResponse = await fetch(
       `https://mybusinessbusinessinformation.googleapis.com/v1/${account.name}/locations`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
-    )
+    );
 
-    if (!locationsResponse.ok) continue
+    if (!locationsResponse.ok) continue;
 
     const locationsData: { locations?: RawLocation[] } =
-      await locationsResponse.json()
+      await locationsResponse.json();
 
     const match = locationsData.locations?.find(
       (loc) => loc.locationKey?.placeId === placeId,
-    )
+    );
 
     // `name` comes back as "locations/{id}"; the v4 reviews path wants it
     // nested under the account.
     if (match?.name) {
-      const locationId = match.name.split("/").pop()
-      if (locationId) return `${account.name}/locations/${locationId}`
+      const locationId = match.name.split("/").pop();
+      if (locationId) return `${account.name}/locations/${locationId}`;
     }
   }
 
-  return null
+  return null;
 }
 
 /**
@@ -70,33 +70,33 @@ export async function fetchBusinessRating(
   userId: string,
   placeId: string,
 ): Promise<BusinessRating | null> {
-  if (!placeId) return null
+  if (!placeId) return null;
 
   try {
-    if (!(await hasValidTokens(userId))) return null
+    if (!(await hasValidTokens(userId))) return null;
 
-    const accessToken = await getValidAccessToken(userId)
-    const parent = await findLocationParent(accessToken, placeId)
-    if (!parent) return null
+    const accessToken = await getValidAccessToken(userId);
+    const parent = await findLocationParent(accessToken, placeId);
+    if (!parent) return null;
 
     const reviewsResponse = await fetch(
       `https://mybusiness.googleapis.com/v4/${parent}/reviews?pageSize=1`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
-    )
+    );
 
-    if (!reviewsResponse.ok) return null
+    if (!reviewsResponse.ok) return null;
 
     const data: { averageRating?: number; totalReviewCount?: number } =
-      await reviewsResponse.json()
+      await reviewsResponse.json();
 
-    if (typeof data.averageRating !== "number") return null
+    if (typeof data.averageRating !== "number") return null;
 
     return {
       rating: data.averageRating,
       reviewCount: data.totalReviewCount ?? 0,
-    }
+    };
   } catch (err) {
-    console.error("[google-business-rating] lookup failed:", err)
-    return null
+    console.error("[google-business-rating] lookup failed:", err);
+    return null;
   }
 }

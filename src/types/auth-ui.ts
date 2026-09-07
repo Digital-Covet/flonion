@@ -1,4 +1,4 @@
-export type FormStatus = 'idle' | 'loading' | 'success';
+export type FormStatus = "idle" | "loading" | "success";
 
 export interface FooterLink {
   label: string;
@@ -15,7 +15,11 @@ export interface DividerProps {
 }
 
 export interface SignUpFormProps {
-  onSubmit?: (email: string, password: string, name: string) => void | Promise<void>;
+  onSubmit?: (
+    email: string,
+    password: string,
+    name: string,
+  ) => void | Promise<void>;
   redirectTo?: string;
   redirectText?: string;
   redirectLabel?: string;

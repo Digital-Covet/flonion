@@ -26,12 +26,23 @@ export async function POST(event: APIEvent) {
       return Response.json({ error: "reviewId is required" }, { status: 400 });
     }
 
-    if (type !== "visit" && type !== "review" && type !== "redirect" && type !== "ai_copy") {
-      return Response.json({ error: "type must be 'visit', 'review', 'redirect', or 'ai_copy'" }, { status: 400 });
+    if (
+      type !== "visit" &&
+      type !== "review" &&
+      type !== "redirect" &&
+      type !== "ai_copy"
+    ) {
+      return Response.json(
+        { error: "type must be 'visit', 'review', 'redirect', or 'ai_copy'" },
+        { status: 400 },
+      );
     }
 
     if (type === "redirect" && platform && typeof platform !== "string") {
-      return Response.json({ error: "platform must be a string" }, { status: 400 });
+      return Response.json(
+        { error: "platform must be a string" },
+        { status: 400 },
+      );
     }
 
     const review = await prisma.sharedReview.findUnique({
@@ -49,7 +60,8 @@ export async function POST(event: APIEvent) {
         select: { platformRedirects: true },
       });
 
-      const currentRedirects = (existing?.platformRedirects as Record<string, number>) || {};
+      const currentRedirects =
+        (existing?.platformRedirects as Record<string, number>) || {};
       const updatedRedirects: Record<string, number> = {
         ...currentRedirects,
         [platform]: (currentRedirects[platform] || 0) + 1,

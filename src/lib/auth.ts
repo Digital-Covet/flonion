@@ -1,17 +1,17 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { twoFactor } from "better-auth/plugins/two-factor";
 import { emailOTP } from "better-auth/plugins/email-otp";
+import { twoFactor } from "better-auth/plugins/two-factor";
 
 import { prisma } from "@/db/prisma";
 import { sendEmail } from "@/services/email";
 
 import {
   renderEmailVerificationEmail,
-  renderPasswordResetEmail,
-  renderSignInOtpEmail,
   renderEmailVerificationOtpEmail,
+  renderPasswordResetEmail,
   renderPasswordResetOtpEmail,
+  renderSignInOtpEmail,
   renderTwoFactorOtpEmail,
 } from "@/services/email-templates";
 

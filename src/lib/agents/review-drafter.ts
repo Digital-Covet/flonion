@@ -38,10 +38,7 @@ export async function suggestImprovedReview(params: {
   const hasDraft = params.draftText.trim().length > 0;
 
   const sentimentSummary = params.sentiment.sentimentWords
-    .map(
-      (s) =>
-        `[${s.category}] "${s.word}" (intensity: ${s.intensity})`,
-    )
+    .map((s) => `[${s.category}] "${s.word}" (intensity: ${s.intensity})`)
     .join(", ");
 
   const keywordsBlock = params.keywords
@@ -103,7 +100,9 @@ No markdown. No explanation.`,
     const content =
       typeof response.content === "string"
         ? response.content
-        : response.content.map((c: any) => ("text" in c ? c.text : "")).join("");
+        : response.content
+            .map((c: any) => ("text" in c ? c.text : ""))
+            .join("");
 
     return suggestReviewSchema.parse(JSON.parse(content));
   }
@@ -120,10 +119,18 @@ No markdown. No explanation.`,
 - Sentiment Score: ${params.sentiment.sentimentScore}
 - Key Topics: ${params.sentiment.keyTopics.join(", ")}
 - Sentiment Details: ${sentimentSummary || "none"}
-- Original Draft: "${params.draftText}"${params.businessName ? `
-- Business Name: ${params.businessName}` : ""}${params.keywords ? `
+- Original Draft: "${params.draftText}"${
+        params.businessName
+          ? `
+- Business Name: ${params.businessName}`
+          : ""
+      }${
+        params.keywords
+          ? `
 - Business Keywords: ${params.keywords}
-  IMPORTANT: The business has highlighted specific keywords above. When generating suggestions, naturally weave these keywords/topics into the review text where they fit authentically. Do NOT force them — if they don't fit the draft's intent, focus on the original content. The keywords represent aspects the business cares about most.` : ""}
+  IMPORTANT: The business has highlighted specific keywords above. When generating suggestions, naturally weave these keywords/topics into the review text where they fit authentically. Do NOT force them — if they don't fit the draft's intent, focus on the original content. The keywords represent aspects the business cares about most.`
+          : ""
+      }
 
 ### CORE TASK
 
@@ -235,10 +242,7 @@ export async function draftReviewReply(params: {
   };
 
   const sentimentSummary = params.sentiment.sentimentWords
-    .map(
-      (s) =>
-        `[${s.category}] "${s.word}" (intensity: ${s.intensity})`,
-    )
+    .map((s) => `[${s.category}] "${s.word}" (intensity: ${s.intensity})`)
     .join(", ");
 
   const response = await model.invoke([

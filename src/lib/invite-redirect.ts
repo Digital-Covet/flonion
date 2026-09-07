@@ -14,7 +14,9 @@
 /** `randomBytes(32).toString("hex")`, as issued by /api/team/invite. */
 const INVITE_TOKEN_REGEX = /^[a-f0-9]{64}$/;
 
-export function isInviteToken(value: string | null | undefined): value is string {
+export function isInviteToken(
+  value: string | null | undefined,
+): value is string {
   return typeof value === "string" && INVITE_TOKEN_REGEX.test(value);
 }
 
@@ -23,7 +25,9 @@ export function isInviteToken(value: string | null | undefined): value is string
  * reading `window`, so it resolves identically during SSR and hydration — a
  * window-only read renders the signed-out links without the token.
  */
-export function pickInviteToken(raw: string | string[] | undefined): string | null {
+export function pickInviteToken(
+  raw: string | string[] | undefined,
+): string | null {
   const token = Array.isArray(raw) ? raw[0] : raw;
   return isInviteToken(token) ? token : null;
 }
@@ -32,7 +36,10 @@ export function pickInviteToken(raw: string | string[] | undefined): string | nu
  * Where to send the user once they are authenticated. Always a relative path —
  * better-auth additionally validates callbackURL against `trustedOrigins`.
  */
-export function inviteCallbackUrl(token: string | null, fallback: string): string {
+export function inviteCallbackUrl(
+  token: string | null,
+  fallback: string,
+): string {
   return isInviteToken(token) ? `/accept-invite?token=${token}` : fallback;
 }
 

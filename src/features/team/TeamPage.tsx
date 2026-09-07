@@ -1,12 +1,12 @@
-import { createSignal, onMount, For, Show } from "solid-js";
-import { Title } from "@solidjs/meta";
-import Users from "lucide-solid/icons/users";
-import UserPlus from "lucide-solid/icons/user-plus";
-import Trash2 from "lucide-solid/icons/trash-2";
-import Clock from "lucide-solid/icons/clock";
 import { Field } from "@ark-ui/solid/field";
-import { ROLE_DEFINITIONS, getRoleLabel, type UserRole } from "~/lib/roles";
+import { Title } from "@solidjs/meta";
+import Clock from "lucide-solid/icons/clock";
+import Trash2 from "lucide-solid/icons/trash-2";
+import UserPlus from "lucide-solid/icons/user-plus";
+import Users from "lucide-solid/icons/users";
+import { createSignal, For, onMount, Show } from "solid-js";
 import { authClient } from "~/lib/auth-client";
+import { getRoleLabel, ROLE_DEFINITIONS, type UserRole } from "~/lib/roles";
 
 interface TeamMember {
   id: string;
@@ -43,7 +43,7 @@ export default function TeamPage() {
 
   const [members, setMembers] = createSignal<TeamMember[]>([]);
   const [invitations, setInvitations] = createSignal<PendingInvitation[]>([]);
-  const [loading, setLoading] = createSignal(true);
+  const [_loading, setLoading] = createSignal(true);
   const [ownerId, setOwnerId] = createSignal<string | null>(null);
 
   const [inviteEmail, setInviteEmail] = createSignal("");
@@ -201,7 +201,9 @@ export default function TeamPage() {
           <div class="flex items-center gap-4">
             <Users size={24} class="text-primary" />
             <div>
-              <h2 class="text-2xl font-bold font-heading text-foreground">Team Management</h2>
+              <h2 class="text-2xl font-bold font-heading text-foreground">
+                Team Management
+              </h2>
               <p class="text-sm text-muted-foreground">
                 Manage your team members and their roles
               </p>
@@ -220,7 +222,10 @@ export default function TeamPage() {
             <form class="flex flex-col gap-4" onSubmit={handleSendInvite}>
               <div class="flex gap-3">
                 <Field.Root class="flex-1">
-                  <Field.Label for="invite-email" class="text-sm font-semibold text-foreground">
+                  <Field.Label
+                    for="invite-email"
+                    class="text-sm font-semibold text-foreground"
+                  >
                     Email Address
                   </Field.Label>
                   <Field.Input
@@ -242,19 +247,22 @@ export default function TeamPage() {
                 </Field.Root>
 
                 <Field.Root class="w-40">
-                  <Field.Label for="invite-role" class="text-sm font-semibold text-foreground">
+                  <Field.Label
+                    for="invite-role"
+                    class="text-sm font-semibold text-foreground"
+                  >
                     Role
                   </Field.Label>
                   <select
                     id="invite-role"
                     value={inviteRole()}
-                    onChange={(e) => setInviteRole(e.currentTarget.value as UserRole)}
+                    onChange={(e) =>
+                      setInviteRole(e.currentTarget.value as UserRole)
+                    }
                     class={selectClass}
                   >
                     <For each={ROLE_DEFINITIONS}>
-                      {(r) => (
-                        <option value={r.value}>{r.label}</option>
-                      )}
+                      {(r) => <option value={r.value}>{r.label}</option>}
                     </For>
                   </select>
                 </Field.Root>
@@ -313,24 +321,33 @@ export default function TeamPage() {
                         <p class="text-sm font-medium text-foreground">
                           {member.name}
                           {member.id === currentUserId() && (
-                            <span class="ml-2 text-xs text-muted-foreground">(You)</span>
+                            <span class="ml-2 text-xs text-muted-foreground">
+                              (You)
+                            </span>
                           )}
                         </p>
-                        <p class="text-xs text-muted-foreground">{member.email}</p>
+                        <p class="text-xs text-muted-foreground">
+                          {member.email}
+                        </p>
                       </div>
                     </div>
 
                     <div class="flex items-center gap-3">
-                      <Show when={(isAdmin() || isOwner()) && member.id !== currentUserId()}>
+                      <Show
+                        when={
+                          (isAdmin() || isOwner()) &&
+                          member.id !== currentUserId()
+                        }
+                      >
                         <select
                           value={member.role}
-                          onChange={(e) => handleUpdateRole(member.id, e.currentTarget.value)}
+                          onChange={(e) =>
+                            handleUpdateRole(member.id, e.currentTarget.value)
+                          }
                           class="text-xs rounded border border-input bg-background px-2 py-1 text-foreground"
                         >
                           <For each={ROLE_DEFINITIONS}>
-                            {(r) => (
-                              <option value={r.value}>{r.label}</option>
-                            )}
+                            {(r) => <option value={r.value}>{r.label}</option>}
                           </For>
                         </select>
                         <button
@@ -341,7 +358,12 @@ export default function TeamPage() {
                         </button>
                       </Show>
 
-                      <Show when={!(isAdmin() || isOwner()) || member.id === currentUserId()}>
+                      <Show
+                        when={
+                          !(isAdmin() || isOwner()) ||
+                          member.id === currentUserId()
+                        }
+                      >
                         <span class="text-xs font-medium text-muted-foreground px-2 py-1 bg-muted rounded">
                           {getRoleLabel(member.role)}
                         </span>
@@ -371,7 +393,8 @@ export default function TeamPage() {
                         {invitation.email}
                       </p>
                       <p class="text-xs text-muted-foreground">
-                        Invited by {invitation.invitedBy.name} as {getRoleLabel(invitation.role)}
+                        Invited by {invitation.invitedBy.name} as{" "}
+                        {getRoleLabel(invitation.role)}
                       </p>
                       <Show when={invitation.status === "declined"}>
                         <p class="mt-1 text-xs font-medium text-destructive">
@@ -380,7 +403,12 @@ export default function TeamPage() {
                       </Show>
                     </div>
 
-                    <Show when={(isAdmin() || isOwner()) && invitation.status !== "declined"}>
+                    <Show
+                      when={
+                        (isAdmin() || isOwner()) &&
+                        invitation.status !== "declined"
+                      }
+                    >
                       <button
                         onClick={() => handleCancelInvitation(invitation.id)}
                         class="text-xs text-muted-foreground hover:text-destructive transition-colors"

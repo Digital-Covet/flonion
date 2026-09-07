@@ -1,5 +1,5 @@
-import { createContext, useContext } from "solid-js";
 import type { Accessor, Setter } from "solid-js";
+import { createContext, useContext } from "solid-js";
 
 export interface TaskAssignee {
   id: string;
@@ -66,7 +66,11 @@ export interface TaskContextValue {
   addTask: (data: CreateTaskData) => Promise<Task | null>;
   updateTask: (taskId: string, data: Partial<Task>) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
-  moveTask: (taskId: string, targetColumn: string, newPosition: number) => Promise<void>;
+  moveTask: (
+    taskId: string,
+    targetColumn: string,
+    newPosition: number,
+  ) => Promise<void>;
   addMeeting: (data: CreateMeetingData) => Promise<TeamMeeting | null>;
   deleteMeeting: (meetingId: string) => Promise<void>;
 }

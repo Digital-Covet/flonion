@@ -1,16 +1,23 @@
+import { Progress } from "@ark-ui/solid/progress";
 import { PieChart, TrendingUp } from "lucide-solid";
 import { For, Show } from "solid-js";
-import { Progress } from "@ark-ui/solid/progress";
 import { useTaskContext } from "~/stores/task-store";
 
-const COLORS = ["bg-primary", "bg-info", "bg-orange", "bg-purple", "bg-positive"];
+const COLORS = [
+  "bg-primary",
+  "bg-info",
+  "bg-orange",
+  "bg-purple",
+  "bg-positive",
+];
 
 export default function DailyWorkload() {
   const { tasks, teamMembers } = useTaskContext();
 
   const totalTasks = () => tasks().length;
 
-  const completedTasks = () => tasks().filter((t) => t.column === "done").length;
+  const completedTasks = () =>
+    tasks().filter((t) => t.column === "done").length;
 
   const completionRate = () => {
     const total = totalTasks();
@@ -81,13 +88,17 @@ export default function DailyWorkload() {
                 <div class="flex-1">
                   <Progress.Root value={workload.percentage} class="w-full">
                     <div class="flex justify-between items-center mb-1">
-                      <span class="text-sm font-medium text-foreground">{workload.name}</span>
+                      <span class="text-sm font-medium text-foreground">
+                        {workload.name}
+                      </span>
                       <Progress.ValueText class="text-xs font-medium text-muted-foreground">
                         {workload.count} tasks
                       </Progress.ValueText>
                     </div>
                     <Progress.Track class="bg-border rounded-full h-1.5">
-                      <Progress.Range class={`h-1.5 rounded-full ${workload.colorClass}`} />
+                      <Progress.Range
+                        class={`h-1.5 rounded-full ${workload.colorClass}`}
+                      />
                     </Progress.Track>
                   </Progress.Root>
                 </div>

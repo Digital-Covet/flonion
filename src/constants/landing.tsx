@@ -1,14 +1,20 @@
-import Store from "lucide-solid/icons/store";
-import Smartphone from "lucide-solid/icons/smartphone";
-import LayoutDashboard from "lucide-solid/icons/layout-dashboard";
-import Sparkles from "lucide-solid/icons/sparkles";
-import BellRing from "lucide-solid/icons/bell-ring";
-import UtensilsCrossed from "lucide-solid/icons/utensils-crossed";
-import Scissors from "lucide-solid/icons/scissors";
-import Car from "lucide-solid/icons/car";
-import MessageCircle from "lucide-solid/icons/message-circle";
 import Bell from "lucide-solid/icons/bell";
-import { FaqItem, FeatureItem, TestimonialItem, BusinessLogo, NavLink } from "~/types/landing";
+import BellRing from "lucide-solid/icons/bell-ring";
+import Car from "lucide-solid/icons/car";
+import LayoutDashboard from "lucide-solid/icons/layout-dashboard";
+import MessageCircle from "lucide-solid/icons/message-circle";
+import Scissors from "lucide-solid/icons/scissors";
+import Smartphone from "lucide-solid/icons/smartphone";
+import Sparkles from "lucide-solid/icons/sparkles";
+import Store from "lucide-solid/icons/store";
+import UtensilsCrossed from "lucide-solid/icons/utensils-crossed";
+import type {
+  BusinessLogo,
+  FaqItem,
+  FeatureItem,
+  NavLink,
+  TestimonialItem,
+} from "~/types/landing";
 
 export const navLinks: NavLink[] = [
   { label: "Features", href: "#features" },
@@ -20,23 +26,28 @@ export const navLinks: NavLink[] = [
 export const faqItems: FaqItem[] = [
   {
     question: "How does Flonion help me get more reviews?",
-    answer: "We send automated, friendly reminders via WhatsApp/SMS after a purchase, making it easy for customers to leave feedback.",
+    answer:
+      "We send automated, friendly reminders via WhatsApp/SMS after a purchase, making it easy for customers to leave feedback.",
   },
   {
     question: "Does Flonion work with Google and WhatsApp?",
-    answer: "Yes, we integrate directly with Google Business Profile and use WhatsApp for easy customer replies.",
+    answer:
+      "Yes, we integrate directly with Google Business Profile and use WhatsApp for easy customer replies.",
   },
   {
     question: "Is my customer data secure?",
-    answer: "Absolutely. We use bank-grade encryption and follow strict privacy standards to keep your data safe.",
+    answer:
+      "Absolutely. We use bank-grade encryption and follow strict privacy standards to keep your data safe.",
   },
   {
     question: "Do I need technical skills to use this?",
-    answer: "Not at all! If you can use WhatsApp, you can use Flonion. Our interface is designed for simplicity.",
+    answer:
+      "Not at all! If you can use WhatsApp, you can use Flonion. Our interface is designed for simplicity.",
   },
   {
     question: "Is pricing available in INR?",
-    answer: "Yes, we offer affordable plans priced in INR with a 14-day free trial so you can see the value first.",
+    answer:
+      "Yes, we offer affordable plans priced in INR with a 14-day free trial so you can see the value first.",
   },
 ];
 
@@ -44,7 +55,8 @@ export const featureItems: FeatureItem[] = [
   {
     icon: <Smartphone size={24} class="text-primary-foreground" />,
     title: "Automated Review Collection",
-    description: "Collect reviews via WhatsApp and SMS instantly after every customer visit.",
+    description:
+      "Collect reviews via WhatsApp and SMS instantly after every customer visit.",
     mockup: (
       <div class="w-full md:w-48 bg-slate-50 border border-border p-3 rounded-lg shadow-sm relative overflow-hidden group-hover:-translate-y-1 transition-transform">
         <div class="absolute top-0 right-0 w-16 h-16 bg-primary/20 rounded-bl-full" />
@@ -69,13 +81,15 @@ export const featureItems: FeatureItem[] = [
   {
     icon: <LayoutDashboard size={24} class="text-white" />,
     title: "Centralized Reputation Dashboard",
-    description: "See your Google, Facebook, and Justdial reviews in one simple view.",
+    description:
+      "See your Google, Facebook, and Justdial reviews in one simple view.",
     class: "relative overflow-hidden",
   },
   {
     icon: <Sparkles size={24} class="text-white" />,
     title: "AI-Powered Marketing",
-    description: "Turn your best reviews into social media posts and marketing insights with one click.",
+    description:
+      "Turn your best reviews into social media posts and marketing insights with one click.",
     mockup: (
       <div class="w-full md:w-48 bg-white border border-border p-4 rounded-lg shadow-sm group-hover:-translate-y-1 transition-transform">
         <div class="flex items-center gap-2 mb-3">
@@ -93,7 +107,8 @@ export const featureItems: FeatureItem[] = [
   {
     icon: <BellRing size={24} class="text-primary-foreground" />,
     title: "Multi-Platform Alerts",
-    description: "Get real-time notifications so you can thank your customers immediately.",
+    description:
+      "Get real-time notifications so you can thank your customers immediately.",
     mockup: (
       <div class="w-full md:w-48 bg-slate-50 border border-border p-3 rounded-lg shadow-sm relative group-hover:-translate-y-1 transition-transform">
         <div class="absolute -top-2 -right-2 w-6 h-6 bg-destructive rounded-full text-white text-[10px] font-bold flex items-center justify-center border-2 border-white">
@@ -126,14 +141,16 @@ export const testimonialItems: TestimonialItem[] = [
   },
   {
     rating: 5,
-    quote: "Finally, a simple way to manage our reputation without needing a tech team.",
+    quote:
+      "Finally, a simple way to manage our reputation without needing a tech team.",
     name: "Ananya S.",
     business: "Bloom Salon, Bengaluru",
     avatarColor: "secondary",
   },
   {
     rating: 5,
-    quote: "Our customers love the easy WhatsApp review link. Highly recommended!",
+    quote:
+      "Our customers love the easy WhatsApp review link. Highly recommended!",
     name: "Vikram M.",
     business: "Heritage Silks, Jaipur",
     avatarColor: "tertiary",

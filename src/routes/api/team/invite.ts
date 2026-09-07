@@ -1,13 +1,13 @@
+import { randomBytes } from "node:crypto";
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
-import { isValidRole } from "~/lib/roles";
-import { getBusinessContext, canManageTeam } from "~/lib/business-context";
-import { sendEmail } from "~/services/email";
-import { renderTeamInvitationEmail } from "~/services/email-templates";
+import { canManageTeam, getBusinessContext } from "~/lib/business-context";
 import { COMPANY_NAME } from "~/lib/constants";
 import { checkRateLimit } from "~/lib/rate-limit";
-import { randomBytes } from "crypto";
+import { isValidRole } from "~/lib/roles";
+import { getSessionFromHeaders } from "~/lib/server-auth";
+import { sendEmail } from "~/services/email";
+import { renderTeamInvitationEmail } from "~/services/email-templates";
 
 const INVITE_RATE_LIMIT = 20;
 const INVITE_WINDOW_MS = 60 * 60 * 1000;
@@ -29,7 +29,10 @@ export async function POST(event: APIEvent) {
   }
 
   if (!canManageTeam(ctx)) {
-    return Response.json({ error: "Only admins or the business owner can send invitations" }, { status: 403 });
+    return Response.json(
+      { error: "Only admins or the business owner can send invitations" },
+      { status: 403 },
+    );
   }
 
   // Every accepted call sends mail from our domain. Without a cap one account
@@ -65,12 +68,16 @@ export async function POST(event: APIEvent) {
       return Response.json({ error: "Invalid email format" }, { status: 400 });
     }
 
-    const roleValue = typeof role === "string" && isValidRole(role) ? role : "member";
+    const roleValue =
+      typeof role === "string" && isValidRole(role) ? role : "member";
 
     const normalizedEmail = email.trim().toLowerCase();
 
     if (normalizedEmail === inviter?.email?.toLowerCase()) {
-      return Response.json({ error: "You cannot invite yourself" }, { status: 400 });
+      return Response.json(
+        { error: "You cannot invite yourself" },
+        { status: 400 },
+      );
     }
 
     // Anything the accept endpoint would reject is rejected here instead, so the
@@ -81,12 +88,17 @@ export async function POST(event: APIEvent) {
     });
 
     if (existingUser?.businessId === ctx.businessId) {
-      return Response.json({ error: "User is already a team member" }, { status: 400 });
+      return Response.json(
+        { error: "User is already a team member" },
+        { status: 400 },
+      );
     }
 
     if (existingUser?.business) {
       return Response.json(
-        { error: "That account already owns a business and cannot join a team" },
+        {
+          error: "That account already owns a business and cannot join a team",
+        },
         { status: 400 },
       );
     }
@@ -108,7 +120,10 @@ export async function POST(event: APIEvent) {
     });
 
     if (existingInvitation) {
-      return Response.json({ error: "Invitation already sent to this email" }, { status: 400 });
+      return Response.json(
+        { error: "Invitation already sent to this email" },
+        { status: 400 },
+      );
     }
 
     const token = generateToken();
@@ -146,20 +161,28 @@ export async function POST(event: APIEvent) {
         html,
       });
     } catch (err) {
-      await prisma.invitation.delete({ where: { id: invitation.id } }).catch(() => {});
+      await prisma.invitation
+        .delete({ where: { id: invitation.id } })
+        .catch(() => {});
       console.error("[team/invite] delivery failed:", err);
       return Response.json(
-        { error: "Couldn't send the invitation email. Please check the address and try again." },
+        {
+          error:
+            "Couldn't send the invitation email. Please check the address and try again.",
+        },
         { status: 502 },
       );
     }
 
-    return Response.json({
-      id: invitation.id,
-      email: invitation.email,
-      role: invitation.role,
-      expiresAt: invitation.expiresAt,
-    }, { status: 201 });
+    return Response.json(
+      {
+        id: invitation.id,
+        email: invitation.email,
+        role: invitation.role,
+        expiresAt: invitation.expiresAt,
+      },
+      { status: 201 },
+    );
   } catch (err) {
     console.error("[team/invite] failed:", err);
     return Response.json({ error: "Invalid request body" }, { status: 400 });

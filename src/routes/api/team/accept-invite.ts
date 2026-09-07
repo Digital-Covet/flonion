@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 export async function POST(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -42,17 +42,26 @@ export async function POST(event: APIEvent) {
     });
 
     if (currentUser?.email?.toLowerCase() !== invitation.email.toLowerCase()) {
-      return Response.json({ error: "This invitation is for a different email address" }, { status: 400 });
+      return Response.json(
+        { error: "This invitation is for a different email address" },
+        { status: 400 },
+      );
     }
 
     // Re-clicking the link after a successful accept should be a no-op, not an
     // error, so the membership check runs before the status check.
     if (currentUser.businessId === invitation.businessId) {
-      return Response.json({ success: true, businessId: invitation.businessId });
+      return Response.json({
+        success: true,
+        businessId: invitation.businessId,
+      });
     }
 
     if (invitation.status !== "pending") {
-      return Response.json({ error: "Invitation is no longer pending" }, { status: 400 });
+      return Response.json(
+        { error: "Invitation is no longer pending" },
+        { status: 400 },
+      );
     }
 
     if (new Date() > invitation.expiresAt) {
@@ -60,7 +69,10 @@ export async function POST(event: APIEvent) {
         where: { id: invitation.id },
         data: { status: "expired" },
       });
-      return Response.json({ error: "Invitation has expired" }, { status: 400 });
+      return Response.json(
+        { error: "Invitation has expired" },
+        { status: 400 },
+      );
     }
 
     // One business per user: an owner cannot also join someone else's team.
@@ -77,7 +89,10 @@ export async function POST(event: APIEvent) {
     }
 
     if (currentUser.businessId) {
-      return Response.json({ error: "You are already part of a team" }, { status: 400 });
+      return Response.json(
+        { error: "You are already part of a team" },
+        { status: 400 },
+      );
     }
 
     // `onboardingCompleted` gates the whole app in middleware.ts. Joining a team
@@ -107,7 +122,10 @@ export async function POST(event: APIEvent) {
     });
 
     if (!claimed) {
-      return Response.json({ error: "Invitation is no longer pending" }, { status: 400 });
+      return Response.json(
+        { error: "Invitation is no longer pending" },
+        { status: 400 },
+      );
     }
 
     return Response.json({ success: true, businessId: invitation.businessId });

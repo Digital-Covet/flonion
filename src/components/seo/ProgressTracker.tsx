@@ -1,7 +1,12 @@
-import type { Component } from 'solid-js'
-import Sparkles from 'lucide-solid/icons/sparkles'
-import type { ProgressData } from '../../types'
-import { ProgressRoot, ProgressCircle, ProgressCircleTrack, ProgressCircleRange } from '../ui/progress'
+import Sparkles from "lucide-solid/icons/sparkles";
+import type { Component } from "solid-js";
+import type { ProgressData } from "../../types";
+import {
+  ProgressCircle,
+  ProgressCircleRange,
+  ProgressCircleTrack,
+  ProgressRoot,
+} from "../ui/progress";
 
 const ProgressTracker: Component<ProgressData> = (props) => {
   return (
@@ -10,7 +15,10 @@ const ProgressTracker: Component<ProgressData> = (props) => {
         <ProgressRoot value={props.value} min={0} max={100}>
           <ProgressCircle>
             <ProgressCircleTrack class="stroke-slate-100" />
-            <ProgressCircleRange class="stroke-blue-600" stroke-linecap="round" />
+            <ProgressCircleRange
+              class="stroke-blue-600"
+              stroke-linecap="round"
+            />
           </ProgressCircle>
         </ProgressRoot>
         <div class="absolute inset-0 flex items-center justify-center font-bold text-slate-900">
@@ -21,7 +29,9 @@ const ProgressTracker: Component<ProgressData> = (props) => {
       <div class="flex-1 text-center md:text-left">
         <h3 class="text-xl font-bold text-slate-900">{props.title}</h3>
         <p class="text-slate-600 mt-1 mb-3">{props.description}</p>
-        <p class="text-xs text-slate-400 mb-3">Based on weighted analysis of category scores below</p>
+        <p class="text-xs text-slate-400 mb-3">
+          Based on weighted analysis of category scores below
+        </p>
 
         <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
           <Sparkles size={14} />
@@ -29,6 +39,6 @@ const ProgressTracker: Component<ProgressData> = (props) => {
         </div>
       </div>
     </div>
-  )
-}
-export default ProgressTracker
+  );
+};
+export default ProgressTracker;

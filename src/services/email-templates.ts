@@ -19,8 +19,8 @@ function escapeHtmlAttr(str: string): string {
 }
 
 function getDisplayName(username?: string, email?: string): string {
-  if (username && username.trim()) return username.trim();
-  if (email && email.trim()) return email.trim().split("@")[0];
+  if (username?.trim()) return username.trim();
+  if (email?.trim()) return email.trim().split("@")[0];
   return "there";
 }
 
@@ -542,10 +542,10 @@ interface InviteEmailParams {
   inviteUrl: string;
 }
 
-export function renderInviteEmail({
-  username,
-  inviteUrl,
-}: InviteEmailParams): { html: string; text: string } {
+export function renderInviteEmail({ username, inviteUrl }: InviteEmailParams): {
+  html: string;
+  text: string;
+} {
   const safeUsername = escapeHtml(username);
 
   const htmlBody = `
@@ -619,10 +619,7 @@ ${inviteUrl}
 If you did not request this invite, you can safely ignore this email or contact support at ${SUPPORT_EMAIL}.`;
 
   return {
-    html: renderBaseHtml(
-      `You're invited to ${COMPANY_NAME}`,
-      htmlBody,
-    ),
+    html: renderBaseHtml(`You're invited to ${COMPANY_NAME}`, htmlBody),
     text: textBody,
   };
 }
@@ -722,10 +719,7 @@ ${expiryText}
 If you did not request this, please ignore this email or contact us at ${SUPPORT_EMAIL}.`;
 
   return {
-    html: renderBaseHtml(
-      `Verify your action on ${COMPANY_NAME}`,
-      htmlBody,
-    ),
+    html: renderBaseHtml(`Verify your action on ${COMPANY_NAME}`, htmlBody),
     text: textBody,
   };
 }
@@ -822,10 +816,7 @@ ${verificationUrl}
 If you did not create an account, you can safely ignore this email or contact support at ${SUPPORT_EMAIL}.`;
 
   return {
-    html: renderBaseHtml(
-      `Verify your ${COMPANY_NAME} email`,
-      htmlBody,
-    ),
+    html: renderBaseHtml(`Verify your ${COMPANY_NAME} email`, htmlBody),
     text: textBody,
   };
 }
@@ -922,10 +913,7 @@ ${resetUrl}
 If you did not request a password reset, you can safely ignore this email or contact support at ${SUPPORT_EMAIL}.`;
 
   return {
-    html: renderBaseHtml(
-      `Reset your ${COMPANY_NAME} password`,
-      htmlBody,
-    ),
+    html: renderBaseHtml(`Reset your ${COMPANY_NAME} password`, htmlBody),
     text: textBody,
   };
 }
@@ -1031,10 +1019,7 @@ ${expiryText}
 If you did not request this code, please ignore this email or contact support at ${SUPPORT_EMAIL}.`;
 
   return {
-    html: renderBaseHtml(
-      `Your ${COMPANY_NAME} sign-in code`,
-      htmlBody,
-    ),
+    html: renderBaseHtml(`Your ${COMPANY_NAME} sign-in code`, htmlBody),
     text: textBody,
   };
 }
@@ -1130,10 +1115,7 @@ ${expiryText}
 If you did not request this, please ignore this email or contact support at ${SUPPORT_EMAIL}.`;
 
   return {
-    html: renderBaseHtml(
-      `Your ${COMPANY_NAME} verification code`,
-      htmlBody,
-    ),
+    html: renderBaseHtml(`Your ${COMPANY_NAME} verification code`, htmlBody),
     text: textBody,
   };
 }
@@ -1229,10 +1211,7 @@ ${expiryText}
 If you did not request a password reset, please ignore this email or contact support at ${SUPPORT_EMAIL}.`;
 
   return {
-    html: renderBaseHtml(
-      `Your ${COMPANY_NAME} password reset code`,
-      htmlBody,
-    ),
+    html: renderBaseHtml(`Your ${COMPANY_NAME} password reset code`, htmlBody),
     text: textBody,
   };
 }
@@ -1422,11 +1401,15 @@ export function renderMeetingRequestEmail({
           <p style="margin: 0 0 8px 0; font-size: 14px; color: #555555;">
             Time: <strong style="color: #111111;">${safeStart} &ndash; ${safeEnd}</strong>
           </p>
-          ${safeMessage ? `
+          ${
+            safeMessage
+              ? `
           <p style="margin: 8px 0 0 0; font-size: 14px; color: #555555;">
             Message: <span style="color: #111111;">${safeMessage}</span>
           </p>
-          ` : ""}
+          `
+              : ""
+          }
         </td>
       </tr>
     </table>
@@ -1544,10 +1527,7 @@ Reject: ${rejectUrl}
 If you did not expect this request, you can safely ignore this email or contact support at ${SUPPORT_EMAIL}.`;
 
   return {
-    html: renderBaseHtml(
-      `New meeting request from ${requesterName}`,
-      htmlBody,
-    ),
+    html: renderBaseHtml(`New meeting request from ${requesterName}`, htmlBody),
     text: textBody,
   };
 }
@@ -1638,7 +1618,9 @@ export function renderMeetingDecisionEmail({
       </tr>
     </table>
 
-    ${isAccepted ? `
+    ${
+      isAccepted
+        ? `
     <p
       style="
         margin: 0 0 24px 0;
@@ -1652,7 +1634,9 @@ export function renderMeetingDecisionEmail({
       The meeting has been confirmed. You will receive further details from
       <strong>${safeBusiness}</strong> shortly.
     </p>
-    ${meetUri ? `
+    ${
+      meetUri
+        ? `
     <p
       style="
         margin: 0 0 16px 0;
@@ -1668,8 +1652,11 @@ export function renderMeetingDecisionEmail({
     <p style="margin: 0 0 24px 0; text-align: center;">
       ${renderButton(meetUri, "Join Google Meet")}
     </p>
-    ` : ""}
-    ` : `
+    `
+        : ""
+    }
+    `
+        : `
     <p
       style="
         margin: 0 0 24px 0;
@@ -1683,7 +1670,8 @@ export function renderMeetingDecisionEmail({
       Unfortunately, the meeting could not be accommodated at this time.
       Feel free to browse other available time slots on the marketplace.
     </p>
-    `}
+    `
+    }
 
     <p
       style="
@@ -1712,9 +1700,11 @@ Your meeting request with ${businessName} has been ${decisionLabel}.
 Date: ${date}
 Time: ${startTime} – ${endTime}
 
-${isAccepted
-  ? `The meeting has been confirmed.${meetUri ? `\n\nJoin the meeting: ${meetUri}` : ""}`
-  : "Unfortunately, the meeting could not be accommodated at this time."}
+${
+  isAccepted
+    ? `The meeting has been confirmed.${meetUri ? `\n\nJoin the meeting: ${meetUri}` : ""}`
+    : "Unfortunately, the meeting could not be accommodated at this time."
+}
 
 If you have questions, please contact support at ${SUPPORT_EMAIL}.`;
 

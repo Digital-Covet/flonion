@@ -1,7 +1,12 @@
-import { createSignal, createResource, createEffect, Show, For } from "solid-js";
+import { Calendar, Clock, Loader2, X } from "lucide-solid";
+import {
+  createEffect,
+  createResource,
+  createSignal,
+  For,
+  Show,
+} from "solid-js";
 import { Portal } from "solid-js/web";
-import { X, Clock, Calendar, Loader2 } from "lucide-solid";
-import SectionShell from "./SectionShell";
 
 interface ScheduleSettings {
   workingDays: string;
@@ -71,7 +76,12 @@ function ScheduleSettingsModal(props: ScheduleSettingsModalProps) {
   });
 
   const applySettings = (s: ScheduleSettings) => {
-    setWorkingDays(s.workingDays.split(",").map(Number).filter((d) => !isNaN(d)));
+    setWorkingDays(
+      s.workingDays
+        .split(",")
+        .map(Number)
+        .filter((d) => !Number.isNaN(d)),
+    );
     setWorkingStart(s.workingStartTime);
     setWorkingEnd(s.workingEndTime);
     setBookingStart(s.bookingStartTime);
@@ -81,7 +91,9 @@ function ScheduleSettingsModal(props: ScheduleSettingsModalProps) {
 
   const toggleDay = (day: number) => {
     setWorkingDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
+      prev.includes(day)
+        ? prev.filter((d) => d !== day)
+        : [...prev, day].sort(),
     );
   };
 
@@ -161,7 +173,9 @@ function ScheduleSettingsModal(props: ScheduleSettingsModalProps) {
       }
 
       const data = await genRes.json();
-      setStatusMsg(`Settings saved. ${data.created} slots generated for the next 30 days.`);
+      setStatusMsg(
+        `Settings saved. ${data.created} slots generated for the next 30 days.`,
+      );
       props.onSaved();
     } catch {
       setStatusMsg("Failed to generate slots");
@@ -174,7 +188,10 @@ function ScheduleSettingsModal(props: ScheduleSettingsModalProps) {
     <Show when={props.open}>
       <Portal>
         <div class="fixed inset-0 z-50 flex items-center justify-center">
-          <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={props.onClose} />
+          <div
+            class="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={props.onClose}
+          />
           <div class="relative z-10 mx-4 w-full max-w-lg rounded-xl border border-border bg-card shadow-2xl animate-[fade-in-up_0.2s_ease-out]">
             <header class="flex items-center justify-between border-b border-border px-6 py-4">
               <div class="flex items-center gap-3">
@@ -198,11 +215,14 @@ function ScheduleSettingsModal(props: ScheduleSettingsModalProps) {
             </header>
 
             <div class="max-h-[70vh] overflow-y-auto px-6 py-5">
-              <Show when={!settings.loading} fallback={
-                <div class="flex items-center justify-center py-8">
-                  <Loader2 class="size-5 animate-spin text-muted-foreground" />
-                </div>
-              }>
+              <Show
+                when={!settings.loading}
+                fallback={
+                  <div class="flex items-center justify-center py-8">
+                    <Loader2 class="size-5 animate-spin text-muted-foreground" />
+                  </div>
+                }
+              >
                 {/* Working Days */}
                 <div class="mb-5">
                   <label class="mb-2 block text-sm font-medium text-foreground">
@@ -299,11 +319,14 @@ function ScheduleSettingsModal(props: ScheduleSettingsModalProps) {
                 </div>
 
                 <Show when={statusMsg()}>
-                  <div class={`mb-4 rounded-lg px-3 py-2 text-sm ${
-                    statusMsg().includes("Failed") || statusMsg().includes("error")
-                      ? "bg-destructive/10 text-destructive"
-                      : "bg-primary/10 text-primary"
-                  }`}>
+                  <div
+                    class={`mb-4 rounded-lg px-3 py-2 text-sm ${
+                      statusMsg().includes("Failed") ||
+                      statusMsg().includes("error")
+                        ? "bg-destructive/10 text-destructive"
+                        : "bg-primary/10 text-primary"
+                    }`}
+                  >
                     {statusMsg()}
                   </div>
                 </Show>
@@ -333,7 +356,9 @@ function ScheduleSettingsModal(props: ScheduleSettingsModalProps) {
                 disabled={generating() || saving()}
                 class="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover disabled:opacity-50"
               >
-                {(generating() || saving()) && <Loader2 class="size-4 animate-spin" />}
+                {(generating() || saving()) && (
+                  <Loader2 class="size-4 animate-spin" />
+                )}
                 <Calendar class="size-4" />
                 Save & Generate Slots
               </button>

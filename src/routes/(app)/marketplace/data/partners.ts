@@ -5,7 +5,11 @@ export const RATING_MIN = 0;
 export const RATING_MAX = 5;
 export const RATING_STEP = 0.5;
 
-export const RATING_FILTER_PRESETS: { min: number; max: number; label: string }[] = [
+export const RATING_FILTER_PRESETS: {
+  min: number;
+  max: number;
+  label: string;
+}[] = [
   { min: RATING_MIN, max: RATING_MAX, label: "Any" },
   { min: 3, max: RATING_MAX, label: "3.0+" },
   { min: 4, max: RATING_MAX, label: "4.0+" },
@@ -72,10 +76,19 @@ async function fetchFromServer(fullUrl: string): Promise<PartnersApiResponse> {
   return payload;
 }
 
-async function fetchFromClient(path: string, signal?: AbortSignal): Promise<PartnersApiResponse> {
+async function fetchFromClient(
+  path: string,
+  signal?: AbortSignal,
+): Promise<PartnersApiResponse> {
   const res = await fetch(path, { signal });
   if (!res.ok) {
-    return { partners: [], totalCount: 0, page: 1, pageSize: MAX_PAGE_SIZE, categories: [] };
+    return {
+      partners: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: MAX_PAGE_SIZE,
+      categories: [],
+    };
   }
   const data = await res.json();
   return {
@@ -100,12 +113,22 @@ export async function fetchPartners(
 ): Promise<PartnersApiResponse> {
   const search = params.search?.trim() ?? "";
   const categories = params.categories ?? [];
-  const ratingRange: [number, number] = params.ratingRange ?? [RATING_MIN, RATING_MAX];
+  const ratingRange: [number, number] = params.ratingRange ?? [
+    RATING_MIN,
+    RATING_MAX,
+  ];
   const sort = params.sort ?? "rating";
   const page = Math.max(1, params.page ?? 1);
   const pageSize = Math.min(params.pageSize ?? PAGE_SIZE, MAX_PAGE_SIZE);
 
-  const qs = buildQueryString({ search, categories, ratingRange, sort, page, pageSize });
+  const qs = buildQueryString({
+    search,
+    categories,
+    ratingRange,
+    sort,
+    page,
+    pageSize,
+  });
   const cacheKey = `/api/marketplace/partners?${qs}`;
 
   const cached = clientCache.get(cacheKey);
@@ -119,7 +142,10 @@ export async function fetchPartners(
       : await fetchFromClient(cacheKey, signal);
 
     evictClientCache();
-    clientCache.set(cacheKey, { data: result, expiresAt: Date.now() + CLIENT_CACHE_TTL_MS });
+    clientCache.set(cacheKey, {
+      data: result,
+      expiresAt: Date.now() + CLIENT_CACHE_TTL_MS,
+    });
     return result;
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {

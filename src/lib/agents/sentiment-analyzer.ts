@@ -2,17 +2,37 @@ import { ChatDeepSeek } from "@langchain/deepseek";
 import { z } from "zod";
 
 const sentimentWordSchema = z.object({
-  word: z.string().describe("The sentiment-bearing word or phrase from the review"),
-  category: z.enum(["praise", "complaint", "suggestion", "emotion"]).describe("What category this word falls into"),
-  intensity: z.enum(["low", "medium", "high"]).describe("How strong the sentiment is"),
+  word: z
+    .string()
+    .describe("The sentiment-bearing word or phrase from the review"),
+  category: z
+    .enum(["praise", "complaint", "suggestion", "emotion"])
+    .describe("What category this word falls into"),
+  intensity: z
+    .enum(["low", "medium", "high"])
+    .describe("How strong the sentiment is"),
 });
 
 export const sentimentAnalysisSchema = z.object({
-  overallSentiment: z.enum(["positive", "negative", "neutral", "mixed"]).describe("Overall sentiment of the review"),
-  sentimentScore: z.number().min(-1).max(1).describe("Numeric sentiment score from -1 (very negative) to 1 (very positive)"),
-  sentimentWords: z.array(sentimentWordSchema).describe("List of sentiment-bearing words found in the review"),
-  keyTopics: z.array(z.string()).describe("Main topics or themes discussed in the review"),
-  customerIntent: z.enum(["complaint", "compliment", "suggestion", "question"]).describe("Primary intent of the customer"),
+  overallSentiment: z
+    .enum(["positive", "negative", "neutral", "mixed"])
+    .describe("Overall sentiment of the review"),
+  sentimentScore: z
+    .number()
+    .min(-1)
+    .max(1)
+    .describe(
+      "Numeric sentiment score from -1 (very negative) to 1 (very positive)",
+    ),
+  sentimentWords: z
+    .array(sentimentWordSchema)
+    .describe("List of sentiment-bearing words found in the review"),
+  keyTopics: z
+    .array(z.string())
+    .describe("Main topics or themes discussed in the review"),
+  customerIntent: z
+    .enum(["complaint", "compliment", "suggestion", "question"])
+    .describe("Primary intent of the customer"),
 });
 
 export type SentimentAnalysis = z.infer<typeof sentimentAnalysisSchema>;
@@ -38,11 +58,7 @@ export async function analyzeSentiment(params: {
           ? "negative"
           : "neutral";
     const sentimentScore =
-      params.starRating >= 4
-        ? 0.7
-        : params.starRating <= 2
-          ? -0.6
-          : 0.0;
+      params.starRating >= 4 ? 0.7 : params.starRating <= 2 ? -0.6 : 0.0;
     return {
       overallSentiment,
       sentimentScore,

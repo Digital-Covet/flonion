@@ -1,6 +1,6 @@
 import { cn } from "~/lib/cn";
 import { GlassCard } from "./glass-card";
-import { iconMap, type IconName } from "./icon-map";
+import { type IconName, iconMap } from "./icon-map";
 
 interface ServiceTileProps {
   icon: IconName;

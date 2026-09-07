@@ -1,16 +1,25 @@
-import { createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { CalendarDays } from "lucide-solid";
-import type { Component } from "solid-js";
+import { createMemo, createResource, createSignal, For, Show } from "solid-js";
 import type { MeetingFilter } from "~/types";
-import SegmentControl from "./SegmentControl";
 import MeetingRow from "./MeetingRow";
 import SectionShell from "./SectionShell";
+import SegmentControl from "./SegmentControl";
 
 interface MeetingData {
   id: string;
   slot: { date: string; startTime: string; endTime: string };
-  business: { id: string; name: string; logo: string | null; username: string | null };
-  requester: { id: string; name: string | null; email: string; image: string | null };
+  business: {
+    id: string;
+    name: string;
+    logo: string | null;
+    username: string | null;
+  };
+  requester: {
+    id: string;
+    name: string | null;
+    email: string;
+    image: string | null;
+  };
   status: string;
   message: string | null;
   createdAt: string;
@@ -34,13 +43,23 @@ function toMeeting(m: MeetingData) {
     time: `${m.slot.startTime} - ${m.slot.endTime}`,
     location: "Online",
     locationIcon: (props: { class?: string }) => (
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class={props.class}>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class={props.class}
+      >
         <path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5" />
         <rect x="2" y="6" width="14" height="12" rx="2" />
       </svg>
     ),
     category: "partner" as const,
-    status: m.status === "accepted" ? "Confirmed" as const : "Pending" as const,
+    status:
+      m.status === "accepted" ? ("Confirmed" as const) : ("Pending" as const),
     participants: [m.requester.name?.charAt(0)?.toUpperCase() ?? "?"],
     rawStatus: m.status,
     requesterName: m.requester.name || m.requester.email,

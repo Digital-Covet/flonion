@@ -1,3 +1,5 @@
+import { Field } from "@ark-ui/solid/field";
+import { RatingGroup } from "@ark-ui/solid/rating-group";
 import Check from "lucide-solid/icons/check";
 import Link2 from "lucide-solid/icons/link-2";
 import MapPin from "lucide-solid/icons/map-pin";
@@ -6,9 +8,11 @@ import Send from "lucide-solid/icons/send";
 import Sparkles from "lucide-solid/icons/sparkles";
 import Star from "lucide-solid/icons/star";
 import { For, Show } from "solid-js";
-import { Field } from "@ark-ui/solid/field";
-import { RatingGroup } from "@ark-ui/solid/rating-group";
-import type { Rating, ReviewDraft, ReviewSuggestion } from "@/features/reviews/review-types";
+import type {
+  Rating,
+  ReviewDraft,
+  ReviewSuggestion,
+} from "@/features/reviews/review-types";
 import { SuggestionCard } from "~/components/review/suggestion-card";
 
 interface ReviewComposerActions {
@@ -101,7 +105,10 @@ export function ReviewComposer(props: ReviewComposerProps) {
       </Show>
 
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="draft-review-heading" class="text-lg font-semibold text-foreground">
+        <h2
+          id="draft-review-heading"
+          class="text-lg font-semibold text-foreground"
+        >
           {props.heading ?? "Your Review"}
         </h2>
 
@@ -120,7 +127,9 @@ export function ReviewComposer(props: ReviewComposerProps) {
       <fieldset class="mt-6">
         <RatingGroup.Root
           value={props.draft.rating}
-          onValueChange={(details) => props.actions.setRating(details.value as Rating)}
+          onValueChange={(details) =>
+            props.actions.setRating(details.value as Rating)
+          }
           count={5}
         >
           <RatingGroup.Label class="text-sm font-medium text-foreground">
@@ -153,7 +162,9 @@ export function ReviewComposer(props: ReviewComposerProps) {
           </RatingGroup.Control>
         </RatingGroup.Root>
         <Show when={props.ratingHint}>
-          <p class="mt-1.5 text-xs text-muted-foreground italic">{props.ratingHint}</p>
+          <p class="mt-1.5 text-xs text-muted-foreground italic">
+            {props.ratingHint}
+          </p>
         </Show>
       </fieldset>
 
@@ -165,7 +176,9 @@ export function ReviewComposer(props: ReviewComposerProps) {
           <Field.Input
             type="text"
             value={props.name ?? ""}
-            onInput={(e) => props.actions.setName?.((e.target as HTMLInputElement).value)}
+            onInput={(e) =>
+              props.actions.setName?.((e.target as HTMLInputElement).value)
+            }
             placeholder="How should we attribute this review?"
             class="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
@@ -182,26 +195,37 @@ export function ReviewComposer(props: ReviewComposerProps) {
             id="review-text"
             value={props.draft.text}
             onInput={handleInput}
-            placeholder={props.placeholder ?? "What did you like? What could we improve?"}
+            placeholder={
+              props.placeholder ?? "What did you like? What could we improve?"
+            }
             autoresize
             class="w-full resize-none overflow-hidden rounded-md border border-input bg-background px-3 py-3 pr-20 text-sm leading-6 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
           <span
-            class={`pointer-events-none absolute bottom-3 right-3 text-xs ${characterCount() > MAX_CHARS * 0.9
-              ? "text-orange font-semibold"
-              : "text-muted-foreground"
-              }`}
+            class={`pointer-events-none absolute bottom-3 right-3 text-xs ${
+              characterCount() > MAX_CHARS * 0.9
+                ? "text-orange font-semibold"
+                : "text-muted-foreground"
+            }`}
           >
             {characterCount()}/{MAX_CHARS}
           </span>
         </div>
       </Field.Root>
 
-      <Show when={props.showSuggestions && props.suggestions && props.suggestions.length > 0}>
+      <Show
+        when={
+          props.showSuggestions &&
+          props.suggestions &&
+          props.suggestions.length > 0
+        }
+      >
         <div class="mt-4 rounded-lg border border-border bg-muted/30 p-4">
           <div class="flex items-center gap-2">
             <Sparkles class="size-4 text-primary" aria-hidden="true" />
-            <h3 class="text-sm font-semibold text-foreground">AI Suggestions</h3>
+            <h3 class="text-sm font-semibold text-foreground">
+              AI Suggestions
+            </h3>
             <Show when={props.aiLoading}>
               <span class="ml-auto text-xs text-muted-foreground animate-pulse">
                 Thinking...
@@ -224,11 +248,22 @@ export function ReviewComposer(props: ReviewComposerProps) {
         </div>
       </Show>
 
-      <Show when={props.showSuggestions && props.suggestions && props.suggestions.length === 0 && !props.aiLoading}>
+      <Show
+        when={
+          props.showSuggestions &&
+          props.suggestions &&
+          props.suggestions.length === 0 &&
+          !props.aiLoading
+        }
+      >
         <div class="mt-4 rounded-lg border border-dashed border-border/60 bg-muted/30 px-4 py-5 text-center">
-          <Sparkles class="mx-auto mb-2 size-4 text-muted-foreground/40" aria-hidden="true" />
+          <Sparkles
+            class="mx-auto mb-2 size-4 text-muted-foreground/40"
+            aria-hidden="true"
+          />
           <p class="text-sm text-muted-foreground">
-            AI can polish your wording while keeping your experience and meaning intact.
+            AI can polish your wording while keeping your experience and meaning
+            intact.
           </p>
         </div>
       </Show>
@@ -237,11 +272,19 @@ export function ReviewComposer(props: ReviewComposerProps) {
         <button
           type="button"
           onClick={props.actions.fetchSuggestions}
-          disabled={props.aiLoading || props.cooldown || props.draft.rating === 0}
+          disabled={
+            props.aiLoading || props.cooldown || props.draft.rating === 0
+          }
           class="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
         >
           <Sparkles class="size-4" aria-hidden="true" />
-          {props.aiLoading ? "Thinking..." : props.cooldown ? "Wait..." : (isTextEmpty() ? "Get AI Suggestions" : (props.aiButtonLabel ?? "Improve with AI"))}
+          {props.aiLoading
+            ? "Thinking..."
+            : props.cooldown
+              ? "Wait..."
+              : isTextEmpty()
+                ? "Get AI Suggestions"
+                : (props.aiButtonLabel ?? "Improve with AI")}
         </button>
 
         <button
@@ -262,8 +305,8 @@ export function ReviewComposer(props: ReviewComposerProps) {
       </Show>
 
       <p class="sr-only">
-        Improve with AI sends your draft to an AI service and returns improved review
-        suggestions in different tones.
+        Improve with AI sends your draft to an AI service and returns improved
+        review suggestions in different tones.
       </p>
 
       <Check class="sr-only" aria-hidden="true" />

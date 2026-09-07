@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 export async function GET(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -74,14 +74,19 @@ export async function POST(event: APIEvent) {
     });
 
     if (!assignee) {
-      return Response.json({ error: "Assignee is not a member of this team" }, { status: 400 });
+      return Response.json(
+        { error: "Assignee is not a member of this team" },
+        { status: 400 },
+      );
     }
 
     const validColumns = ["todo", "in_progress", "waiting", "done"];
     const taskColumn = validColumns.includes(column) ? column : "todo";
 
     const validPriorities = ["low", "medium", "high"];
-    const taskPriority = validPriorities.includes(priority) ? priority : "medium";
+    const taskPriority = validPriorities.includes(priority)
+      ? priority
+      : "medium";
 
     const maxPosition = await prisma.task.aggregate({
       where: { businessId: user.businessId, column: taskColumn },

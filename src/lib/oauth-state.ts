@@ -1,5 +1,5 @@
-import { randomToken, sign, verifySignature } from "./crypto";
 import { expiredCookie, readCookie, serializeCookie } from "./cookies";
+import { randomToken, sign, verifySignature } from "./crypto";
 
 export const OAUTH_STATE_COOKIE = "goauth_state";
 

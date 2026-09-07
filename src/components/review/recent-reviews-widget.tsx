@@ -8,7 +8,8 @@ interface RecentReviewsWidgetProps {
 }
 
 function timeAgo(timestamp: string | number): string {
-  const date = typeof timestamp === "string" ? new Date(timestamp) : new Date(timestamp);
+  const date =
+    typeof timestamp === "string" ? new Date(timestamp) : new Date(timestamp);
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
 
   if (seconds < 60) return "just now";
@@ -85,7 +86,9 @@ export function RecentReviewsWidget(props: RecentReviewsWidgetProps) {
                                   ? ratingColor(review.rating)
                                   : "text-slate-200"
                               }`}
-                              fill={star <= review.rating ? "currentColor" : "none"}
+                              fill={
+                                star <= review.rating ? "currentColor" : "none"
+                              }
                               aria-hidden="true"
                             />
                           )}

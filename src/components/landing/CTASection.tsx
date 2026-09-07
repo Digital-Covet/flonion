@@ -1,5 +1,5 @@
-import { createSignal, onMount, onCleanup } from "solid-js";
 import ArrowRight from "lucide-solid/icons/arrow-right";
+import { createSignal, onCleanup, onMount } from "solid-js";
 
 export default function CTASection() {
   const [visible, setVisible] = createSignal(false);
@@ -14,7 +14,7 @@ export default function CTASection() {
           observer.disconnect();
         }
       },
-      { threshold: 0.15 }
+      { threshold: 0.15 },
     );
     observer.observe(sectionRef);
     onCleanup(() => observer.disconnect());

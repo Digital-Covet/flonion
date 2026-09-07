@@ -1,18 +1,21 @@
-import { Select, createListCollection } from "@ark-ui/solid/select";
+import { createListCollection, Select } from "@ark-ui/solid/select";
+import { Title } from "@solidjs/meta";
 import CalendarDays from "lucide-solid/icons/calendar-days";
 import Check from "lucide-solid/icons/check";
 import ChevronDown from "lucide-solid/icons/chevron-down";
 import { createMemo, createSignal, For } from "solid-js";
-import { Title } from "@solidjs/meta";
-import { metrics } from "~/features/reviews/review-data";
-import { MetricCard, DisabledMetricCard } from "~/components/review/metric-card";
-import { ReviewSourceChart } from "~/components/review/review-source-chart";
-import { SentimentTrendChart } from "~/components/review/sentiment-trend-chart";
 import { QuickActions } from "~/components/dashboard/QuickActions";
 import { RecentActivity } from "~/components/dashboard/RecentActivity";
-import ProgressTracker from "~/components/seo/ProgressTracker";
+import {
+  DisabledMetricCard,
+  MetricCard,
+} from "~/components/review/metric-card";
+import { ReviewSourceChart } from "~/components/review/review-source-chart";
+import { SentimentTrendChart } from "~/components/review/sentiment-trend-chart";
 import ActionList from "~/components/seo/ActionList";
-import { PROGRESS, ACTION_ITEMS } from "~/constants";
+import ProgressTracker from "~/components/seo/ProgressTracker";
+import { ACTION_ITEMS, PROGRESS } from "~/constants";
+import { metrics } from "~/features/reviews/review-data";
 
 const timePeriodItems = [
   { label: "Last 7 days", value: "7d" },

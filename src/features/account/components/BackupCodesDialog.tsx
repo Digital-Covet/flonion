@@ -1,8 +1,8 @@
-import { Show } from "solid-js";
-import X from "lucide-solid/icons/x";
-import Copy from "lucide-solid/icons/copy";
 import Check from "lucide-solid/icons/check";
+import Copy from "lucide-solid/icons/copy";
 import Download from "lucide-solid/icons/download";
+import X from "lucide-solid/icons/x";
+import { Show } from "solid-js";
 
 interface BackupCodesDialogProps {
   codes: string[];

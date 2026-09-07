@@ -10,7 +10,7 @@ export const Badge = (props: BadgeProps) => (
   <span
     class={cn(
       "inline-flex items-center px-2 py-0.5 rounded-full bg-positive-muted text-primary text-xs font-medium uppercase tracking-wide",
-      props.class
+      props.class,
     )}
   >
     {props.children}

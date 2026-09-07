@@ -1,8 +1,8 @@
 import { Title } from "@solidjs/meta";
-import User from "lucide-solid/icons/user";
-import Mail from "lucide-solid/icons/mail";
 import Lock from "lucide-solid/icons/lock";
+import Mail from "lucide-solid/icons/mail";
 import Shield from "lucide-solid/icons/shield";
+import User from "lucide-solid/icons/user";
 import { AccountInfoCard } from "./components/AccountInfoCard";
 import { ChangeEmailCard } from "./components/ChangeEmailCard";
 import { ChangePasswordCard } from "./components/ChangePasswordCard";

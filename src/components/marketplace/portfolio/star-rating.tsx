@@ -1,6 +1,6 @@
-import { For } from "solid-js";
 import { RatingGroup } from "@ark-ui/solid/rating-group";
 import Star from "lucide-solid/icons/star";
+import { For } from "solid-js";
 
 interface StarRatingProps {
   value: number;

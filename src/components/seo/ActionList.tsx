@@ -1,9 +1,11 @@
-import { For, type Component } from 'solid-js'
-import ListChecks from 'lucide-solid/icons/list-checks'
-import type { ActionItemData } from '../../types'
-import ActionItemCard from './ActionItem'
+import ListChecks from "lucide-solid/icons/list-checks";
+import { type Component, For } from "solid-js";
+import type { ActionItemData } from "../../types";
+import ActionItemCard from "./ActionItem";
 
-interface ActionListProps { items: ActionItemData[] }
+interface ActionListProps {
+  items: ActionItemData[];
+}
 
 const ActionList: Component<ActionListProps> = (props) => {
   return (
@@ -18,6 +20,6 @@ const ActionList: Component<ActionListProps> = (props) => {
         <For each={props.items}>{(item) => <ActionItemCard item={item} />}</For>
       </div>
     </div>
-  )
-}
-export default ActionList
+  );
+};
+export default ActionList;

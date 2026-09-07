@@ -1,17 +1,17 @@
-import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
-import { Portal } from "solid-js/web";
-import { Title } from "@solidjs/meta";
-import { Select, createListCollection } from "@ark-ui/solid/select";
 import { Field } from "@ark-ui/solid/field";
+import { createListCollection, Select } from "@ark-ui/solid/select";
+import { Title } from "@solidjs/meta";
+import AlertTriangle from "lucide-solid/icons/alert-triangle";
 import Check from "lucide-solid/icons/check";
+import CheckCircle from "lucide-solid/icons/check-circle";
 import ChevronDown from "lucide-solid/icons/chevron-down";
 import MessageSquare from "lucide-solid/icons/message-square";
 import Send from "lucide-solid/icons/send";
-import CheckCircle from "lucide-solid/icons/check-circle";
-import AlertTriangle from "lucide-solid/icons/alert-triangle";
 import Star from "lucide-solid/icons/star";
-import { authClient } from "~/lib/auth-client";
+import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
+import { Portal } from "solid-js/web";
 import { SectionCard } from "~/features/settings/components/SectionCard";
+import { authClient } from "~/lib/auth-client";
 import { FEEDBACK_CATEGORIES } from "./types";
 
 const categoryItems = [...FEEDBACK_CATEGORIES].map((cat) => ({
@@ -170,7 +170,9 @@ export function FeedbackPage() {
                 <Select.Trigger class="flex h-10 w-full items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
                   <Select.ValueText
                     placeholder="Select a category"
-                    class={category() ? "text-foreground" : "text-muted-foreground"}
+                    class={
+                      category() ? "text-foreground" : "text-muted-foreground"
+                    }
                   />
                   <ChevronDown
                     class="size-4 shrink-0 text-muted-foreground"
@@ -207,7 +209,11 @@ export function FeedbackPage() {
               <legend class="text-sm leading-5 font-medium text-muted-foreground">
                 Rating
               </legend>
-              <div class="mt-2 flex items-center gap-1" role="radiogroup" aria-label="Feedback rating">
+              <div
+                class="mt-2 flex items-center gap-1"
+                role="radiogroup"
+                aria-label="Feedback rating"
+              >
                 <For each={[1, 2, 3, 4, 5]}>
                   {(star) => {
                     const selected = () => star <= rating() && rating() > 0;

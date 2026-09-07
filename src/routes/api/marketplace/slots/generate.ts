@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 const MAX_RANGE_DAYS = 90;
 
@@ -30,13 +30,19 @@ export async function POST(event: APIEvent) {
     const { startDate, endDate } = body;
 
     if (typeof startDate !== "string" || typeof endDate !== "string") {
-      return Response.json({ error: "startDate and endDate are required" }, { status: 400 });
+      return Response.json(
+        { error: "startDate and endDate are required" },
+        { status: 400 },
+      );
     }
 
     const rangeStart = new Date(startDate);
     const rangeEnd = new Date(endDate);
 
-    if (isNaN(rangeStart.getTime()) || isNaN(rangeEnd.getTime())) {
+    if (
+      Number.isNaN(rangeStart.getTime()) ||
+      Number.isNaN(rangeEnd.getTime())
+    ) {
       return Response.json({ error: "Invalid date format" }, { status: 400 });
     }
 
@@ -51,7 +57,10 @@ export async function POST(event: APIEvent) {
     }
 
     if (diffDays < 1) {
-      return Response.json({ error: "endDate must be after startDate" }, { status: 400 });
+      return Response.json(
+        { error: "endDate must be after startDate" },
+        { status: 400 },
+      );
     }
 
     const business = await prisma.business.findUnique({
@@ -74,7 +83,7 @@ export async function POST(event: APIEvent) {
     const workingDays = business.workingDays
       .split(",")
       .map((d) => parseInt(d, 10))
-      .filter((d) => !isNaN(d));
+      .filter((d) => !Number.isNaN(d));
 
     const bookingStart = parseTime(business.bookingStartTime);
     const bookingEnd = parseTime(business.bookingEndTime);
@@ -97,7 +106,12 @@ export async function POST(event: APIEvent) {
     });
 
     // Generate new slots
-    const newSlots: { businessId: string; date: Date; startTime: string; endTime: string }[] = [];
+    const newSlots: {
+      businessId: string;
+      date: Date;
+      startTime: string;
+      endTime: string;
+    }[] = [];
     const current = new Date(rangeStart);
 
     while (current <= rangeEnd) {
@@ -128,9 +142,6 @@ export async function POST(event: APIEvent) {
 
     return Response.json({ created: newSlots.length });
   } catch {
-    return Response.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 }

@@ -1,21 +1,24 @@
-import type { APIEvent } from "@solidjs/start/server"
-import { getSessionFromHeaders } from "~/lib/server-auth"
-import { createMeetLink } from "~/lib/google-meet"
+import type { APIEvent } from "@solidjs/start/server";
+import { createMeetLink } from "~/lib/google-meet";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers)
+  const session = await getSessionFromHeaders(event.request.headers);
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const result = await createMeetLink(session.user.id)
+  const result = await createMeetLink(session.user.id);
 
   if (!result) {
     return Response.json(
-      { error: "Failed to create Google Meet link. Ensure your Google account is connected with Meet permissions." },
+      {
+        error:
+          "Failed to create Google Meet link. Ensure your Google account is connected with Meet permissions.",
+      },
       { status: 502 },
-    )
+    );
   }
 
-  return Response.json({ meetUri: result.meetUri })
+  return Response.json({ meetUri: result.meetUri });
 }

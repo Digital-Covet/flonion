@@ -22,9 +22,6 @@ export async function GET(event: APIEvent) {
     return Response.json({ partner });
   } catch (err) {
     console.error("[marketplace/partner] query failed:", err);
-    return Response.json(
-      { error: "Failed to load partner" },
-      { status: 500 },
-    );
+    return Response.json({ error: "Failed to load partner" }, { status: 500 });
   }
 }

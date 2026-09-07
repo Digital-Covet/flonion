@@ -12,7 +12,7 @@ export const GlassCard = (props: GlassCardProps) => (
     class={cn(
       "glass-card rounded-xl p-6",
       props.hover && "hover:bg-positive-muted transition-colors",
-      props.class
+      props.class,
     )}
   >
     {props.children}

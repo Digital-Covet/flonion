@@ -35,7 +35,7 @@ export async function GET(event: APIEvent) {
     0,
   );
   const totalQrScans =
-    (reviews.reduce((sum, r) => sum + (r.analytics?.qrScanCount ?? 0), 0)) +
+    reviews.reduce((sum, r) => sum + (r.analytics?.qrScanCount ?? 0), 0) +
     businessqRScanCount;
   const totalRedirects = reviews.reduce(
     (sum, r) => sum + (r.analytics?.redirectCount ?? 0),
@@ -64,7 +64,8 @@ export async function GET(event: APIEvent) {
     qrScans: r.analytics?.qrScanCount ?? 0,
     redirects: r.analytics?.redirectCount ?? 0,
     aiCopies: r.analytics?.aiCopyCount ?? 0,
-    platformRedirects: (r.analytics?.platformRedirects as Record<string, number>) || {},
+    platformRedirects:
+      (r.analytics?.platformRedirects as Record<string, number>) || {},
     createdAt: r.createdAt.toISOString(),
   }));
 

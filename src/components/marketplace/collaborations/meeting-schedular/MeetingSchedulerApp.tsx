@@ -1,12 +1,19 @@
-import { createSignal, createResource, Show } from "solid-js";
-import { ChevronDown, Copy, Link2, Video, Settings, ExternalLink } from "lucide-solid";
+import {
+  ChevronDown,
+  Copy,
+  ExternalLink,
+  Link2,
+  Settings,
+  Video,
+} from "lucide-solid";
+import { createResource, createSignal, Show } from "solid-js";
+import { APP_DOMAIN, currentOrigin } from "~/lib/constants";
+import BookableWindows from "./BookableWindows";
+import LoadOverview from "./LoadOverview";
+import ScheduleSettingsModal from "./ScheduleSettingsModal";
 import SegmentControl from "./SegmentControl";
 import UpcomingMeetings from "./UpcomingMeetings";
 import WeeklyCalendar from "./WeeklyCalendar";
-import LoadOverview from "./LoadOverview";
-import BookableWindows from "./BookableWindows";
-import ScheduleSettingsModal from "./ScheduleSettingsModal";
-import { APP_DOMAIN, currentOrigin } from "~/lib/constants";
 
 async function fetchScheduleSettings() {
   try {
@@ -29,11 +36,13 @@ async function fetchScheduleSettings() {
 }
 
 function MeetingSchedulerApp() {
-  const [settings, { refetch: refetchSettings }] = createResource(fetchScheduleSettings);
+  const [settings, { refetch: refetchSettings }] = createResource(
+    fetchScheduleSettings,
+  );
   const [view, setView] = createSignal<"upcoming" | "availability">("upcoming");
   const [weekOffset, setWeekOffset] = createSignal(0);
   const [linkMenuOpen, setLinkMenuOpen] = createSignal(false);
-  const [copied, setCopied] = createSignal(false);
+  const [_copied, setCopied] = createSignal(false);
   const [scheduleCopied, setScheduleCopied] = createSignal(false);
   const [creatingMeet, setCreatingMeet] = createSignal(false);
   const [meetCopied, setMeetCopied] = createSignal(false);
@@ -41,7 +50,7 @@ function MeetingSchedulerApp() {
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [slotsVersion, setSlotsVersion] = createSignal(0);
 
-  const copyLink = async () => {
+  const _copyLink = async () => {
     const url = `${APP_DOMAIN}/marketplace`;
     await navigator.clipboard?.writeText(url);
     setCopied(true);
@@ -62,7 +71,10 @@ function MeetingSchedulerApp() {
   const openSchedulePreview = () => {
     const username = settings()?.username;
     if (username) {
-      window.open(`/company/${encodeURIComponent(username)}/bookings`, "_blank");
+      window.open(
+        `/company/${encodeURIComponent(username)}/bookings`,
+        "_blank",
+      );
     }
   };
 
@@ -135,7 +147,9 @@ function MeetingSchedulerApp() {
                     class="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
                   >
                     <Copy class="size-4 text-muted-foreground" />
-                    {scheduleCopied() ? "Schedule link copied" : "Copy public schedule link"}
+                    {scheduleCopied()
+                      ? "Schedule link copied"
+                      : "Copy public schedule link"}
                   </button>
                   <Show when={settings()?.username}>
                     <button
@@ -161,7 +175,9 @@ function MeetingSchedulerApp() {
                         : "Copy Google Meet link"}
                   </button>
                   <Show when={meetError()}>
-                    <p class="px-3 pt-1 text-xs text-destructive">{meetError()}</p>
+                    <p class="px-3 pt-1 text-xs text-destructive">
+                      {meetError()}
+                    </p>
                   </Show>
                 </div>
               </Show>
@@ -184,7 +200,9 @@ function MeetingSchedulerApp() {
               <WeeklyCalendar
                 weekOffset={weekOffset()}
                 onWeekChange={(change) =>
-                  setWeekOffset((offset) => Math.max(-1, Math.min(1, offset + change)))
+                  setWeekOffset((offset) =>
+                    Math.max(-1, Math.min(1, offset + change)),
+                  )
                 }
               />
             </div>

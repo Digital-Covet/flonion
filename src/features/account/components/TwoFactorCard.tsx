@@ -1,15 +1,14 @@
-import { createSignal, Show, onMount } from "solid-js";
 import { Field } from "@ark-ui/solid/field";
-import { Portal } from "solid-js/web";
 import type { LucideIcon } from "lucide-solid";
+import AlertTriangle from "lucide-solid/icons/alert-triangle";
+import Copy from "lucide-solid/icons/copy";
+import Key from "lucide-solid/icons/key";
 import ShieldCheck from "lucide-solid/icons/shield-check";
 import ShieldOff from "lucide-solid/icons/shield-off";
-import Key from "lucide-solid/icons/key";
-import Copy from "lucide-solid/icons/copy";
-import Check from "lucide-solid/icons/check";
-import AlertTriangle from "lucide-solid/icons/alert-triangle";
-import { authClient } from "~/lib/auth-client";
+import { createSignal, onMount, Show } from "solid-js";
+import { Portal } from "solid-js/web";
 import { SectionCard } from "~/features/settings/components/SectionCard";
+import { authClient } from "~/lib/auth-client";
 import { BackupCodesDialog } from "./BackupCodesDialog";
 import { PasswordConfirmDialog } from "./PasswordConfirmDialog";
 
@@ -31,7 +30,9 @@ export function TwoFactorCard(props: TwoFactorCardProps) {
   const [showBackupDialog, setShowBackupDialog] = createSignal(false);
   const [copied, setCopied] = createSignal(false);
   const [showPasswordDialog, setShowPasswordDialog] = createSignal(false);
-  const [pendingAction, setPendingAction] = createSignal<"enable" | "disable">("enable");
+  const [pendingAction, setPendingAction] = createSignal<"enable" | "disable">(
+    "enable",
+  );
   const [passwordError, setPasswordError] = createSignal("");
   const [passwordLoading, setPasswordLoading] = createSignal(false);
 
@@ -159,8 +160,8 @@ export function TwoFactorCard(props: TwoFactorCardProps) {
     <SectionCard title="Two-Factor Authentication" icon={props.icon}>
       <p class="mb-4 text-sm text-muted-foreground">
         Add an extra layer of security to your account by enabling two-factor
-        authentication. You'll use an authenticator app like Google Authenticator
-        or Authy.
+        authentication. You'll use an authenticator app like Google
+        Authenticator or Authy.
       </p>
 
       <Show when={!loading()}>
@@ -344,8 +345,16 @@ export function TwoFactorCard(props: TwoFactorCardProps) {
       <Show when={showPasswordDialog()}>
         <Portal>
           <PasswordConfirmDialog
-            title={pendingAction() === "enable" ? "Enable Two-Factor Authentication" : "Disable Two-Factor Authentication"}
-            description={pendingAction() === "enable" ? "Enter your password to enable 2FA for your account." : "Enter your password to disable 2FA for your account."}
+            title={
+              pendingAction() === "enable"
+                ? "Enable Two-Factor Authentication"
+                : "Disable Two-Factor Authentication"
+            }
+            description={
+              pendingAction() === "enable"
+                ? "Enter your password to enable 2FA for your account."
+                : "Enter your password to disable 2FA for your account."
+            }
             onSubmit={handlePasswordSubmit}
             onClose={() => {
               setShowPasswordDialog(false);

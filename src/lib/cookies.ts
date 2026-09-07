@@ -29,12 +29,7 @@ export function serializeCookie(
   value: string,
   options: CookieOptions = {},
 ): string {
-  const {
-    maxAge,
-    path = "/",
-    sameSite = "Lax",
-    httpOnly = true,
-  } = options;
+  const { maxAge, path = "/", sameSite = "Lax", httpOnly = true } = options;
 
   const parts = [`${name}=${value}`, `Path=${path}`, `SameSite=${sameSite}`];
 

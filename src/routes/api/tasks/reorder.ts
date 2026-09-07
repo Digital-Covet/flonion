@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 export async function PATCH(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -23,7 +23,11 @@ export async function PATCH(event: APIEvent) {
     const body = await event.request.json();
     const { taskId, targetColumn, newPosition } = body;
 
-    if (typeof taskId !== "string" || typeof targetColumn !== "string" || typeof newPosition !== "number") {
+    if (
+      typeof taskId !== "string" ||
+      typeof targetColumn !== "string" ||
+      typeof newPosition !== "number"
+    ) {
       return Response.json({ error: "Invalid parameters" }, { status: 400 });
     }
 

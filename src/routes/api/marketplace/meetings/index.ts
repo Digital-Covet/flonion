@@ -1,11 +1,9 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
-import { sendEmail } from "~/services/email";
-import {
-  renderMeetingRequestEmail,
-} from "~/services/email-templates";
 import { APP_DOMAIN } from "~/lib/constants";
+import { getSessionFromHeaders } from "~/lib/server-auth";
+import { sendEmail } from "~/services/email";
+import { renderMeetingRequestEmail } from "~/services/email-templates";
 
 export async function GET(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -45,8 +43,12 @@ export async function GET(event: APIEvent) {
       orderBy: { createdAt: "desc" },
       include: {
         slot: { select: { date: true, startTime: true, endTime: true } },
-        business: { select: { id: true, name: true, logo: true, username: true } },
-        requester: { select: { id: true, name: true, email: true, image: true } },
+        business: {
+          select: { id: true, name: true, logo: true, username: true },
+        },
+        requester: {
+          select: { id: true, name: true, email: true, image: true },
+        },
       },
     });
 
@@ -78,7 +80,12 @@ export async function POST(event: APIEvent) {
       where: { id: slotId },
       include: {
         business: {
-          select: { id: true, name: true, userId: true, user: { select: { email: true, name: true } } },
+          select: {
+            id: true,
+            name: true,
+            userId: true,
+            user: { select: { email: true, name: true } },
+          },
         },
       },
     });
@@ -126,7 +133,10 @@ export async function POST(event: APIEvent) {
           slotId: updatedSlot.id,
           businessId,
           requesterId: session.user.id,
-          message: typeof message === "string" && message.trim() ? message.trim() : null,
+          message:
+            typeof message === "string" && message.trim()
+              ? message.trim()
+              : null,
         },
         include: {
           slot: true,
@@ -166,14 +176,14 @@ export async function POST(event: APIEvent) {
         html,
       });
     } catch (err) {
-      console.error("[marketplace/meetings] Failed to send notification email:", err);
+      console.error(
+        "[marketplace/meetings] Failed to send notification email:",
+        err,
+      );
     }
 
     return Response.json({ meeting });
   } catch {
-    return Response.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 }

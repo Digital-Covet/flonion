@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 export async function GET(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -96,7 +96,10 @@ export async function PATCH(event: APIEvent) {
       });
 
       if (!assignee) {
-        return Response.json({ error: "Assignee is not a member of this team" }, { status: 400 });
+        return Response.json(
+          { error: "Assignee is not a member of this team" },
+          { status: 400 },
+        );
       }
 
       data.assigneeId = assigneeId;

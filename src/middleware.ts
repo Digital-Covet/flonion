@@ -1,6 +1,6 @@
 import { createMiddleware } from "@solidjs/start/middleware";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 import { isTrustedRequestOrigin } from "~/lib/trusted-origins";
 
 const STATE_CHANGING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -43,10 +43,14 @@ function isPublicPath(pathname: string): boolean {
   }
   // Allow public access to /company/*/review and /company/*/bookings sub-routes while protecting
   // the /company/:companyname profile page itself.
-  const companyReviewMatch = pathname.match(/^\/company\/[^/]+\/review(?:\/.*)?$/);
+  const companyReviewMatch = pathname.match(
+    /^\/company\/[^/]+\/review(?:\/.*)?$/,
+  );
   if (companyReviewMatch) return true;
 
-  const companyBookingsMatch = pathname.match(/^\/company\/[^/]+\/bookings(?:\/.*)?$/);
+  const companyBookingsMatch = pathname.match(
+    /^\/company\/[^/]+\/bookings(?:\/.*)?$/,
+  );
   if (companyBookingsMatch) return true;
 
   return false;
@@ -153,7 +157,11 @@ export default createMiddleware({
 
     if (!user) return;
 
-    if (!user.onboardingCompleted && pathname !== "/onboarding" && pathname !== "/accept-invite") {
+    if (
+      !user.onboardingCompleted &&
+      pathname !== "/onboarding" &&
+      pathname !== "/accept-invite"
+    ) {
       return secured(
         new Response(null, {
           status: 302,

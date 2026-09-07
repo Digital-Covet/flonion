@@ -1,5 +1,5 @@
-import { For, Show, type Component } from 'solid-js';
-import type { FooterProps } from '@/types/auth-ui';
+import { type Component, For, Show } from "solid-js";
+import type { FooterProps } from "@/types/auth-ui";
 
 export const Footer: Component<FooterProps> = (props) => (
   <footer class="mt-10 w-full">
@@ -15,10 +15,7 @@ export const Footer: Component<FooterProps> = (props) => (
                 /
               </span>
             </Show>
-            <a
-              href={link.href}
-              class="transition-colors hover:text-foreground"
-            >
+            <a href={link.href} class="transition-colors hover:text-foreground">
               {link.label}
             </a>
           </>

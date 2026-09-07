@@ -1,4 +1,4 @@
-import { iconMap, type IconName } from "./icon-map";
+import { type IconName, iconMap } from "./icon-map";
 
 interface MetaItemProps {
   icon: IconName;

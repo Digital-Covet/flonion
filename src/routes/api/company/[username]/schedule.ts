@@ -25,7 +25,7 @@ export async function GET(event: APIEvent) {
   const startDate = startDateParam ? new Date(startDateParam) : defaultStart;
   const endDate = endDateParam ? new Date(endDateParam) : defaultEnd;
 
-  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
     return Response.json({ error: "Invalid date format" }, { status: 400 });
   }
 

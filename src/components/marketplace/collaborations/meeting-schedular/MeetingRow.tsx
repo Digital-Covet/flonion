@@ -1,6 +1,5 @@
-import { Dynamic } from "solid-js/web";
 import { Clock3, MoreHorizontal } from "lucide-solid";
-import type { Component } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import type { MeetingRowProps } from "~/types";
 import AvatarGroup from "./AvatarGroup";
 import StatusBadge from "./StatusBadge";
@@ -21,8 +20,12 @@ function MeetingRow(props: MeetingRowProps) {
               : "border border-border bg-muted text-foreground"
           }`}
         >
-          <span class="-mb-2 text-[10px] font-semibold uppercase opacity-80">{props.meeting.month}</span>
-          <span class="font-heading text-lg font-semibold leading-none">{props.meeting.day}</span>
+          <span class="-mb-2 text-[10px] font-semibold uppercase opacity-80">
+            {props.meeting.month}
+          </span>
+          <span class="font-heading text-lg font-semibold leading-none">
+            {props.meeting.day}
+          </span>
         </div>
         <div class="min-w-0">
           <h4 class="truncate text-base text-foreground transition-colors group-hover:text-primary">
@@ -42,10 +45,14 @@ function MeetingRow(props: MeetingRowProps) {
       </div>
       <div class="flex items-center gap-2 pl-16 sm:pl-0">
         <AvatarGroup participants={props.meeting.participants} />
-        <StatusBadge tone={props.meeting.category === "partner" ? "primary" : "purple"}>
+        <StatusBadge
+          tone={props.meeting.category === "partner" ? "primary" : "purple"}
+        >
           {props.meeting.category}
         </StatusBadge>
-        <StatusBadge tone={props.meeting.status === "Confirmed" ? "primary" : "orange"}>
+        <StatusBadge
+          tone={props.meeting.status === "Confirmed" ? "primary" : "orange"}
+        >
           {props.meeting.status}
         </StatusBadge>
         <button

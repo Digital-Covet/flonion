@@ -19,10 +19,7 @@ export function issueReviewClaim(reviewId: string): string {
   return `${encoded}.${sign(encoded, SIG_PURPOSE)}`;
 }
 
-export function verifyReviewClaim(
-  token: unknown,
-  reviewId: string,
-): boolean {
+export function verifyReviewClaim(token: unknown, reviewId: string): boolean {
   if (typeof token !== "string" || !token) return false;
 
   const dotIndex = token.lastIndexOf(".");

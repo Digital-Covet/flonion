@@ -1,9 +1,15 @@
-import { AlignLeft, CheckCircle, Clock, GripVertical, Trash2 } from "lucide-solid";
-import { Show, createSignal } from "solid-js";
 import { Progress } from "@ark-ui/solid/progress";
 import { Tooltip } from "@ark-ui/solid/tooltip";
+import {
+  AlignLeft,
+  CheckCircle,
+  Clock,
+  GripVertical,
+  Trash2,
+} from "lucide-solid";
+import { createSignal, Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import { useTaskContext, type Task } from "~/stores/task-store";
+import { type Task, useTaskContext } from "~/stores/task-store";
 
 interface TaskCardProps {
   task: Task;
@@ -128,12 +134,13 @@ export default function TaskCard(props: TaskCardProps) {
       </div>
 
       <p
-        class={`text-sm font-medium mb-2 line-clamp-2 transition-colors ${isDone()
+        class={`text-sm font-medium mb-2 line-clamp-2 transition-colors ${
+          isDone()
             ? "text-muted-foreground"
             : isWaiting()
               ? "text-muted-foreground"
               : "text-foreground group-hover:text-primary"
-          }`}
+        }`}
       >
         {props.task.title}
       </p>

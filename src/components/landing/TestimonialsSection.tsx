@@ -1,7 +1,7 @@
-import { createSignal, onMount, onCleanup } from "solid-js";
 import User from "lucide-solid/icons/user";
-import { testimonialItems } from "~/constants/landing";
+import { createSignal, onCleanup, onMount } from "solid-js";
 import AnimatedStarRating from "~/components/landing/AnimatedStarRating";
+import { testimonialItems } from "~/constants/landing";
 
 export default function TestimonialsSection() {
   const [visible, setVisible] = createSignal(false);
@@ -16,7 +16,7 @@ export default function TestimonialsSection() {
           observer.disconnect();
         }
       },
-      { threshold: 0.15 }
+      { threshold: 0.15 },
     );
     observer.observe(sectionRef);
     onCleanup(() => observer.disconnect());

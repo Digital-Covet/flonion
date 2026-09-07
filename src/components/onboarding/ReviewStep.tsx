@@ -1,8 +1,8 @@
-import { For, Show, type Component } from "solid-js";
 import ArrowLeft from "lucide-solid/icons/arrow-left";
-import Star from "lucide-solid/icons/star";
 import MapPin from "lucide-solid/icons/map-pin";
+import Star from "lucide-solid/icons/star";
 import Tag from "lucide-solid/icons/tag";
+import { type Component, For, Show } from "solid-js";
 import type { BasicsData } from "./BasicsStep";
 
 interface ReviewStepProps {
@@ -14,7 +14,11 @@ interface ReviewStepProps {
 
 export const ReviewStep: Component<ReviewStepProps> = (props) => {
   const addressDisplay = () => {
-    const parts = [props.data.address, props.data.city, props.data.pinCode].filter(Boolean);
+    const parts = [
+      props.data.address,
+      props.data.city,
+      props.data.pinCode,
+    ].filter(Boolean);
     return parts.join(", ");
   };
 
@@ -62,7 +66,11 @@ export const ReviewStep: Component<ReviewStepProps> = (props) => {
                 {(i) => (
                   <Star
                     size={16}
-                    class={i <= 4 ? "fill-yellow-400 text-yellow-400" : "fill-muted text-muted"}
+                    class={
+                      i <= 4
+                        ? "fill-yellow-400 text-yellow-400"
+                        : "fill-muted text-muted"
+                    }
                     aria-hidden="true"
                   />
                 )}
@@ -96,7 +104,11 @@ export const ReviewStep: Component<ReviewStepProps> = (props) => {
 
             <Show when={keywordList().length > 0}>
               <div class="mt-3 flex flex-wrap items-center gap-1.5">
-                <Tag size={12} class="text-muted-foreground" aria-hidden="true" />
+                <Tag
+                  size={12}
+                  class="text-muted-foreground"
+                  aria-hidden="true"
+                />
                 <For each={keywordList()}>
                   {(keyword) => (
                     <span class="rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-muted-foreground">

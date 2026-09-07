@@ -1,11 +1,10 @@
 import ArrowRight from "lucide-solid/icons/arrow-right";
+import MessageSquareText from "lucide-solid/icons/message-square-text";
 import PlayCircle from "lucide-solid/icons/play-circle";
 import Star from "lucide-solid/icons/star";
+import Store from "lucide-solid/icons/store";
 import TrendingUp from "lucide-solid/icons/trending-up";
 import User from "lucide-solid/icons/user";
-import Store from "lucide-solid/icons/store";
-import MessageSquareText from "lucide-solid/icons/message-square-text";
-import Wordmark from "~/assets/wordmark";
 
 interface HeroSectionProps {
   reducedMotion: boolean;
@@ -25,14 +24,18 @@ export default function HeroSection(props: HeroSectionProps) {
   };
 
   const resetTilt = (el: HTMLDivElement) => {
-    el.style.transform = "perspective(900px) rotateX(0deg) rotateY(0deg) translate3d(0, 0, 0)";
+    el.style.transform =
+      "perspective(900px) rotateX(0deg) rotateY(0deg) translate3d(0, 0, 0)";
     el.style.setProperty("--mx", "50%");
     el.style.setProperty("--my", "50%");
   };
 
   return (
     <section class="hero-gradient relative overflow-hidden px-4 pb-32 pt-24 md:px-16">
-      <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.62),transparent_50%)]" aria-hidden="true" />
+      <div
+        class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.62),transparent_50%)]"
+        aria-hidden="true"
+      />
 
       <div class="relative z-10 mx-auto grid max-w-[1280px] items-center gap-12 md:grid-cols-2">
         <div class="pr-4 animate-[fade-in-up_0.6s_ease-out_both]">
@@ -41,7 +44,8 @@ export default function HeroSection(props: HeroSectionProps) {
             <span class="accent-gradient">AI Precision</span>
           </h1>
           <p class="mb-10 mt-6 max-w-lg text-lg text-muted-foreground">
-            Flonion helps local Indian shops, restaurants, and salons collect reviews and grow their reputation automatically.
+            Flonion helps local Indian shops, restaurants, and salons collect
+            reviews and grow their reputation automatically.
           </p>
           <div class="flex flex-col gap-2 sm:flex-row">
             <a
@@ -100,7 +104,11 @@ export default function HeroSection(props: HeroSectionProps) {
                   <span class="text-[40px] font-bold leading-tight text-card-foreground">
                     4.8
                   </span>
-                  <Star size={28} class="fill-orange text-orange" aria-hidden="true" />
+                  <Star
+                    size={28}
+                    class="fill-orange text-orange"
+                    aria-hidden="true"
+                  />
                 </div>
                 <div class="mt-2 h-2 w-full rounded-full bg-muted">
                   <div class="h-2 w-[90%] rounded-full bg-primary" />
@@ -141,9 +149,7 @@ export default function HeroSection(props: HeroSectionProps) {
             </div>
           </div>
 
-          <div
-            class="idle-float glass-card absolute -left-12 top-1/4 z-20 flex items-center gap-4 rounded-xl p-4 shadow-md will-change-transform"
-          >
+          <div class="idle-float glass-card absolute -left-12 top-1/4 z-20 flex items-center gap-4 rounded-xl p-4 shadow-md will-change-transform">
             <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-inner">
               <MessageSquareText size={24} aria-hidden="true" />
             </div>
@@ -155,9 +161,7 @@ export default function HeroSection(props: HeroSectionProps) {
             </div>
           </div>
 
-          <div
-            class="glass-card absolute -right-8 bottom-24 z-20 rounded-xl p-5 shadow-md will-change-transform"
-          >
+          <div class="glass-card absolute -right-8 bottom-24 z-20 rounded-xl p-5 shadow-md will-change-transform">
             <div class="mb-3 flex items-center justify-between gap-4 text-sm font-bold text-card-foreground">
               <span>Weekly Growth</span>
               <span class="rounded bg-orange-muted px-2 py-0.5 text-xs font-bold text-orange">
@@ -167,22 +171,26 @@ export default function HeroSection(props: HeroSectionProps) {
             <div class="flex h-20 items-end gap-2.5">
               {[30, 45, 60, 50, 85].map((height, i) => (
                 <div
-                  class={`w-5 rounded-t transition-colors hover:bg-primary ${i === 4
+                  class={`w-5 rounded-t transition-colors hover:bg-primary ${
+                    i === 4
                       ? "bg-primary shadow-[0_0_10px_rgba(15,118,110,0.4)]"
                       : "bg-slate-300"
-                    }`}
+                  }`}
                   style={{ height: `${height}%` }}
                 />
               ))}
             </div>
           </div>
 
-          <div
-            class="idle-float-delayed glass-card absolute right-10 top-12 z-20 flex items-center gap-2 rounded-full px-4 py-2.5 shadow-md will-change-transform"
-          >
+          <div class="idle-float-delayed glass-card absolute right-10 top-12 z-20 flex items-center gap-2 rounded-full px-4 py-2.5 shadow-md will-change-transform">
             <div class="flex text-orange">
               {[0, 1, 2].map((item) => (
-                <Star key={item} size={14} class="fill-orange" aria-hidden="true" />
+                <Star
+                  key={item}
+                  size={14}
+                  class="fill-orange"
+                  aria-hidden="true"
+                />
               ))}
             </div>
             <div class="text-sm font-bold text-card-foreground">4.9/5</div>
@@ -198,7 +206,9 @@ export default function HeroSection(props: HeroSectionProps) {
                 <span class="text-[10px] font-bold text-purple">W</span>
               </div>
             </div>
-            <div class="pr-1 text-xs font-bold text-card-foreground">Synced</div>
+            <div class="pr-1 text-xs font-bold text-card-foreground">
+              Synced
+            </div>
           </div>
         </div>
       </div>

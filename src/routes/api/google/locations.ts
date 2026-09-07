@@ -1,46 +1,48 @@
-import type { APIEvent } from "@solidjs/start/server"
-import { getValidAccessToken, hasValidTokens } from "~/lib/google-tokens"
-import { getSessionFromHeaders } from "~/lib/server-auth"
-import type { GoogleAccount, GoogleLocation } from "~/types/google"
+import type { APIEvent } from "@solidjs/start/server";
+import { getValidAccessToken, hasValidTokens } from "~/lib/google-tokens";
+import { getSessionFromHeaders } from "~/lib/server-auth";
+import type { GoogleAccount, GoogleLocation } from "~/types/google";
 
 interface RawLocation {
-  name?: string
-  locationId?: string
-  displayName?: string
-  title?: string
-  primaryPhone?: string
-  primaryCategory?: { displayName?: string }
-  websiteUrl?: string
+  name?: string;
+  locationId?: string;
+  displayName?: string;
+  title?: string;
+  primaryPhone?: string;
+  primaryCategory?: { displayName?: string };
+  websiteUrl?: string;
   storefrontAddress?: {
-    addressLines?: string[]
-    locality?: string
-    administrativeArea?: string
-    postalCode?: string
-    regionCode?: string
-  }
+    addressLines?: string[];
+    locality?: string;
+    administrativeArea?: string;
+    postalCode?: string;
+    regionCode?: string;
+  };
   metadata?: {
-    canReview?: boolean
-    canUpdateInsights?: boolean
-  }
+    canReview?: boolean;
+    canUpdateInsights?: boolean;
+  };
   locationState?: {
-    isGoogleUpdated?: boolean
-    isGoogleVerified?: boolean
-  }
+    isGoogleUpdated?: boolean;
+    isGoogleVerified?: boolean;
+  };
   locationKey?: {
-    placeId?: string
-    plusPageId?: string
-  }
+    placeId?: string;
+    plusPageId?: string;
+  };
 }
 
 function mapLocation(raw: RawLocation): GoogleLocation {
-  const addr = raw.storefrontAddress
-  const addressLine = addr?.addressLines?.join(", ") ?? ""
-  const cityLocality = addr?.locality ?? ""
-  const stateRegion = addr?.administrativeArea ?? ""
-  const postal = addr?.postalCode ?? ""
+  const addr = raw.storefrontAddress;
+  const addressLine = addr?.addressLines?.join(", ") ?? "";
+  const cityLocality = addr?.locality ?? "";
+  const stateRegion = addr?.administrativeArea ?? "";
+  const postal = addr?.postalCode ?? "";
 
-  const parts = [addressLine, cityLocality, stateRegion, postal].filter(Boolean)
-  const fullAddress = parts.join(", ")
+  const parts = [addressLine, cityLocality, stateRegion, postal].filter(
+    Boolean,
+  );
+  const fullAddress = parts.join(", ");
 
   return {
     name: raw.name ?? "",
@@ -65,7 +67,7 @@ function mapLocation(raw: RawLocation): GoogleLocation {
       isGoogleUpdated: raw.locationState?.isGoogleUpdated ?? false,
       isGoogleVerified: raw.locationState?.isGoogleVerified ?? false,
     },
-  }
+  };
 }
 
 async function fetchWithRetry(
@@ -75,56 +77,54 @@ async function fetchWithRetry(
   baseDelay = 1000,
 ): Promise<Response> {
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const response = await fetch(url, options)
+    const response = await fetch(url, options);
 
     if (response.status === 429) {
-      const retryAfter = response.headers.get("Retry-After")
+      const retryAfter = response.headers.get("Retry-After");
       const delay = retryAfter
         ? parseInt(retryAfter, 10) * 1000
-        : baseDelay * Math.pow(2, attempt)
+        : baseDelay * 2 ** attempt;
 
       if (attempt < retries) {
-        await new Promise((resolve) => setTimeout(resolve, delay))
-        continue
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
       }
     }
 
-    return response
+    return response;
   }
 
-  throw new Error("Max retries exceeded")
+  throw new Error("Max retries exceeded");
 }
 
 export async function GET(_event: APIEvent) {
-  const session = await getSessionFromHeaders(_event.request.headers)
+  const session = await getSessionFromHeaders(_event.request.headers);
   if (!session) {
-    return Response.json(
-      { error: "Unauthorized" },
-      { status: 401 },
-    )
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   if (!(await hasValidTokens(session.user.id))) {
     return Response.json(
       { error: "Not authenticated", authUrl: "/api/google/auth" },
       { status: 401 },
-    )
+    );
   }
 
   try {
-    const accessToken = await getValidAccessToken(session.user.id)
+    const accessToken = await getValidAccessToken(session.user.id);
 
     const accountsResponse = await fetchWithRetry(
       "https://mybusinessbusinessinformation.googleapis.com/v1/accounts",
       {
         headers: { Authorization: `Bearer ${accessToken}` },
       },
-    )
+    );
 
     if (!accountsResponse.ok) {
-      const errorData = await accountsResponse.json().catch(() => ({}))
-      const message = errorData.error?.message || accountsResponse.statusText
-      const isQuota = accountsResponse.status === 429 || message.includes("Quota exceeded")
+      const errorData = await accountsResponse.json().catch(() => ({}));
+      const message = errorData.error?.message || accountsResponse.statusText;
+      const isQuota =
+        accountsResponse.status === 429 || message.includes("Quota exceeded");
 
       return Response.json(
         {
@@ -135,13 +135,14 @@ export async function GET(_event: APIEvent) {
           }),
         },
         { status: accountsResponse.status },
-      )
+      );
     }
 
-    const accountsData = await accountsResponse.json()
-    const accounts: GoogleAccount[] = accountsData.accounts || []
+    const accountsData = await accountsResponse.json();
+    const accounts: GoogleAccount[] = accountsData.accounts || [];
 
-    const allLocations: Array<GoogleAccount & { locations: GoogleLocation[] }> = []
+    const allLocations: Array<GoogleAccount & { locations: GoogleLocation[] }> =
+      [];
 
     for (const account of accounts) {
       const locationsResponse = await fetchWithRetry(
@@ -149,21 +150,24 @@ export async function GET(_event: APIEvent) {
         {
           headers: { Authorization: `Bearer ${accessToken}` },
         },
-      )
+      );
 
       if (locationsResponse.ok) {
-        const locationsData = await locationsResponse.json()
-        const rawLocations: RawLocation[] = locationsData.locations || []
+        const locationsData = await locationsResponse.json();
+        const rawLocations: RawLocation[] = locationsData.locations || [];
         allLocations.push({
           ...account,
           locations: rawLocations.map(mapLocation),
-        })
+        });
       }
     }
 
-    return Response.json({ accounts: allLocations })
+    return Response.json({ accounts: allLocations });
   } catch (err) {
-    console.error("[google/locations] request failed:", err)
-    return Response.json({ error: "Failed to fetch locations" }, { status: 500 })
+    console.error("[google/locations] request failed:", err);
+    return Response.json(
+      { error: "Failed to fetch locations" },
+      { status: 500 },
+    );
   }
 }

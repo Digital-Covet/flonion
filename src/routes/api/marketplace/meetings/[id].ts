@@ -1,10 +1,10 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
-import { sendEmail } from "~/services/email";
-import { renderMeetingDecisionEmail } from "~/services/email-templates";
 import { APP_DOMAIN } from "~/lib/constants";
 import { createMeetLink } from "~/lib/google-meet";
+import { getSessionFromHeaders } from "~/lib/server-auth";
+import { sendEmail } from "~/services/email";
+import { renderMeetingDecisionEmail } from "~/services/email-templates";
 
 export async function GET(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -125,9 +125,11 @@ export async function GET(event: APIEvent) {
     .card{background:#fff;padding:2rem;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);text-align:center;max-width:400px;}
     h2{margin:0 0 .5rem;color:#111;}p{color:#555;margin:.5rem 0 1.5rem;}</style></head>
     <body><div class="card"><h2>Meeting ${newStatus === "accepted" ? "Accepted" : "Rejected"}</h2>
-    <p>${newStatus === "accepted"
-      ? "You have accepted the meeting request. The requester has been notified."
-      : "You have rejected the meeting request. The slot has been freed."}</p>
+    <p>${
+      newStatus === "accepted"
+        ? "You have accepted the meeting request. The requester has been notified."
+        : "You have rejected the meeting request. The slot has been freed."
+    }</p>
     <p style="font-size:13px;color:#999;">Redirecting to dashboard...</p></div></body></html>`,
     { status: 200, headers: { "Content-Type": "text/html" } },
   );
@@ -243,14 +245,14 @@ export async function PATCH(event: APIEvent) {
         html,
       });
     } catch (err) {
-      console.error("[marketplace/meetings] Failed to send decision email:", err);
+      console.error(
+        "[marketplace/meetings] Failed to send decision email:",
+        err,
+      );
     }
 
     return Response.json({ meeting: { ...meeting, status: newStatus } });
   } catch {
-    return Response.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 }

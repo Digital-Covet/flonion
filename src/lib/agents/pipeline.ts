@@ -1,5 +1,5 @@
+import { draftReviewReply, suggestImprovedReview } from "./review-drafter";
 import { analyzeSentiment, type SentimentAnalysis } from "./sentiment-analyzer";
-import { draftReviewReply, suggestImprovedReview, type DraftReplyResult } from "./review-drafter";
 
 export interface ReviewPipelineResult {
   sentiment: SentimentAnalysis;

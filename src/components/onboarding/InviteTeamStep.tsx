@@ -1,8 +1,8 @@
-import { createSignal, For, Show, type Component } from "solid-js";
 import { Field } from "@ark-ui/solid/field";
 import ArrowRight from "lucide-solid/icons/arrow-right";
 import Trash2 from "lucide-solid/icons/trash-2";
 import UserPlus from "lucide-solid/icons/user-plus";
+import { type Component, createSignal, For, Show } from "solid-js";
 import { ROLE_DEFINITIONS, type UserRole } from "~/lib/roles";
 
 export interface TeamInvite {
@@ -62,14 +62,18 @@ export const InviteTeamStep: Component<InviteTeamStepProps> = (props) => {
           Invite Your Team
         </h3>
         <p class="text-sm text-muted-foreground">
-          Add team members to collaborate with you. You can also do this later from Settings.
+          Add team members to collaborate with you. You can also do this later
+          from Settings.
         </p>
       </div>
 
       <form class="flex flex-col gap-4" onSubmit={handleSubmit}>
         <div class="flex gap-3">
           <Field.Root class="flex-1">
-            <Field.Label for="invite-email" class="text-sm font-semibold text-foreground">
+            <Field.Label
+              for="invite-email"
+              class="text-sm font-semibold text-foreground"
+            >
               Email Address
             </Field.Label>
             <Field.Input
@@ -91,7 +95,10 @@ export const InviteTeamStep: Component<InviteTeamStepProps> = (props) => {
           </Field.Root>
 
           <Field.Root class="w-40">
-            <Field.Label for="invite-role" class="text-sm font-semibold text-foreground">
+            <Field.Label
+              for="invite-role"
+              class="text-sm font-semibold text-foreground"
+            >
               Role
             </Field.Label>
             <select
@@ -101,9 +108,7 @@ export const InviteTeamStep: Component<InviteTeamStepProps> = (props) => {
               class={selectClass}
             >
               <For each={ROLE_DEFINITIONS}>
-                {(r) => (
-                  <option value={r.value}>{r.label}</option>
-                )}
+                {(r) => <option value={r.value}>{r.label}</option>}
               </For>
             </select>
           </Field.Root>
@@ -140,7 +145,8 @@ export const InviteTeamStep: Component<InviteTeamStepProps> = (props) => {
                       {invite.email}
                     </td>
                     <td class="px-4 py-3 text-sm text-muted-foreground">
-                      {ROLE_DEFINITIONS.find((r) => r.value === invite.role)?.label ?? invite.role}
+                      {ROLE_DEFINITIONS.find((r) => r.value === invite.role)
+                        ?.label ?? invite.role}
                     </td>
                     <td class="px-4 py-3">
                       <button

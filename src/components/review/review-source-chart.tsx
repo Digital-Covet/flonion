@@ -35,7 +35,10 @@ export function ReviewSourceChart() {
       aria-labelledby="review-sources-heading"
       class="rounded-lg border border-border bg-card p-5 shadow-sm"
     >
-      <h2 id="review-sources-heading" class="text-lg font-semibold text-foreground">
+      <h2
+        id="review-sources-heading"
+        class="text-lg font-semibold text-foreground"
+      >
         Review Sources
       </h2>
 
@@ -73,7 +76,9 @@ export function ReviewSourceChart() {
           </svg>
 
           <div class="absolute inset-0 flex flex-col items-center justify-center">
-            <span class="text-2xl font-semibold tracking-tight text-foreground">1.2K</span>
+            <span class="text-2xl font-semibold tracking-tight text-foreground">
+              1.2K
+            </span>
             <span class="text-xs text-muted-foreground">Total</span>
           </div>
         </div>

@@ -1,8 +1,8 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { canManageTeam, getBusinessContext } from "~/lib/business-context";
 import { isValidRole } from "~/lib/roles";
-import { getBusinessContext, canManageTeam } from "~/lib/business-context";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 export async function PATCH(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -17,7 +17,10 @@ export async function PATCH(event: APIEvent) {
   }
 
   if (!canManageTeam(ctx)) {
-    return Response.json({ error: "Only admins or the business owner can update member roles" }, { status: 403 });
+    return Response.json(
+      { error: "Only admins or the business owner can update member roles" },
+      { status: 403 },
+    );
   }
 
   const memberId = event.params.id;
@@ -32,7 +35,10 @@ export async function PATCH(event: APIEvent) {
   }
 
   if (member.business?.id === ctx.businessId) {
-    return Response.json({ error: "The business owner cannot be modified" }, { status: 400 });
+    return Response.json(
+      { error: "The business owner cannot be modified" },
+      { status: 400 },
+    );
   }
 
   try {
@@ -68,7 +74,10 @@ export async function DELETE(event: APIEvent) {
   }
 
   if (!canManageTeam(ctx)) {
-    return Response.json({ error: "Only admins or the business owner can remove members" }, { status: 403 });
+    return Response.json(
+      { error: "Only admins or the business owner can remove members" },
+      { status: 403 },
+    );
   }
 
   const memberId = event.params.id;
@@ -87,7 +96,10 @@ export async function DELETE(event: APIEvent) {
   }
 
   if (member.business?.id === ctx.businessId) {
-    return Response.json({ error: "The business owner cannot be modified" }, { status: 400 });
+    return Response.json(
+      { error: "The business owner cannot be modified" },
+      { status: 400 },
+    );
   }
 
   // Clearing `businessId` alone would strand them in an empty app: middleware

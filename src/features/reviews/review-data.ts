@@ -1,14 +1,14 @@
+import type { LucideProps } from "lucide-solid";
 import Clock3 from "lucide-solid/icons/clock-3";
 import MessageSquareText from "lucide-solid/icons/message-square-text";
 import Star from "lucide-solid/icons/star";
-import type { LucideProps } from "lucide-solid";
+import type { Component } from "solid-js";
 import type {
   Metric,
   ReviewSource,
   ReviewSuggestion,
   TrendPoint,
 } from "./review-types";
-import type { Component } from "solid-js";
 
 const reviewIcon: Component<LucideProps> = MessageSquareText;
 const starIcon: Component<LucideProps> = Star;

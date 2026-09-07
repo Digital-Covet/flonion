@@ -1,6 +1,6 @@
-import { createSignal, onMount, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 import AlertTriangle from "lucide-solid/icons/alert-triangle";
+import { createSignal, onMount, Show } from "solid-js";
 
 export default function ReviewRedirect() {
   const [errorTitle, setErrorTitle] = createSignal<string | null>(null);

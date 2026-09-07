@@ -1,31 +1,33 @@
-import type { APIEvent } from "@solidjs/start/server"
-import { getSessionFromHeaders } from "~/lib/server-auth"
-import { createOAuthState } from "~/lib/oauth-state"
+import type { APIEvent } from "@solidjs/start/server";
+import { createOAuthState } from "~/lib/oauth-state";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 function getEnv(key: string): string {
-  const value = process.env[key]
-  if (!value) throw new Error(`Missing environment variable: ${key}`)
-  return value
+  const value = process.env[key];
+  if (!value) throw new Error(`Missing environment variable: ${key}`);
+  return value;
 }
 
 export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers)
+  const session = await getSessionFromHeaders(event.request.headers);
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const clientId = getEnv("GOOGLE_CLIENT_ID")
-  const redirectUri = getEnv("GOOGLE_REDIRECT_URI")
+  const clientId = getEnv("GOOGLE_CLIENT_ID");
+  const redirectUri = getEnv("GOOGLE_REDIRECT_URI");
 
-  const url = new URL(event.request.url)
-  const { state, cookie } = createOAuthState(url.searchParams.get("returnTo") ?? "")
+  const url = new URL(event.request.url);
+  const { state, cookie } = createOAuthState(
+    url.searchParams.get("returnTo") ?? "",
+  );
 
   const scopes = [
     "https://www.googleapis.com/auth/business.manage",
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile",
     "https://www.googleapis.com/auth/meetings.space.created",
-  ]
+  ];
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -35,9 +37,9 @@ export async function GET(event: APIEvent) {
     access_type: "offline",
     prompt: "consent",
     state,
-  })
+  });
 
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 
   return new Response(null, {
     status: 302,
@@ -45,5 +47,5 @@ export async function GET(event: APIEvent) {
       Location: authUrl,
       "Set-Cookie": cookie,
     },
-  })
+  });
 }

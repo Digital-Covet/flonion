@@ -21,8 +21,9 @@ export function MetricCard(props: { metric: Metric }) {
         </strong>
 
         <span
-          class={`flex items-center gap-1 text-xs font-semibold ${isPositive() ? "text-positive" : "text-destructive"
-            }`}
+          class={`flex items-center gap-1 text-xs font-semibold ${
+            isPositive() ? "text-positive" : "text-destructive"
+          }`}
         >
           <Show
             when={isPositive()}

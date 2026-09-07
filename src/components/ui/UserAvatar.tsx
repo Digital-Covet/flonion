@@ -1,10 +1,10 @@
-import { Avatar } from '@ark-ui/solid'
-import type { Component } from 'solid-js'
+import { Avatar } from "@ark-ui/solid";
+import type { Component } from "solid-js";
 
 interface UserAvatarProps {
-  src: string
-  alt: string
-  fallback: string
+  src: string;
+  alt: string;
+  fallback: string;
 }
 
 const UserAvatar: Component<UserAvatarProps> = (props) => {
@@ -19,7 +19,7 @@ const UserAvatar: Component<UserAvatarProps> = (props) => {
         class="w-full h-full object-cover"
       />
     </Avatar.Root>
-  )
-}
+  );
+};
 
-export default UserAvatar
+export default UserAvatar;

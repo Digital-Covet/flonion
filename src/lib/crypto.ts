@@ -1,10 +1,10 @@
 import {
-  createHmac,
-  timingSafeEqual,
-  randomBytes,
-  hkdfSync,
   createCipheriv,
   createDecipheriv,
+  createHmac,
+  hkdfSync,
+  randomBytes,
+  timingSafeEqual,
 } from "node:crypto";
 
 /**
@@ -35,7 +35,9 @@ function deriveKey(purpose: string, length: number): Buffer {
 }
 
 export function sign(data: string, purpose = "generic-sig"): string {
-  return createHmac("sha256", deriveKey(purpose, 32)).update(data).digest("hex");
+  return createHmac("sha256", deriveKey(purpose, 32))
+    .update(data)
+    .digest("hex");
 }
 
 /**

@@ -1,10 +1,10 @@
 import { createSignal, onMount, type ParentProps } from "solid-js";
+import type { ReviewLinksMap } from "~/features/settings/review-platforms";
 import {
   SettingsContext,
   type SettingsContextValue,
   type SettingsData,
 } from "./settings-store";
-import type { ReviewLinksMap } from "~/features/settings/review-platforms";
 
 const EMPTY: SettingsData = {
   placeId: "",
@@ -30,12 +30,14 @@ async function fetchBusiness(): Promise<SettingsData & { isOwner: boolean }> {
       isOwner: data.isOwner === true,
       placeId: typeof data.placeId === "string" ? data.placeId : "",
       reviewLink: typeof data.reviewLink === "string" ? data.reviewLink : "",
-      reviewLinks: typeof data.reviewLinks === "object" && data.reviewLinks !== null
-        ? data.reviewLinks
-        : {},
+      reviewLinks:
+        typeof data.reviewLinks === "object" && data.reviewLinks !== null
+          ? data.reviewLinks
+          : {},
       logo: typeof data.logo === "string" ? data.logo : null,
       businessId: typeof data.businessId === "string" ? data.businessId : "",
-      businessName: typeof data.businessName === "string" ? data.businessName : "",
+      businessName:
+        typeof data.businessName === "string" ? data.businessName : "",
       username: typeof data.username === "string" ? data.username : "",
       phone: typeof data.phone === "string" ? data.phone : "",
       address: typeof data.address === "string" ? data.address : "",
@@ -87,7 +89,8 @@ export function SettingsProvider(props: ParentProps) {
     if (data.reviewLinks !== undefined) setReviewLinksSignal(data.reviewLinks);
     if (data.logo !== undefined) setLogoSignal(data.logo);
     if (data.businessId !== undefined) setBusinessIdSignal(data.businessId);
-    if (data.businessName !== undefined) setBusinessNameSignal(data.businessName);
+    if (data.businessName !== undefined)
+      setBusinessNameSignal(data.businessName);
     if (data.username !== undefined) setUsernameSignal(data.username);
     if (data.phone !== undefined) setPhoneSignal(data.phone);
     if (data.address !== undefined) setAddressSignal(data.address);
@@ -155,11 +158,11 @@ export function SettingsProvider(props: ParentProps) {
     setReviewLink,
     reviewLinks,
     setReviewLinks,
-      logo,
-      setLogo,
-      businessId,
-      setBusinessId,
-      businessName,
+    logo,
+    setLogo,
+    businessId,
+    setBusinessId,
+    businessName,
     setBusinessName,
     username,
     setUsername,

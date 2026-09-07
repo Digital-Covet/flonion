@@ -1,8 +1,8 @@
-import { getValidAccessToken, hasValidTokens } from "./google-tokens"
+import { getValidAccessToken, hasValidTokens } from "./google-tokens";
 
 export interface MeetLink {
-  meetUri: string
-  spaceId: string
+  meetUri: string;
+  spaceId: string;
 }
 
 /**
@@ -17,9 +17,9 @@ export interface MeetLink {
  */
 export async function createMeetLink(userId: string): Promise<MeetLink | null> {
   try {
-    if (!(await hasValidTokens(userId))) return null
+    if (!(await hasValidTokens(userId))) return null;
 
-    const accessToken = await getValidAccessToken(userId)
+    const accessToken = await getValidAccessToken(userId);
 
     const response = await fetch("https://meet.googleapis.com/v2/spaces", {
       method: "POST",
@@ -27,27 +27,27 @@ export async function createMeetLink(userId: string): Promise<MeetLink | null> {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
-    })
+    });
 
     if (!response.ok) {
-      const body = await response.text().catch(() => "")
-      console.error("[google-meet] createSpace failed:", response.status, body)
-      return null
+      const body = await response.text().catch(() => "");
+      console.error("[google-meet] createSpace failed:", response.status, body);
+      return null;
     }
 
-    const data: { name?: string; meetingUri?: string } = await response.json()
+    const data: { name?: string; meetingUri?: string } = await response.json();
 
     if (!data.meetingUri || !data.name) {
-      console.error("[google-meet] unexpected response:", data)
-      return null
+      console.error("[google-meet] unexpected response:", data);
+      return null;
     }
 
     // `name` is "spaces/{spaceId}" -- extract the ID.
-    const spaceId = data.name.split("/").pop() ?? ""
+    const spaceId = data.name.split("/").pop() ?? "";
 
-    return { meetUri: data.meetingUri, spaceId }
+    return { meetUri: data.meetingUri, spaceId };
   } catch (err) {
-    console.error("[google-meet] createMeetLink error:", err)
-    return null
+    console.error("[google-meet] createMeetLink error:", err);
+    return null;
   }
 }

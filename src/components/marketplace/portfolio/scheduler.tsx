@@ -1,10 +1,10 @@
-import { For, Show, createResource, createSignal, createMemo } from "solid-js";
-import Calendar from "lucide-solid/icons/calendar";
 import { useNavigate } from "@solidjs/router";
-import { GlassCard } from "./glass-card";
+import Calendar from "lucide-solid/icons/calendar";
+import { createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { Button } from "./button";
-import { SectionHeading } from "./section-heading";
 import { DayChip } from "./day-chip";
+import { GlassCard } from "./glass-card";
+import { SectionHeading } from "./section-heading";
 import { TimeSlot } from "./time-slot";
 
 interface Slot {
@@ -39,12 +39,18 @@ function formatDayLabel(dateStr: string): string {
   today.setHours(0, 0, 0, 0);
   const target = new Date(d);
   target.setHours(0, 0, 0, 0);
-  const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.round(
+    (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+  );
 
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Tomorrow";
 
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export const Scheduler = (props: SchedulerProps) => {
@@ -71,7 +77,7 @@ export const Scheduler = (props: SchedulerProps) => {
     return Array.from(groups.entries());
   });
 
-  const dayKeys = createMemo(() => groupedByDay().map(([key]) => key));
+  const _dayKeys = createMemo(() => groupedByDay().map(([key]) => key));
 
   const currentDaySlots = createMemo(() => {
     const idx = activeDay();
@@ -97,7 +103,9 @@ export const Scheduler = (props: SchedulerProps) => {
       });
 
       if (res.status === 401) {
-        navigate(`/login?callbackURL=${encodeURIComponent(window.location.pathname)}`);
+        navigate(
+          `/login?callbackURL=${encodeURIComponent(window.location.pathname)}`,
+        );
         return;
       }
 

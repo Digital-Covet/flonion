@@ -1,10 +1,19 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
 import { fetchBusinessRating } from "~/lib/google-business-rating";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 const USERNAME_REGEX = /^[a-z0-9-]+$/;
-const RESERVED_USERNAMES = ["admin", "api", "review", "qr", "dashboard", "settings", "login", "signup"];
+const RESERVED_USERNAMES = [
+  "admin",
+  "api",
+  "review",
+  "qr",
+  "dashboard",
+  "settings",
+  "login",
+  "signup",
+];
 const MAX_USERNAME_LENGTH = 15;
 
 export async function GET(event: APIEvent) {
@@ -37,7 +46,12 @@ export async function GET(event: APIEvent) {
       ? (business.reviewLinks as Record<string, string>)
       : {};
 
-  let teamMembers: Array<{ id: string; name: string; email: string; image: string | null }> = [];
+  let teamMembers: Array<{
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
+  }> = [];
   if (business?.id) {
     const members = await prisma.user.findMany({
       where: { businessId: business.id },
@@ -83,16 +97,33 @@ export async function POST(event: APIEvent) {
     select: { businessId: true, business: { select: { id: true } } },
   });
 
-  if (existingUser?.businessId && existingUser.businessId !== existingUser.business?.id) {
+  if (
+    existingUser?.businessId &&
+    existingUser.businessId !== existingUser.business?.id
+  ) {
     return Response.json(
-      { error: "You are already part of a team. Cannot create a new business." },
+      {
+        error: "You are already part of a team. Cannot create a new business.",
+      },
       { status: 400 },
     );
   }
 
   try {
     const body = await event.request.json();
-    const { placeId, reviewLink, reviewLinks, logo, businessName, username, phone, address, sector, keywords, description } = body;
+    const {
+      placeId,
+      reviewLink,
+      reviewLinks,
+      logo,
+      businessName,
+      username,
+      phone,
+      address,
+      sector,
+      keywords,
+      description,
+    } = body;
 
     if (typeof businessName !== "string" || !businessName.trim()) {
       return Response.json(
@@ -105,17 +136,22 @@ export async function POST(event: APIEvent) {
     let normalizedUsername: string | null = null;
     if (typeof username === "string" && username.trim()) {
       const trimmed = username.trim().toLowerCase();
-      
+
       if (trimmed.length > MAX_USERNAME_LENGTH) {
         return Response.json(
-          { error: `Username must be ${MAX_USERNAME_LENGTH} characters or less` },
+          {
+            error: `Username must be ${MAX_USERNAME_LENGTH} characters or less`,
+          },
           { status: 400 },
         );
       }
 
       if (!USERNAME_REGEX.test(trimmed)) {
         return Response.json(
-          { error: "Username can only contain lowercase letters, numbers, and hyphens" },
+          {
+            error:
+              "Username can only contain lowercase letters, numbers, and hyphens",
+          },
           { status: 400 },
         );
       }
@@ -149,7 +185,9 @@ export async function POST(event: APIEvent) {
       placeId: typeof placeId === "string" ? placeId : null,
       reviewLink: typeof reviewLink === "string" ? reviewLink : null,
       reviewLinks:
-        typeof reviewLinks === "object" && reviewLinks !== null && !Array.isArray(reviewLinks)
+        typeof reviewLinks === "object" &&
+        reviewLinks !== null &&
+        !Array.isArray(reviewLinks)
           ? reviewLinks
           : undefined,
       logo: typeof logo === "string" ? logo : null,
@@ -225,16 +263,17 @@ export async function POST(event: APIEvent) {
   } catch (err) {
     // The uniqueness probe above is a check-then-write; a concurrent claim of the
     // same username surfaces here as P2002 and must not read "Invalid request body".
-    if (err && typeof err === "object" && (err as { code?: string }).code === "P2002") {
+    if (
+      err &&
+      typeof err === "object" &&
+      (err as { code?: string }).code === "P2002"
+    ) {
       return Response.json(
         { error: "Username is already taken" },
         { status: 400 },
       );
     }
-    return Response.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 }
 
@@ -249,24 +288,28 @@ export async function PATCH(event: APIEvent) {
     const { username } = body;
 
     if (typeof username !== "string" || !username.trim()) {
-      return Response.json(
-        { error: "Username is required" },
-        { status: 400 },
-      );
+      return Response.json({ error: "Username is required" }, { status: 400 });
     }
 
     const trimmed = username.trim().toLowerCase();
 
     if (trimmed.length > MAX_USERNAME_LENGTH) {
       return Response.json(
-        { available: false, error: `Username must be ${MAX_USERNAME_LENGTH} characters or less` },
+        {
+          available: false,
+          error: `Username must be ${MAX_USERNAME_LENGTH} characters or less`,
+        },
         { status: 400 },
       );
     }
 
     if (!USERNAME_REGEX.test(trimmed)) {
       return Response.json(
-        { available: false, error: "Username can only contain lowercase letters, numbers, and hyphens" },
+        {
+          available: false,
+          error:
+            "Username can only contain lowercase letters, numbers, and hyphens",
+        },
         { status: 400 },
       );
     }
@@ -290,9 +333,6 @@ export async function PATCH(event: APIEvent) {
       error: existing ? "Username is already taken" : null,
     });
   } catch {
-    return Response.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 }

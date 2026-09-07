@@ -1,5 +1,4 @@
 import type { Component } from "solid-js";
-import type { IconComponent } from "~/types";
 
 export interface RecentActivity {
   id: string;

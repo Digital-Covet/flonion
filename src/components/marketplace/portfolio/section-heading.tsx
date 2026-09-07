@@ -10,7 +10,7 @@ export const SectionHeading = (props: SectionHeadingProps) => (
   <h3
     class={cn(
       "font-heading text-xl font-semibold text-foreground",
-      props.class
+      props.class,
     )}
   >
     {props.children}

@@ -1,7 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
 import { createMeetLink } from "~/lib/google-meet";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 export async function GET(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -69,7 +69,10 @@ export async function POST(event: APIEvent) {
     }
 
     if (typeof startTime !== "string" || !startTime) {
-      return Response.json({ error: "Start time is required" }, { status: 400 });
+      return Response.json(
+        { error: "Start time is required" },
+        { status: 400 },
+      );
     }
 
     if (typeof endTime !== "string" || !endTime) {

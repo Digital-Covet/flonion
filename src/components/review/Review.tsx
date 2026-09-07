@@ -1,5 +1,3 @@
-import { For, Show, createMemo, createResource, createSignal, onMount } from "solid-js";
-import { isServer } from "solid-js/web";
 import { Title } from "@solidjs/meta";
 import { useLocation } from "@solidjs/router";
 import CalendarDays from "lucide-solid/icons/calendar-days";
@@ -9,8 +7,17 @@ import Send from "lucide-solid/icons/send";
 import SlidersHorizontal from "lucide-solid/icons/sliders-horizontal";
 import Sparkles from "lucide-solid/icons/sparkles";
 import Star from "lucide-solid/icons/star";
+import {
+  createMemo,
+  createResource,
+  createSignal,
+  For,
+  onMount,
+  Show,
+} from "solid-js";
+import { isServer } from "solid-js/web";
 import type { Review } from "~/types";
-import { googleStarRatingToNumber, type GoogleReview } from "~/types/google";
+import { type GoogleReview, googleStarRatingToNumber } from "~/types/google";
 
 type FilterChip = {
   label: string;
@@ -61,7 +68,10 @@ function mapGoogleReviewToReview(googleReview: GoogleReview): Review {
   };
 }
 
-async function fetchReviews(): Promise<{ reviews: Review[]; connected: boolean }> {
+async function fetchReviews(): Promise<{
+  reviews: Review[];
+  connected: boolean;
+}> {
   if (isServer) return { reviews: [], connected: false };
 
   try {
@@ -128,7 +138,8 @@ function FilterButton(props: FilterChip) {
       classList={{
         "whitespace-nowrap rounded-full px-3 py-1 text-body-sm": true,
         "bg-muted text-foreground": !!props.selected,
-        "border border-border bg-card text-muted-foreground hover:bg-muted": !props.selected,
+        "border border-border bg-card text-muted-foreground hover:bg-muted":
+          !props.selected,
       }}
     >
       {props.label}
@@ -141,7 +152,8 @@ function InitialsAvatar(props: {
   tone: "primary" | "destructive";
   size?: "sm" | "md";
 }) {
-  const sizeClass = props.size === "md" ? "h-12 w-12 text-heading-3" : "h-8 w-8 text-body";
+  const sizeClass =
+    props.size === "md" ? "h-12 w-12 text-heading-3" : "h-8 w-8 text-body";
   const toneClass =
     props.tone === "destructive"
       ? "bg-destructive-soft text-destructive"
@@ -172,12 +184,16 @@ function ReviewListItem(props: {
         "border-border bg-card hover:shadow-sm": !props.active,
       }}
     >
-
       <div class="mb-2 flex items-start justify-between gap-3">
         <div class="flex items-center gap-2 min-w-0">
-          <InitialsAvatar initials={props.review.initials} tone={props.review.avatarTone} />
+          <InitialsAvatar
+            initials={props.review.initials}
+            tone={props.review.avatarTone}
+          />
           <div class="min-w-0">
-            <h3 class="truncate text-body font-medium text-foreground">{props.review.name}</h3>
+            <h3 class="truncate text-body font-medium text-foreground">
+              {props.review.name}
+            </h3>
             <p class="text-body-sm text-muted-foreground">
               {props.review.ago} via {props.review.source}
             </p>
@@ -186,7 +202,9 @@ function ReviewListItem(props: {
         <RatingStars rating={props.review.rating} />
       </div>
 
-      <p class="line-clamp-2 text-body-sm text-muted-foreground">{props.review.preview}</p>
+      <p class="line-clamp-2 text-body-sm text-muted-foreground">
+        {props.review.preview}
+      </p>
 
       <Show when={props.review.draftReady}>
         <div class="mt-3 flex items-center gap-1 text-primary">
@@ -227,7 +245,9 @@ export default function ReviewInbox() {
 
   const isLoading = createMemo(() => reviews.state === "pending");
   const hasError = createMemo(() => reviews.state === "errored");
-  const isEmpty = createMemo(() => reviews.state === "ready" && (reviews() ?? []).length === 0);
+  const isEmpty = createMemo(
+    () => reviews.state === "ready" && (reviews() ?? []).length === 0,
+  );
 
   return (
     <div class="flex h-full min-w-0 flex-1 flex-col bg-background text-foreground">
@@ -248,7 +268,9 @@ export default function ReviewInbox() {
             </div>
 
             <div class="mt-3 flex gap-2 overflow-x-auto pb-1">
-              <For each={filters}>{(filter) => <FilterButton {...filter} />}</For>
+              <For each={filters}>
+                {(filter) => <FilterButton {...filter} />}
+              </For>
             </div>
           </div>
 
@@ -290,7 +312,8 @@ export default function ReviewInbox() {
             <Show when={isEmpty() && !isConnected()}>
               <div class="flex flex-col items-center gap-3 py-8 text-center">
                 <p class="text-body-sm text-muted-foreground">
-                  No reviews found. Connect your Google Business Profile to get started.
+                  No reviews found. Connect your Google Business Profile to get
+                  started.
                 </p>
                 <a
                   href={`/api/google/auth?returnTo=${encodeURIComponent(location.pathname)}`}
@@ -346,11 +369,18 @@ export default function ReviewInbox() {
                       </div>
                     </div>
 
-                    <RatingStars rating={selectedReview()!.rating} pill size={18} />
+                    <RatingStars
+                      rating={selectedReview()!.rating}
+                      pill
+                      size={18}
+                    />
                   </div>
 
                   <div class="max-w-none text-body-lg text-foreground">
-                    <p>{selectedReview()!.fullReview ?? selectedReview()!.preview}</p>
+                    <p>
+                      {selectedReview()!.fullReview ??
+                        selectedReview()!.preview}
+                    </p>
                   </div>
 
                   <div class="mt-6 flex flex-wrap gap-2">
@@ -370,7 +400,9 @@ export default function ReviewInbox() {
                   <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div class="flex items-center gap-2 text-primary">
                       <Sparkles size={20} />
-                      <h3 class="text-heading-3 font-semibold">AI-Powered Reply</h3>
+                      <h3 class="text-heading-3 font-semibold">
+                        AI-Powered Reply
+                      </h3>
                     </div>
 
                     <div class="flex flex-wrap gap-2">

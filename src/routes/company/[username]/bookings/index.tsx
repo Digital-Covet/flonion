@@ -1,9 +1,9 @@
-import { createSignal, createResource, Show, For } from "solid-js";
+import { Meta, Title } from "@solidjs/meta";
 import { useParams } from "@solidjs/router";
-import { Title, Meta } from "@solidjs/meta";
 import { AlertTriangle, Loader2 } from "lucide-solid";
-import PublicScheduleHeader from "~/components/company/bookings/PublicScheduleHeader";
+import { createResource, Show } from "solid-js";
 import PublicScheduleCalendar from "~/components/company/bookings/PublicScheduleCalendar";
+import PublicScheduleHeader from "~/components/company/bookings/PublicScheduleHeader";
 
 interface BusinessInfo {
   name: string;
@@ -61,7 +61,7 @@ async function fetchSchedule(username?: string): Promise<ScheduleData | null> {
     }
 
     const res = await fetch(
-      `/api/company/${encodeURIComponent(username)}/schedule?startDate=${formatDate(start)}&endDate=${formatDate(end)}`
+      `/api/company/${encodeURIComponent(username)}/schedule?startDate=${formatDate(start)}&endDate=${formatDate(end)}`,
     );
     if (!res.ok) {
       const body = await res.json().catch(() => null);
@@ -82,9 +82,7 @@ export default function PublicBookingsPage() {
   return (
     <>
       <Title>
-        {data()
-          ? `Schedule - ${data()!.business.name}`
-          : "Schedule"}
+        {data() ? `Schedule - ${data()!.business.name}` : "Schedule"}
       </Title>
       <Meta
         name="description"
@@ -119,7 +117,8 @@ export default function PublicBookingsPage() {
                     Schedule Not Found
                   </h1>
                   <p class="mt-2 text-sm text-muted-foreground">
-                    This business does not have a published schedule, or the link is invalid.
+                    This business does not have a published schedule, or the
+                    link is invalid.
                   </p>
                 </div>
               }

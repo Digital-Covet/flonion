@@ -1,11 +1,11 @@
-import { createSignal, Show } from "solid-js";
 import { Field } from "@ark-ui/solid/field";
 import type { LucideIcon } from "lucide-solid";
-import CheckCircle from "lucide-solid/icons/check-circle";
 import AlertCircle from "lucide-solid/icons/alert-circle";
+import Check from "lucide-solid/icons/check";
+import CheckCircle from "lucide-solid/icons/check-circle";
 import Pencil from "lucide-solid/icons/pencil";
 import X from "lucide-solid/icons/x";
-import Check from "lucide-solid/icons/check";
+import { createSignal, Show } from "solid-js";
 import { authClient } from "~/lib/auth-client";
 
 interface AccountInfoCardProps {
@@ -85,7 +85,9 @@ export function AccountInfoCard(props: AccountInfoCardProps) {
                     id="display-name"
                     type="text"
                     value={name()}
-                    onInput={(e) => setName((e.target as HTMLInputElement).value)}
+                    onInput={(e) =>
+                      setName((e.target as HTMLInputElement).value)
+                    }
                     placeholder="Enter your name"
                     class="h-9 w-full rounded-lg border border-border bg-card px-3 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />

@@ -1,4 +1,4 @@
-import { createSignal, onMount, onCleanup } from "solid-js";
+import { createSignal, onCleanup, onMount } from "solid-js";
 import { featureItems } from "~/constants/landing";
 
 export default function FeaturesSection() {
@@ -14,7 +14,7 @@ export default function FeaturesSection() {
           observer.disconnect();
         }
       },
-      { threshold: 0.15 }
+      { threshold: 0.15 },
     );
     observer.observe(sectionRef);
     onCleanup(() => observer.disconnect());
@@ -28,7 +28,8 @@ export default function FeaturesSection() {
             Everything you need to grow locally
           </h2>
           <p class="text-lg text-muted-foreground">
-            Simple tools built specifically for Indian businesses to manage reputation effortlessly.
+            Simple tools built specifically for Indian businesses to manage
+            reputation effortlessly.
           </p>
         </div>
 

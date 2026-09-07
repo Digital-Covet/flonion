@@ -1,7 +1,7 @@
-import Inbox from "lucide-solid/icons/inbox";
-import SearchCheck from "lucide-solid/icons/search-check";
 import ExternalLink from "lucide-solid/icons/external-link";
+import Inbox from "lucide-solid/icons/inbox";
 import MessageSquareText from "lucide-solid/icons/message-square-text";
+import SearchCheck from "lucide-solid/icons/search-check";
 import type { QuickAction, RecentActivity } from "./types";
 
 export const recentActivity: RecentActivity[] = [
@@ -10,7 +10,8 @@ export const recentActivity: RecentActivity[] = [
     name: "Sarah Mitchell",
     initials: "SM",
     rating: 5,
-    preview: "Amazing experience! The staff was incredibly friendly and the food was outstanding.",
+    preview:
+      "Amazing experience! The staff was incredibly friendly and the food was outstanding.",
     ago: "2 hours ago",
     source: "Google",
   },
@@ -19,7 +20,8 @@ export const recentActivity: RecentActivity[] = [
     name: "James Rodriguez",
     initials: "JR",
     rating: 4,
-    preview: "Great service overall. Wait time was a bit long but the quality made up for it.",
+    preview:
+      "Great service overall. Wait time was a bit long but the quality made up for it.",
     ago: "5 hours ago",
     source: "Google",
   },

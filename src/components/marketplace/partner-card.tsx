@@ -1,11 +1,9 @@
-import { For, Show, createSignal } from "solid-js";
 import { A } from "@solidjs/router";
 import { CalendarDays, MapPin } from "lucide-solid";
-import Phone from "lucide-solid/icons/phone";
 import Heart from "lucide-solid/icons/heart";
-import { StarRating } from "~/components/marketplace/portfolio";
-import { Badge } from "~/components/marketplace/portfolio";
-import { Button } from "~/components/marketplace/portfolio";
+import Phone from "lucide-solid/icons/phone";
+import { createSignal, For, Show } from "solid-js";
+import { Badge, Button, StarRating } from "~/components/marketplace/portfolio";
 import type { Partner } from "~/types/marketplace";
 
 interface PartnerCardProps {
@@ -69,7 +67,9 @@ export default function PartnerCard(props: PartnerCardProps) {
           <button
             type="button"
             onClick={toggleFavorite}
-            aria-label={isFavorited() ? "Remove from favorites" : "Add to favorites"}
+            aria-label={
+              isFavorited() ? "Remove from favorites" : "Add to favorites"
+            }
             class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-border bg-background/80 text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background"
           >
             <Heart
@@ -82,10 +82,7 @@ export default function PartnerCard(props: PartnerCardProps) {
           </button>
         </div>
         <div class="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl bg-muted font-heading text-3xl font-bold text-primary shadow-sm transition-transform duration-300 group-hover:scale-110">
-          <Show
-            when={props.partner.logo}
-            fallback={props.partner.initial}
-          >
+          <Show when={props.partner.logo} fallback={props.partner.initial}>
             <img
               class="h-full w-full object-cover"
               src={props.partner.logo!}

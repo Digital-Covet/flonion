@@ -1,23 +1,23 @@
-import { createSignal, onMount, Show, type Component } from "solid-js";
-import { Lock } from "lucide-solid";
 import { useNavigate, useSearchParams } from "@solidjs/router";
+import { Lock } from "lucide-solid";
+import { createSignal, onMount, Show } from "solid-js";
 import InlineCombinationMark from "~/assets/inline-combination-mark";
-import { useSettings } from "~/stores/settings-store";
-import { authClient } from "~/lib/auth-client";
 import {
-  ProgressStepper,
-  BasicsStep,
-  PlatformsStep,
-  ReviewStep,
-  InviteTeamStep,
   type BasicsData,
+  BasicsStep,
+  InviteTeamStep,
+  PlatformsStep,
+  ProgressStepper,
+  ReviewStep,
   type TeamInvite,
 } from "~/components/onboarding";
+import { authClient } from "~/lib/auth-client";
+import { useSettings } from "~/stores/settings-store";
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const session = authClient.useSession();
+  const _session = authClient.useSession();
 
   const [pendingInvite, setPendingInvite] = createSignal<{
     token: string;
@@ -71,7 +71,9 @@ export default function OnboardingPage() {
             token: inviteData.invitation.token,
             businessName: inviteData.invitation.business.name,
             role: inviteData.invitation.role,
-            inviterName: inviteData.invitation.invitedBy.name || inviteData.invitation.invitedBy.email,
+            inviterName:
+              inviteData.invitation.invitedBy.name ||
+              inviteData.invitation.invitedBy.email,
           });
           return; // Don't fetch business data if there's a pending invite
         }
@@ -124,7 +126,7 @@ export default function OnboardingPage() {
     updateStep(2);
   };
 
-  const handleReviewContinue = () => {
+  const _handleReviewContinue = () => {
     updateStep(4);
   };
 
@@ -190,7 +192,9 @@ export default function OnboardingPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setInviteError(data?.error ?? "Couldn't decline the invitation. Please try again.");
+        setInviteError(
+          data?.error ?? "Couldn't decline the invitation. Please try again.",
+        );
         return;
       }
     } catch {
@@ -266,7 +270,11 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           businessName: basicsData().businessName,
           username: basicsData().username,
-          address: [basicsData().address, basicsData().city, basicsData().pinCode]
+          address: [
+            basicsData().address,
+            basicsData().city,
+            basicsData().pinCode,
+          ]
             .filter(Boolean)
             .join(", "),
           sector:
@@ -297,7 +305,9 @@ export default function OnboardingPage() {
         updateStep(4);
       } else {
         const data = await res.json().catch(() => null);
-        setSaveError(data?.error ?? "Couldn't save your business. Please try again.");
+        setSaveError(
+          data?.error ?? "Couldn't save your business. Please try again.",
+        );
       }
     } catch {
       setSaveError("Couldn't save your business. Please try again.");
@@ -306,15 +316,17 @@ export default function OnboardingPage() {
     }
   };
 
-  const stepTitles = ["Tell us about your business", "Connect your platforms", "Review your profile", "Invite your team"] as const;
+  const stepTitles = [
+    "Tell us about your business",
+    "Connect your platforms",
+    "Review your profile",
+    "Invite your team",
+  ] as const;
 
   return (
     <div class="min-h-screen bg-background text-foreground">
       <header class="glass-card fixed inset-x-0 top-0 z-50 flex h-16 items-center px-4 shadow-sm md:px-10">
-        <a
-          href="/"
-          aria-label="Flonion home"
-        >
+        <a href="/" aria-label="Flonion home">
           <InlineCombinationMark class="h-6 w-auto" />
         </a>
       </header>
@@ -343,7 +355,8 @@ export default function OnboardingPage() {
                       : "Almost there! This takes less than a minute."
                   }
                 >
-                  Let's personalize Flonion for your business. This takes less than a minute.
+                  Let's personalize Flonion for your business. This takes less
+                  than a minute.
                 </Show>
               </p>
             </div>
@@ -351,7 +364,9 @@ export default function OnboardingPage() {
             <ProgressStepper currentStep={currentStep()} />
 
             <Show when={saveError()}>
-              <p role="alert" class="text-sm text-destructive">{saveError()}</p>
+              <p role="alert" class="text-sm text-destructive">
+                {saveError()}
+              </p>
             </Show>
 
             <Show when={currentStep() === 1}>
@@ -395,10 +410,18 @@ export default function OnboardingPage() {
                 You've been invited!
               </h1>
               <p class="text-base text-muted-foreground">
-                <span class="font-medium text-foreground">{pendingInvite()!.inviterName}</span>{" "}
+                <span class="font-medium text-foreground">
+                  {pendingInvite()!.inviterName}
+                </span>{" "}
                 has invited you to join{" "}
-                <span class="font-medium text-foreground">{pendingInvite()!.businessName}</span>{" "}
-                as a <span class="font-medium text-foreground">{pendingInvite()!.role}</span>.
+                <span class="font-medium text-foreground">
+                  {pendingInvite()!.businessName}
+                </span>{" "}
+                as a{" "}
+                <span class="font-medium text-foreground">
+                  {pendingInvite()!.role}
+                </span>
+                .
               </p>
 
               <Show when={inviteError()}>
@@ -429,9 +452,11 @@ export default function OnboardingPage() {
                 <div class="mt-2 flex flex-col items-center gap-3 rounded-lg border border-border bg-muted/40 p-4">
                   <p class="text-sm text-muted-foreground">
                     If you create your own business, this account will{" "}
-                    <span class="font-medium text-foreground">no longer be able to join</span>{" "}
-                    {pendingInvite()!.businessName}. You'd need a fresh invitation to a different
-                    account.
+                    <span class="font-medium text-foreground">
+                      no longer be able to join
+                    </span>{" "}
+                    {pendingInvite()!.businessName}. You'd need a fresh
+                    invitation to a different account.
                   </p>
                   <div class="flex gap-3">
                     <button

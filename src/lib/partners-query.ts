@@ -1,9 +1,9 @@
-import { prisma } from "~/db/prisma";
 import {
-  MARKETPLACE_CATEGORIES,
   CATEGORY_KEYWORDS,
+  MARKETPLACE_CATEGORIES,
   matchBusinessToCategory,
 } from "~/constants/categories";
+import { prisma } from "~/db/prisma";
 import type { SortKey } from "~/types/marketplace";
 
 /**
@@ -154,7 +154,6 @@ function sortToOrderBy(sort: SortKey): Record<string, unknown>[] {
         { rating: { sort: "desc", nulls: "last" } },
         { id: "asc" },
       ];
-    case "rating":
     default:
       return [
         { rating: { sort: "desc", nulls: "last" } },
@@ -274,7 +273,9 @@ export async function getPartners(
   );
 
   const payload: PartnersResult = {
-    partners: businesses.map((business) => toPartner(business, newArrivalCutoff)),
+    partners: businesses.map((business) =>
+      toPartner(business, newArrivalCutoff),
+    ),
     totalCount,
     page,
     pageSize,

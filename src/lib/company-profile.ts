@@ -75,7 +75,9 @@ export async function getCompanyProfile(
   };
 }
 
-export function getCompanyServices(businessId: string): Promise<CompanyService[]> {
+export function getCompanyServices(
+  businessId: string,
+): Promise<CompanyService[]> {
   return prisma.service.findMany({
     where: { businessId },
     orderBy: { position: "asc" },
@@ -89,7 +91,9 @@ export function getCompanyServices(businessId: string): Promise<CompanyService[]
   });
 }
 
-export function getCompanyProjects(businessId: string): Promise<CompanyProject[]> {
+export function getCompanyProjects(
+  businessId: string,
+): Promise<CompanyProject[]> {
   return prisma.project.findMany({
     where: { businessId },
     orderBy: { position: "asc" },
@@ -102,7 +106,9 @@ export function getCompanyProjects(businessId: string): Promise<CompanyProject[]
   });
 }
 
-export function getCompanyContacts(businessId: string): Promise<CompanyContact[]> {
+export function getCompanyContacts(
+  businessId: string,
+): Promise<CompanyContact[]> {
   return prisma.businessContact.findMany({
     where: { businessId },
     orderBy: { position: "asc" },

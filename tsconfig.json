@@ -10,22 +10,13 @@
     "allowJs": true,
     "strict": true,
     "noEmit": true,
-    "types": [
-      "vite/client",
-      "node"
-    ],
+    "types": ["vite/client", "node"],
     "isolatedModules": true,
     "skipLibCheck": true,
     "paths": {
-      "~/*": [
-        "./src/*"
-      ],
-      "@/*": [
-        "./src/*"
-      ],
-      "@generated/*": [
-        "./generated/*"
-      ]
+      "~/*": ["./src/*"],
+      "@/*": ["./src/*"],
+      "@generated/*": ["./generated/*"]
     }
   }
 }

@@ -1,3 +1,9 @@
+import { Meta, Title } from "@solidjs/meta";
+import AlertTriangle from "lucide-solid/icons/alert-triangle";
+import CheckCircle from "lucide-solid/icons/check-circle";
+import ExternalLink from "lucide-solid/icons/external-link";
+import MapPin from "lucide-solid/icons/map-pin";
+import Phone from "lucide-solid/icons/phone";
 import {
   createEffect,
   createSignal,
@@ -6,24 +12,17 @@ import {
   onMount,
   Show,
 } from "solid-js";
-import { Title, Meta } from "@solidjs/meta";
-import CheckCircle from "lucide-solid/icons/check-circle";
-import AlertTriangle from "lucide-solid/icons/alert-triangle";
-import MapPin from "lucide-solid/icons/map-pin";
-import Phone from "lucide-solid/icons/phone";
-import ExternalLink from "lucide-solid/icons/external-link";
+import InlineCombinationMark from "@/assets/inline-combination-mark";
 import type {
   Rating,
   ReviewDraft,
   ReviewSuggestion,
 } from "@/features/reviews/review-types";
 import { ReviewComposer } from "~/components/review/review-composer";
-import InlineCombinationMark from "@/assets/inline-combination-mark";
 import {
-  REVIEW_PLATFORMS,
+  CUSTOM_LABEL_KEY,
   getPlatformBySlug,
   getPlatformLabel,
-  CUSTOM_LABEL_KEY,
   type ReviewLinksMap,
 } from "~/features/settings/review-platforms";
 
@@ -69,7 +68,7 @@ export default function PublicReviewPage() {
   const [cooldown, setCooldown] = createSignal(false);
   const [showSuggestions, setShowSuggestions] = createSignal(false);
   const [visitorName, setVisitorName] = createSignal("");
-  const [businessId, setBusinessId] = createSignal<string | null>(null);
+  const [_businessId, setBusinessId] = createSignal<string | null>(null);
 
   let dismissTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -107,9 +106,7 @@ export default function PublicReviewPage() {
       const response = await fetch(`/api/reviews/share?${query}`);
 
       if (!response.ok) {
-        setError(
-          "Business not found. The link may be invalid.",
-        );
+        setError("Business not found. The link may be invalid.");
         setLoading(false);
         return;
       }
@@ -133,7 +130,8 @@ export default function PublicReviewPage() {
       });
 
       if (createResponse.ok) {
-        const { reviewId: rid, claimToken: token } = await createResponse.json();
+        const { reviewId: rid, claimToken: token } =
+          await createResponse.json();
         if (rid) {
           setReviewId(rid);
           if (token) setClaimToken(token);
@@ -265,8 +263,12 @@ export default function PublicReviewPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...(id ? { id, claimToken: claimToken() ?? undefined } : {}),
-          ...(urlParam && !id && isBusinessIdParam ? { businessId: urlParam } : {}),
-          ...(urlParam && !id && !isBusinessIdParam ? { username: urlParam } : {}),
+          ...(urlParam && !id && isBusinessIdParam
+            ? { businessId: urlParam }
+            : {}),
+          ...(urlParam && !id && !isBusinessIdParam
+            ? { username: urlParam }
+            : {}),
           text: reviewText,
           rating: draft().rating,
           reviewerName: visitorName() || undefined,
@@ -382,29 +384,34 @@ export default function PublicReviewPage() {
                     >
                       <For
                         each={Object.entries(business()!.reviewLinks!).filter(
-                          ([key]) => key !== CUSTOM_LABEL_KEY && key !== "other" || (key === "other" && business()!.reviewLinks!["other"]),
+                          ([key]) =>
+                            (key !== CUSTOM_LABEL_KEY && key !== "other") ||
+                            (key === "other" && business()!.reviewLinks!.other),
                         )}
                       >
-                            {([slug, url]) => {
-                              if (!url || slug === CUSTOM_LABEL_KEY) return null;
-                              const platform = getPlatformBySlug(slug);
-                              const label = getPlatformLabel(slug, business()!.reviewLinks!);
-                              return (
-                                <a
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={() => trackRedirect(slug)}
-                                  class="inline-flex h-11 items-center gap-2 rounded-lg px-6 text-sm font-medium text-white shadow-sm transition-colors hover:opacity-90"
-                                  style={{
-                                    "background-color": platform?.color ?? "#666",
-                                  }}
-                                >
-                                  <ExternalLink class="size-4" />
-                                  Post on {label}
-                                </a>
-                              );
-                            }}
+                        {([slug, url]) => {
+                          if (!url || slug === CUSTOM_LABEL_KEY) return null;
+                          const platform = getPlatformBySlug(slug);
+                          const label = getPlatformLabel(
+                            slug,
+                            business()!.reviewLinks!,
+                          );
+                          return (
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => trackRedirect(slug)}
+                              class="inline-flex h-11 items-center gap-2 rounded-lg px-6 text-sm font-medium text-white shadow-sm transition-colors hover:opacity-90"
+                              style={{
+                                "background-color": platform?.color ?? "#666",
+                              }}
+                            >
+                              <ExternalLink class="size-4" />
+                              Post on {label}
+                            </a>
+                          );
+                        }}
                       </For>
                     </Show>
                     <Show when={business()}>
@@ -443,13 +450,19 @@ export default function PublicReviewPage() {
                         <div class="mt-3 flex flex-col items-center gap-2 text-sm text-muted-foreground sm:items-start">
                           <Show when={business()?.address}>
                             <div class="flex items-center gap-2">
-                              <MapPin class="size-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
+                              <MapPin
+                                class="size-4 shrink-0 text-muted-foreground/60"
+                                aria-hidden="true"
+                              />
                               <span>{business()?.address}</span>
                             </div>
                           </Show>
                           <Show when={business()?.phone}>
                             <div class="flex items-center gap-2">
-                              <Phone class="size-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
+                              <Phone
+                                class="size-4 shrink-0 text-muted-foreground/60"
+                                aria-hidden="true"
+                              />
                               <span>{business()?.phone}</span>
                             </div>
                           </Show>
@@ -536,10 +549,11 @@ export default function PublicReviewPage() {
       <Show when={statusMessage()}>
         <div class="fixed top-4 right-4 z-30 max-w-sm animate-[fade-in-up_0.2s_ease-out]">
           <div
-            class={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-md backdrop-blur-sm ${isSuccessMessage(statusMessage())
-              ? "border-positive/20 bg-positive-muted text-foreground"
-              : "border-destructive/20 bg-destructive-muted text-foreground"
-              }`}
+            class={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-md backdrop-blur-sm ${
+              isSuccessMessage(statusMessage())
+                ? "border-positive/20 bg-positive-muted text-foreground"
+                : "border-destructive/20 bg-destructive-muted text-foreground"
+            }`}
           >
             <Show
               when={isSuccessMessage(statusMessage())}

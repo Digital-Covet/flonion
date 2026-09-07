@@ -1,6 +1,6 @@
-import { For } from "solid-js";
 import { Accordion } from "@ark-ui/solid/accordion";
 import ChevronDown from "lucide-solid/icons/chevron-down";
+import { For } from "solid-js";
 import { faqItems } from "~/constants/landing";
 
 export default function FAQSection() {

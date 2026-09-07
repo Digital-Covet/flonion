@@ -1,7 +1,7 @@
 import { Info, Lightbulb } from "lucide-solid";
 import { createResource, Show } from "solid-js";
-import SectionShell from "./SectionShell";
 import LoadBar from "./LoadBar";
+import SectionShell from "./SectionShell";
 
 async function fetchLoad() {
   if (typeof window === "undefined") return null;
@@ -27,20 +27,43 @@ function LoadOverview() {
         Your capacity for the next 14 days based on connected calendars.
       </p>
       <div class="space-y-4">
-        <Show when={load()} fallback={<>
-          <div class="space-y-1.5">
-            <div class="flex justify-between text-xs"><span class="skeleton h-3 w-16" /><span class="skeleton h-3 w-12" /></div>
-            <div class="skeleton h-2 w-full rounded-full" />
-          </div>
-          <div class="space-y-1.5">
-            <div class="flex justify-between text-xs"><span class="skeleton h-3 w-16" /><span class="skeleton h-3 w-12" /></div>
-            <div class="skeleton h-2 w-full rounded-full" />
-          </div>
-        </>}>
-          {(data) => <>
-            <LoadBar label="This Week" value={data().thisWeek.value} detail={data().thisWeek.detail} tone={data().thisWeek.tone} />
-            <LoadBar label="Next Week" value={data().nextWeek.value} detail={data().nextWeek.detail} tone={data().nextWeek.tone} />
-          </>}
+        <Show
+          when={load()}
+          fallback={
+            <>
+              <div class="space-y-1.5">
+                <div class="flex justify-between text-xs">
+                  <span class="skeleton h-3 w-16" />
+                  <span class="skeleton h-3 w-12" />
+                </div>
+                <div class="skeleton h-2 w-full rounded-full" />
+              </div>
+              <div class="space-y-1.5">
+                <div class="flex justify-between text-xs">
+                  <span class="skeleton h-3 w-16" />
+                  <span class="skeleton h-3 w-12" />
+                </div>
+                <div class="skeleton h-2 w-full rounded-full" />
+              </div>
+            </>
+          }
+        >
+          {(data) => (
+            <>
+              <LoadBar
+                label="This Week"
+                value={data().thisWeek.value}
+                detail={data().thisWeek.detail}
+                tone={data().thisWeek.tone}
+              />
+              <LoadBar
+                label="Next Week"
+                value={data().nextWeek.value}
+                detail={data().nextWeek.detail}
+                tone={data().nextWeek.tone}
+              />
+            </>
+          )}
         </Show>
       </div>
       <div class="mt-6 flex items-start gap-3 rounded-lg border border-primary/20 bg-positive-muted p-3">

@@ -1,10 +1,10 @@
-import { createSignal, For, Show } from "solid-js";
 import { Field } from "@ark-ui/solid/field";
-import Store from "lucide-solid/icons/store";
-import ExternalLink from "lucide-solid/icons/external-link";
 import CheckCircle2 from "lucide-solid/icons/check-circle-2";
+import ExternalLink from "lucide-solid/icons/external-link";
 import Loader2 from "lucide-solid/icons/loader-2";
+import Store from "lucide-solid/icons/store";
 import Unlink from "lucide-solid/icons/unlink";
+import { createSignal, For, Show } from "solid-js";
 import type { GoogleLocationData } from "../types";
 
 interface GoogleBusinessCardProps {
@@ -70,8 +70,9 @@ export function GoogleBusinessCard(props: GoogleBusinessCardProps) {
           fallback={
             <div class="my-3 space-y-3">
               <p class="text-xs leading-relaxed text-muted-foreground">
-                Connecting your Google Business Profile imports your official location,
-                enables automated Google review sync, and powers review redirect links.
+                Connecting your Google Business Profile imports your official
+                location, enables automated Google review sync, and powers
+                review redirect links.
               </p>
               <button
                 type="button"
@@ -109,7 +110,7 @@ export function GoogleBusinessCard(props: GoogleBusinessCardProps) {
                   value={props.selectedLocationIndex ?? ""}
                   onChange={(e) => {
                     const idx = parseInt(e.currentTarget.value, 10);
-                    if (!isNaN(idx)) {
+                    if (!Number.isNaN(idx)) {
                       props.onLocationSelect?.(idx);
                     }
                   }}
@@ -144,7 +145,8 @@ export function GoogleBusinessCard(props: GoogleBusinessCardProps) {
                   class="mt-1 h-9 w-full rounded-lg border border-border bg-background px-3 text-xs transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono"
                 />
                 <Field.HelperText class="mt-1 text-[11px] leading-4 text-muted-foreground/80">
-                  Auto-populated from Google Business Profile. Editable for manual overrides.
+                  Auto-populated from Google Business Profile. Editable for
+                  manual overrides.
                 </Field.HelperText>
               </Field.Root>
             </Show>
@@ -156,7 +158,9 @@ export function GoogleBusinessCard(props: GoogleBusinessCardProps) {
                 onClick={() => setShowDetails(!showDetails())}
                 class="text-xs text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline"
               >
-                {showDetails() ? "Hide connection details" : "Show connection details"}
+                {showDetails()
+                  ? "Hide connection details"
+                  : "Show connection details"}
               </button>
 
               <Show when={showDetails()}>

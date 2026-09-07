@@ -1,8 +1,16 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
@@ -38,7 +46,13 @@ function computeWeekStats(
   slots: { startTime: string; endTime: string; isBooked: boolean }[],
 ): WeekStats {
   if (slots.length === 0) {
-    return { value: 0, detail: "Open (0%)", tone: "primary", peakDay: "", peakDayPercent: 0 };
+    return {
+      value: 0,
+      detail: "Open (0%)",
+      tone: "primary",
+      peakDay: "",
+      peakDayPercent: 0,
+    };
   }
 
   let totalMinutes = 0;
@@ -80,9 +94,11 @@ export async function GET(event: APIEvent) {
     });
 
     if (!userBusiness) {
-      return Response.json(
-        { thisWeek: { value: 0, detail: "No business", tone: "primary" }, nextWeek: { value: 0, detail: "No business", tone: "primary" }, tip: "Set up your business profile to see load data." },
-      );
+      return Response.json({
+        thisWeek: { value: 0, detail: "No business", tone: "primary" },
+        nextWeek: { value: 0, detail: "No business", tone: "primary" },
+        tip: "Set up your business profile to see load data.",
+      });
     }
 
     const now = new Date();
@@ -94,12 +110,18 @@ export async function GET(event: APIEvent) {
 
     const [thisWeekSlots, nextWeekSlots] = await Promise.all([
       prisma.availabilitySlot.findMany({
-        where: { businessId: userBusiness.id, date: { gte: thisMonday, lte: thisSunday } },
+        where: {
+          businessId: userBusiness.id,
+          date: { gte: thisMonday, lte: thisSunday },
+        },
         orderBy: [{ date: "asc" }, { startTime: "asc" }],
         select: { date: true, startTime: true, endTime: true, isBooked: true },
       }),
       prisma.availabilitySlot.findMany({
-        where: { businessId: userBusiness.id, date: { gte: nextMonday, lte: nextSunday } },
+        where: {
+          businessId: userBusiness.id,
+          date: { gte: nextMonday, lte: nextSunday },
+        },
         orderBy: [{ date: "asc" }, { startTime: "asc" }],
         select: { date: true, startTime: true, endTime: true, isBooked: true },
       }),
@@ -137,24 +159,38 @@ export async function GET(event: APIEvent) {
 
     let tip: string;
     if (thisWeekSlots.length === 0 && nextWeekSlots.length === 0) {
-      tip = "No availability slots configured yet. Add slots to start tracking your load.";
+      tip =
+        "No availability slots configured yet. Add slots to start tracking your load.";
     } else if (peakDay && peakDay.percent >= 50) {
       tip = `Consider opening more slots on ${peakDay.day} to balance your load.`;
     } else if (thisWeekStats.value >= 70) {
-      tip = "Your schedule is heavily booked this week. Consider blocking some focus time.";
+      tip =
+        "Your schedule is heavily booked this week. Consider blocking some focus time.";
     } else {
       tip = "Your schedule looks well-balanced. Keep it up!";
     }
 
     return Response.json({
-      thisWeek: { value: thisWeekStats.value, detail: thisWeekStats.detail, tone: thisWeekStats.tone },
-      nextWeek: { value: nextWeekStats.value, detail: nextWeekStats.detail, tone: nextWeekStats.tone },
+      thisWeek: {
+        value: thisWeekStats.value,
+        detail: thisWeekStats.detail,
+        tone: thisWeekStats.tone,
+      },
+      nextWeek: {
+        value: nextWeekStats.value,
+        detail: nextWeekStats.detail,
+        tone: nextWeekStats.tone,
+      },
       tip,
     });
   } catch (err) {
     console.error("[marketplace/load] query failed:", err);
     return Response.json(
-      { thisWeek: { value: 0, detail: "Error", tone: "primary" }, nextWeek: { value: 0, detail: "Error", tone: "primary" }, tip: "Failed to load schedule data." },
+      {
+        thisWeek: { value: 0, detail: "Error", tone: "primary" },
+        nextWeek: { value: 0, detail: "Error", tone: "primary" },
+        tip: "Failed to load schedule data.",
+      },
       { status: 500 },
     );
   }

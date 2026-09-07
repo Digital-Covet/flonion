@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 const VALID_DAYS = new Set([0, 1, 2, 3, 4, 5, 6]);
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -58,43 +58,75 @@ export async function PUT(event: APIEvent) {
     const updates: Record<string, string | number> = {};
 
     if (workingDays !== undefined) {
-      if (!Array.isArray(workingDays) || !workingDays.every((d: unknown) => typeof d === "number" && VALID_DAYS.has(d))) {
-        return Response.json({ error: "workingDays must be an array of day numbers (0-6)" }, { status: 400 });
+      if (
+        !Array.isArray(workingDays) ||
+        !workingDays.every(
+          (d: unknown) => typeof d === "number" && VALID_DAYS.has(d),
+        )
+      ) {
+        return Response.json(
+          { error: "workingDays must be an array of day numbers (0-6)" },
+          { status: 400 },
+        );
       }
       updates.workingDays = workingDays.join(",");
     }
 
     if (workingStartTime !== undefined) {
-      if (typeof workingStartTime !== "string" || !TIME_RE.test(workingStartTime)) {
-        return Response.json({ error: "workingStartTime must be HH:MM format" }, { status: 400 });
+      if (
+        typeof workingStartTime !== "string" ||
+        !TIME_RE.test(workingStartTime)
+      ) {
+        return Response.json(
+          { error: "workingStartTime must be HH:MM format" },
+          { status: 400 },
+        );
       }
       updates.workingStartTime = workingStartTime;
     }
 
     if (workingEndTime !== undefined) {
       if (typeof workingEndTime !== "string" || !TIME_RE.test(workingEndTime)) {
-        return Response.json({ error: "workingEndTime must be HH:MM format" }, { status: 400 });
+        return Response.json(
+          { error: "workingEndTime must be HH:MM format" },
+          { status: 400 },
+        );
       }
       updates.workingEndTime = workingEndTime;
     }
 
     if (bookingStartTime !== undefined) {
-      if (typeof bookingStartTime !== "string" || !TIME_RE.test(bookingStartTime)) {
-        return Response.json({ error: "bookingStartTime must be HH:MM format" }, { status: 400 });
+      if (
+        typeof bookingStartTime !== "string" ||
+        !TIME_RE.test(bookingStartTime)
+      ) {
+        return Response.json(
+          { error: "bookingStartTime must be HH:MM format" },
+          { status: 400 },
+        );
       }
       updates.bookingStartTime = bookingStartTime;
     }
 
     if (bookingEndTime !== undefined) {
       if (typeof bookingEndTime !== "string" || !TIME_RE.test(bookingEndTime)) {
-        return Response.json({ error: "bookingEndTime must be HH:MM format" }, { status: 400 });
+        return Response.json(
+          { error: "bookingEndTime must be HH:MM format" },
+          { status: 400 },
+        );
       }
       updates.bookingEndTime = bookingEndTime;
     }
 
     if (slotDuration !== undefined) {
-      if (typeof slotDuration !== "number" || !DURATION_OPTIONS.has(slotDuration)) {
-        return Response.json({ error: "slotDuration must be 15, 30, 45, or 60" }, { status: 400 });
+      if (
+        typeof slotDuration !== "number" ||
+        !DURATION_OPTIONS.has(slotDuration)
+      ) {
+        return Response.json(
+          { error: "slotDuration must be 15, 30, 45, or 60" },
+          { status: 400 },
+        );
       }
       updates.slotDuration = slotDuration;
     }

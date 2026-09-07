@@ -1,5 +1,5 @@
-import type { Component } from 'solid-js';
-import type { IllustrationPanelProps } from '@/types/auth-ui';
+import type { Component } from "solid-js";
+import type { IllustrationPanelProps } from "@/types/auth-ui";
 
 export const IllustrationPanel: Component<IllustrationPanelProps> = (props) => (
   <section
@@ -9,7 +9,7 @@ export const IllustrationPanel: Component<IllustrationPanelProps> = (props) => (
     <div class="absolute inset-0 z-0">
       <img
         src={props.imageSrc}
-        alt={props.imageAlt ?? ''}
+        alt={props.imageAlt ?? ""}
         width={1200}
         height={1662}
         decoding="async"

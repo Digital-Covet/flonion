@@ -1,7 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "~/db/prisma";
-import { getBusinessContext, canManageTeam } from "~/lib/business-context";
+import { canManageTeam, getBusinessContext } from "~/lib/business-context";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 export async function DELETE(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -16,7 +16,10 @@ export async function DELETE(event: APIEvent) {
   }
 
   if (!canManageTeam(ctx)) {
-    return Response.json({ error: "Only admins or the business owner can cancel invitations" }, { status: 403 });
+    return Response.json(
+      { error: "Only admins or the business owner can cancel invitations" },
+      { status: 403 },
+    );
   }
 
   const invitationId = event.params.id;
@@ -31,7 +34,10 @@ export async function DELETE(event: APIEvent) {
   }
 
   if (invitation.status !== "pending") {
-    return Response.json({ error: "Invitation is not pending" }, { status: 400 });
+    return Response.json(
+      { error: "Invitation is not pending" },
+      { status: 400 },
+    );
   }
 
   await prisma.invitation.update({

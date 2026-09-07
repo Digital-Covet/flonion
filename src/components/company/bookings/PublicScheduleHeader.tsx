@@ -1,5 +1,5 @@
+import { Briefcase, Clock } from "lucide-solid";
 import { createSignal, onCleanup, onMount, Show } from "solid-js";
-import { Clock, Briefcase } from "lucide-solid";
 
 interface BusinessInfo {
   name: string;

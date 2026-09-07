@@ -1,12 +1,12 @@
 import { createSignal, onMount, type ParentProps } from "solid-js";
 import {
+  type CreateMeetingData,
+  type CreateTaskData,
+  type Task,
+  type TaskAssignee,
   TaskContext,
   type TaskContextValue,
-  type Task,
   type TeamMeeting,
-  type TaskAssignee,
-  type CreateTaskData,
-  type CreateMeetingData,
 } from "./task-store";
 
 export function TaskProvider(props: ParentProps) {
@@ -107,7 +107,11 @@ export function TaskProvider(props: ParentProps) {
     }
   };
 
-  const moveTask = async (taskId: string, targetColumn: string, newPosition: number) => {
+  const moveTask = async (
+    taskId: string,
+    targetColumn: string,
+    newPosition: number,
+  ) => {
     try {
       const res = await fetch("/api/tasks/reorder", {
         method: "PATCH",
@@ -120,7 +124,11 @@ export function TaskProvider(props: ParentProps) {
           if (taskIndex === -1) return prev;
 
           const task = prev[taskIndex];
-          const updatedTask = { ...task, column: targetColumn, position: newPosition };
+          const updatedTask = {
+            ...task,
+            column: targetColumn,
+            position: newPosition,
+          };
 
           const filtered = prev.filter((t) => t.id !== taskId);
           const columnTasks = filtered
@@ -139,7 +147,9 @@ export function TaskProvider(props: ParentProps) {
     }
   };
 
-  const addMeeting = async (data: CreateMeetingData): Promise<TeamMeeting | null> => {
+  const addMeeting = async (
+    data: CreateMeetingData,
+  ): Promise<TeamMeeting | null> => {
     try {
       const res = await fetch("/api/team-meetings", {
         method: "POST",
@@ -193,8 +203,6 @@ export function TaskProvider(props: ParentProps) {
   };
 
   return (
-    <TaskContext.Provider value={value}>
-      {props.children}
-    </TaskContext.Provider>
+    <TaskContext.Provider value={value}>{props.children}</TaskContext.Provider>
   );
 }

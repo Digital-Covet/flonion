@@ -1,8 +1,8 @@
-import { createMemo, createSignal, For, Show } from "solid-js";
-import { Plus, CalendarDays, X } from "lucide-solid";
-import { Select, createListCollection } from "@ark-ui/solid/select";
-import { Tabs } from "@ark-ui/solid/tabs";
 import { Dialog } from "@ark-ui/solid/dialog";
+import { createListCollection, Select } from "@ark-ui/solid/select";
+import { Tabs } from "@ark-ui/solid/tabs";
+import { CalendarDays, X } from "lucide-solid";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import DailyWorkload from "~/components/marketplace/collaborations/task-workload/daily-workload";
 import MeetingCard from "~/components/marketplace/collaborations/task-workload/meeting-card";
@@ -26,7 +26,8 @@ const priorityCollection = createListCollection({
 });
 
 function ProjectsContent() {
-  const { meetings, teamMembers, addTask, filter, setFilter } = useTaskContext();
+  const { meetings, teamMembers, addTask, filter, setFilter } =
+    useTaskContext();
   const [isDialogOpen, setIsDialogOpen] = createSignal(false);
   const [taskTitle, setTaskTitle] = createSignal("");
   const [taskDescription, setTaskDescription] = createSignal("");
@@ -39,7 +40,7 @@ function ProjectsContent() {
         label: member.name,
         value: member.id,
       })),
-    })
+    }),
   );
 
   const handleCreateTask = async () => {
@@ -96,8 +97,11 @@ function ProjectsContent() {
     });
   };
 
-  const currentMeetings = () => {
-    const tab = document.querySelector("[data-state=active]")?.textContent?.trim().toLowerCase();
+  const _currentMeetings = () => {
+    const tab = document
+      .querySelector("[data-state=active]")
+      ?.textContent?.trim()
+      .toLowerCase();
     if (tab === "tomorrow") return tomorrowMeetings();
     if (tab === "upcoming") return upcomingMeetings();
     return todayMeetings();
@@ -108,7 +112,9 @@ function ProjectsContent() {
       {/* Header Controls */}
       <section class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-card p-6 rounded-xl shadow-sm border border-border">
         <div class="flex items-center gap-4">
-          <h2 class="text-2xl font-bold font-heading text-foreground">Tasks & Workload</h2>
+          <h2 class="text-2xl font-bold font-heading text-foreground">
+            Tasks & Workload
+          </h2>
         </div>
         <div class="flex items-center gap-3">
           <Select.Root
@@ -141,7 +147,6 @@ function ProjectsContent() {
             </Portal>
             <Select.HiddenSelect />
           </Select.Root>
-
         </div>
       </section>
 
@@ -154,7 +159,10 @@ function ProjectsContent() {
               <h3 class="text-lg font-semibold font-heading text-foreground flex items-center gap-2">
                 <CalendarDays class="text-primary" size={20} />
                 Team Meetings
-                <a class="text-sm font-medium text-primary hover:underline ml-2" href="#">
+                <a
+                  class="text-sm font-medium text-primary hover:underline ml-2"
+                  href="#"
+                >
                   View All
                 </a>
               </h3>
@@ -209,13 +217,18 @@ function ProjectsContent() {
         </aside>
       </div>
 
-      <Dialog.Root open={isDialogOpen()} onOpenChange={(details) => setIsDialogOpen(details.open)}>
+      <Dialog.Root
+        open={isDialogOpen()}
+        onOpenChange={(details) => setIsDialogOpen(details.open)}
+      >
         <Portal>
           <Dialog.Backdrop class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
           <Dialog.Positioner class="fixed inset-0 z-50 flex items-center justify-center p-4">
             <Dialog.Content class="bg-card border border-border rounded-xl shadow-lg w-full max-w-lg p-6">
               <div class="flex justify-between items-center mb-4">
-                <Dialog.Title class="text-xl font-bold font-heading text-foreground">Add Task</Dialog.Title>
+                <Dialog.Title class="text-xl font-bold font-heading text-foreground">
+                  Add Task
+                </Dialog.Title>
                 <Dialog.CloseTrigger class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted transition-colors cursor-pointer">
                   <X size={20} />
                 </Dialog.CloseTrigger>
@@ -226,7 +239,10 @@ function ProjectsContent() {
 
               <div class="flex flex-col gap-4">
                 <div>
-                  <label class="block text-sm font-medium text-foreground mb-1" for="task-title">
+                  <label
+                    class="block text-sm font-medium text-foreground mb-1"
+                    for="task-title"
+                  >
                     Title
                   </label>
                   <input
@@ -240,7 +256,10 @@ function ProjectsContent() {
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-foreground mb-1" for="task-description">
+                  <label
+                    class="block text-sm font-medium text-foreground mb-1"
+                    for="task-description"
+                  >
                     Description
                   </label>
                   <textarea
@@ -285,7 +304,9 @@ function ProjectsContent() {
                                   item={item}
                                   class="px-4 py-2 text-sm text-foreground rounded cursor-pointer hover:bg-muted data-[highlighted]:bg-muted outline-none"
                                 >
-                                  <Select.ItemText>{item.label}</Select.ItemText>
+                                  <Select.ItemText>
+                                    {item.label}
+                                  </Select.ItemText>
                                 </Select.Item>
                               )}
                             </For>

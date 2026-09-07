@@ -1,5 +1,5 @@
-import { For, Show, createMemo, createSignal } from "solid-js";
-import { ChevronLeft, ChevronRight, Calendar } from "lucide-solid";
+import { Calendar, ChevronLeft, ChevronRight } from "lucide-solid";
+import { createMemo, createSignal, For, Show } from "solid-js";
 
 interface ScheduleEvent {
   id: string;
@@ -62,7 +62,10 @@ function getFirstDayOfMonth(year: number, month: number): number {
 function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
   const [viewMode, setViewMode] = createSignal<ViewMode>("week");
   const [weekOffset, setWeekOffset] = createSignal(0);
-  const [monthYear, setMonthYear] = createSignal<{ year: number; month: number }>({
+  const [monthYear, setMonthYear] = createSignal<{
+    year: number;
+    month: number;
+  }>({
     year: new Date().getFullYear(),
     month: new Date().getMonth(),
   });
@@ -96,11 +99,12 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
   });
 
   const weekDates = createMemo(() =>
-    WEEKDAYS.map((_, i) => addDays(weekStart(), i))
+    WEEKDAYS.map((_, i) => addDays(weekStart(), i)),
   );
 
-  const weekRange = createMemo(() =>
-    `${formatMonthDay(weekStart())} - ${formatMonthDay(addDays(weekStart(), 6))}`
+  const weekRange = createMemo(
+    () =>
+      `${formatMonthDay(weekStart())} - ${formatMonthDay(addDays(weekStart(), 6))}`,
   );
 
   const isToday = (date: Date): boolean => {
@@ -181,7 +185,9 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-6 py-4">
         <div class="flex items-center gap-2">
           <Calendar class="size-5 text-primary" />
-          <h2 class="font-heading text-lg font-semibold text-foreground">Schedule</h2>
+          <h2 class="font-heading text-lg font-semibold text-foreground">
+            Schedule
+          </h2>
         </div>
 
         <div class="flex items-center gap-3">
@@ -315,7 +321,9 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
                                   }`}
                                 >
                                   <span class="block truncate">
-                                    {event.status === "available" ? "Open" : event.title || "Busy"}
+                                    {event.status === "available"
+                                      ? "Open"
+                                      : event.title || "Busy"}
                                   </span>
                                 </div>
                               )}
@@ -354,8 +362,12 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
               {({ date, inMonth }) => {
                 const dateKey = formatDateKey(date);
                 const dayEvents = eventsForDate(date);
-                const availableCount = dayEvents.filter((e) => e.status === "available").length;
-                const bookedCount = dayEvents.filter((e) => e.status === "booked").length;
+                const availableCount = dayEvents.filter(
+                  (e) => e.status === "available",
+                ).length;
+                const bookedCount = dayEvents.filter(
+                  (e) => e.status === "booked",
+                ).length;
                 const today = isToday(date);
 
                 return (
@@ -396,7 +408,7 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
       <Show when={selectedDay() && viewMode() === "month"}>
         <div class="border-t border-border/60 px-6 py-4">
           <p class="mb-3 text-sm font-medium text-foreground">
-            {new Date(selectedDay() + "T00:00:00").toLocaleDateString("en-US", {
+            {new Date(`${selectedDay()}T00:00:00`).toLocaleDateString("en-US", {
               weekday: "long",
               month: "long",
               day: "numeric",
@@ -405,7 +417,9 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
           <Show
             when={selectedDayEvents().length > 0}
             fallback={
-              <p class="text-sm text-muted-foreground">No slots available on this day.</p>
+              <p class="text-sm text-muted-foreground">
+                No slots available on this day.
+              </p>
             }
           >
             <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
@@ -422,7 +436,9 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
                       {event.startTime} - {event.endTime}
                     </p>
                     <p class="text-xs opacity-75">
-                      {event.status === "available" ? "Open Slot" : event.title || "Booked"}
+                      {event.status === "available"
+                        ? "Open Slot"
+                        : event.title || "Booked"}
                     </p>
                   </div>
                 )}

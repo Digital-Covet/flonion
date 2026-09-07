@@ -20,7 +20,7 @@ export const TimeSlot = (props: TimeSlotProps) => (
     disabled={props.state === "disabled"}
     class={cn(
       "py-2 rounded-md border text-sm font-medium transition-colors",
-      styles[props.state ?? "available"]
+      styles[props.state ?? "available"],
     )}
   >
     {props.time}

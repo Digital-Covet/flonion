@@ -1,7 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { runReviewPipeline } from "~/lib/agents/pipeline";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { checkRateLimit } from "~/lib/rate-limit";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 // Each call runs a two-stage LLM pipeline, so it costs real money per request.
 const USER_RATE_LIMIT = 20;
@@ -30,7 +30,12 @@ export async function POST(event: APIEvent) {
   if (!limit.allowed) {
     return Response.json(
       { error: "Rate limit exceeded. Please try again later." },
-      { status: 429, headers: { "Retry-After": String(Math.ceil((limit.resetAt - Date.now()) / 1000)) } },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((limit.resetAt - Date.now()) / 1000)),
+        },
+      },
     );
   }
 

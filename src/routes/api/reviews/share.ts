@@ -1,7 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getSessionFromHeaders } from "~/lib/server-auth";
 import { prisma } from "@/db/prisma";
 import { issueReviewClaim, verifyReviewClaim } from "~/lib/review-claim";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 const MAX_TEXT_LENGTH = 5000;
 const MAX_NAME_LENGTH = 100;
@@ -13,9 +13,22 @@ export async function POST(event: APIEvent) {
   try {
     const body = await event.request.json();
 
-    const { text, rating, keywords, id, username: businessUsername, businessId, reviewerName, claimToken } = body;
+    const {
+      text,
+      rating,
+      keywords,
+      id,
+      username: businessUsername,
+      businessId,
+      reviewerName,
+      claimToken,
+    } = body;
 
-    if (id && rating !== 0 && (typeof rating !== "number" || rating < 1 || rating > 5)) {
+    if (
+      id &&
+      rating !== 0 &&
+      (typeof rating !== "number" || rating < 1 || rating > 5)
+    ) {
       return Response.json(
         { error: "rating must be a number between 1 and 5" },
         { status: 400 },
@@ -23,13 +36,13 @@ export async function POST(event: APIEvent) {
     }
 
     if (typeof text === "string" && text.length > MAX_TEXT_LENGTH) {
-      return Response.json(
-        { error: "text is too long" },
-        { status: 400 },
-      );
+      return Response.json({ error: "text is too long" }, { status: 400 });
     }
 
-    if (typeof reviewerName === "string" && reviewerName.length > MAX_NAME_LENGTH) {
+    if (
+      typeof reviewerName === "string" &&
+      reviewerName.length > MAX_NAME_LENGTH
+    ) {
       return Response.json(
         { error: "reviewerName is too long" },
         { status: 400 },
@@ -37,10 +50,7 @@ export async function POST(event: APIEvent) {
     }
 
     if (typeof keywords === "string" && keywords.length > MAX_KEYWORDS_LENGTH) {
-      return Response.json(
-        { error: "keywords is too long" },
-        { status: 400 },
-      );
+      return Response.json({ error: "keywords is too long" }, { status: 400 });
     }
 
     if (id) {
@@ -67,12 +77,15 @@ export async function POST(event: APIEvent) {
           rating: rating !== 0 ? rating : existing.rating,
           reviewerName: isOwner
             ? session.user.name
-            : (typeof reviewerName === "string" && reviewerName.trim()
-                ? reviewerName.trim()
-                : session?.user.name ?? "Anonymous"),
+            : typeof reviewerName === "string" && reviewerName.trim()
+              ? reviewerName.trim()
+              : (session?.user.name ?? "Anonymous"),
           // `keywords` is owner-configured SEO input that is served back to every
           // visitor and fed into the AI prompt. Anonymous callers must not set it.
-          keywords: isOwner && typeof keywords === "string" ? keywords : existing.keywords,
+          keywords:
+            isOwner && typeof keywords === "string"
+              ? keywords
+              : existing.keywords,
         },
         select: {
           id: true,
@@ -87,11 +100,16 @@ export async function POST(event: APIEvent) {
 
       const param = user?.business?.username || user?.business?.id || "unknown";
 
-      return Response.json({ url: `/company/${param}/review`, reviewId: review.id });
+      return Response.json({
+        url: `/company/${param}/review`,
+        reviewId: review.id,
+      });
     }
 
     if ((businessUsername || businessId) && !session) {
-      const businessWhere = businessUsername ? { username: businessUsername } : { id: businessId! };
+      const businessWhere = businessUsername
+        ? { username: businessUsername }
+        : { id: businessId! };
       const business = await prisma.business.findUnique({
         where: businessWhere,
         select: { userId: true, keywords: true },
@@ -147,8 +165,14 @@ export async function POST(event: APIEvent) {
           where: { id: existing.userId },
           select: { business: { select: { id: true, username: true } } },
         });
-        const param = existingUser?.business?.username || existingUser?.business?.id || "unknown";
-        return Response.json({ url: `/company/${param}/review`, reviewId: existing.id });
+        const param =
+          existingUser?.business?.username ||
+          existingUser?.business?.id ||
+          "unknown";
+        return Response.json({
+          url: `/company/${param}/review`,
+          reviewId: existing.id,
+        });
       }
     }
 
@@ -176,12 +200,12 @@ export async function POST(event: APIEvent) {
 
     const param = user?.business?.username || user?.business?.id || "unknown";
 
-    return Response.json({ url: `/company/${param}/review`, reviewId: review.id });
+    return Response.json({
+      url: `/company/${param}/review`,
+      reviewId: review.id,
+    });
   } catch {
-    return Response.json(
-      { error: "Invalid request body" },
-      { status: 400 },
-    );
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 }
 

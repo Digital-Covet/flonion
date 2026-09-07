@@ -1,8 +1,8 @@
-import { createEffect, createSignal, Show } from "solid-js";
-import QRCode from "qrcode";
 import Download from "lucide-solid/icons/download";
 import Pencil from "lucide-solid/icons/pencil";
 import QrCode from "lucide-solid/icons/qr-code";
+import QRCode from "qrcode";
+import { createEffect, createSignal, Show } from "solid-js";
 
 interface QRCodeDisplayProps {
   url: string | null;
@@ -92,7 +92,8 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
         const footer = new Image();
         footer.onload = () => {
           const footerWidth = canvasSize;
-          const footerHeight = (footer.naturalHeight / footer.naturalWidth) * footerWidth;
+          const footerHeight =
+            (footer.naturalHeight / footer.naturalWidth) * footerWidth;
           const footerX = 0;
           const footerY = canvasSize - footerHeight;
           ctx.drawImage(footer, footerX, footerY, footerWidth, footerHeight);
@@ -107,7 +108,15 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
       if (props.logo) {
         const logoImg = new Image();
         logoImg.onload = () => {
-          drawLogoAndText(ctx, logoImg, canvasSize, qrSize, qrX, qrY, instructionText());
+          drawLogoAndText(
+            ctx,
+            logoImg,
+            canvasSize,
+            qrSize,
+            qrX,
+            qrY,
+            instructionText(),
+          );
           drawFooter();
         };
         logoImg.onerror = () => {
@@ -176,7 +185,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
     qrSize: number,
     _qrX: number,
     qrY: number,
-    instrText: string,
+    _instrText: string,
   ) => {
     const textY = qrY + qrSize + 60;
 
@@ -189,10 +198,13 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
       const name = props.businessName;
       if (ctx.measureText(name).width > maxWidth) {
         let truncated = name;
-        while (truncated.length > 0 && ctx.measureText(truncated + "...").width > maxWidth) {
+        while (
+          truncated.length > 0 &&
+          ctx.measureText(`${truncated}...`).width > maxWidth
+        ) {
           truncated = truncated.slice(0, -1);
         }
-        ctx.fillText(truncated + "...", canvasSize / 2, textY);
+        ctx.fillText(`${truncated}...`, canvasSize / 2, textY);
       } else {
         ctx.fillText(name, canvasSize / 2, textY);
       }
@@ -217,7 +229,10 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
                 class="flex items-center justify-center rounded-xl border-2 border-dashed border-border/60 bg-muted/30"
                 style={{ width: `${QR_SIZE}px`, height: `${QR_SIZE}px` }}
               >
-                <QrCode class="size-10 text-muted-foreground/30" aria-hidden="true" />
+                <QrCode
+                  class="size-10 text-muted-foreground/30"
+                  aria-hidden="true"
+                />
               </div>
               <p class="text-center text-xs text-muted-foreground/60">
                 Generate a share link to show QR code
@@ -268,7 +283,9 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
             <textarea
               ref={textareaRef}
               value={draftText()}
-              onInput={(e) => setDraftText((e.target as HTMLTextAreaElement).value)}
+              onInput={(e) =>
+                setDraftText((e.target as HTMLTextAreaElement).value)
+              }
               onBlur={() => {
                 const trimmed = draftText().trim();
                 setInstructionText(trimmed || "Scan to leave a review");
