@@ -1,6 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "~/db/prisma";
 import { APP_DOMAIN } from "~/lib/constants";
+import { sign } from "~/lib/crypto";
 import { sendEmail } from "~/services/email";
 import { renderMeetingRequestEmail } from "~/services/email-templates";
 
@@ -161,8 +162,8 @@ export async function POST(event: APIEvent) {
       startTime: slot.startTime,
       endTime: slot.endTime,
       message: trimmedMessage ?? undefined,
-      acceptUrl: `${APP_DOMAIN}/api/marketplace/meetings/${meetingId}?action=accept`,
-      rejectUrl: `${APP_DOMAIN}/api/marketplace/meetings/${meetingId}?action=reject`,
+      acceptUrl: `${APP_DOMAIN}/api/marketplace/meetings/${meetingId}?action=accept&sig=${sign(`${meetingId}:accept`, "meeting-decision")}`,
+      rejectUrl: `${APP_DOMAIN}/api/marketplace/meetings/${meetingId}?action=reject&sig=${sign(`${meetingId}:reject`, "meeting-decision")}`,
     });
 
     await sendEmail({
