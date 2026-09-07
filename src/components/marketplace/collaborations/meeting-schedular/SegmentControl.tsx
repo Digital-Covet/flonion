@@ -14,7 +14,7 @@ function SegmentControl<T extends string>(props: SegmentControlProps<T>) {
         {(option) => (
           <SegmentGroup.Item
             value={option().value}
-            class={`${props.compact ? "px-3 py-1 text-xs" : "px-4 py-1.5 text-sm"} bg-white rounded-md font-medium whitespace-nowrap transition-all data-[state=unselected]:text-muted-foreground data-[state=unselected]:hover:text-foreground`}
+            class={`${props.compact ? "px-3 py-1 text-xs bg-white" : "px-4 py-1.5 text-sm"} rounded-md font-medium whitespace-nowrap transition-all data-[state=unselected]:text-muted-foreground data-[state=unselected]:hover:text-foreground`}
           >
             <SegmentGroup.ItemText>{option().label}</SegmentGroup.ItemText>
             <SegmentGroup.ItemControl />
