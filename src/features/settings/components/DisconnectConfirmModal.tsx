@@ -14,7 +14,12 @@ export function DisconnectConfirmModal(props: DisconnectConfirmModalProps) {
   return (
     <Show when={props.isOpen}>
       <div class="fixed inset-0 z-50 flex items-center justify-center">
-        <div
+        {/* Pointer-only backdrop: every dialog here already ships a labelled
+            Close button, so keep this one out of the tab order. */}
+        <button
+          type="button"
+          tabindex="-1"
+          aria-label="Close dialog"
           class="fixed inset-0 bg-black/50 backdrop-blur-sm"
           onClick={props.onClose}
         />

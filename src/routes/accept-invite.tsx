@@ -101,6 +101,7 @@ export default function AcceptInvitePage() {
                   </div>
                   <p class="text-sm text-muted-foreground">{errorMessage()}</p>
                   <button
+                    type="button"
                     onClick={() => navigate("/dashboard")}
                     class="mt-2 px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary-hover transition-colors"
                   >

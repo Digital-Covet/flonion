@@ -1,5 +1,20 @@
 import { SendMailClient } from "zeptomail";
 
+/**
+ * ZeptoMail's SDK is untyped and answers both success and rejection with plain
+ * objects, so nothing about these shapes is guaranteed at runtime.
+ */
+interface ZeptoMailResponse {
+  data?: { email_id?: string }[];
+  message?: string;
+}
+
+interface ZeptoMailError {
+  error?: unknown;
+  message?: unknown;
+  response?: { status?: unknown; data?: unknown };
+}
+
 interface SendEmailOptions {
   to: string;
   toName?: string;
@@ -39,7 +54,7 @@ export async function sendEmail({
   const client = createClient();
 
   try {
-    const response: any = await client.sendMail({
+    const response = (await client.sendMail({
       from: { address: senderAddress, name: fromName },
       to: [
         {
@@ -52,7 +67,7 @@ export async function sendEmail({
       subject,
       textbody: text,
       htmlbody: html ?? text,
-    });
+    })) as ZeptoMailResponse;
 
     if (response?.data && response.data.length > 0) {
       console.log(
@@ -69,7 +84,8 @@ export async function sendEmail({
           "ZeptoMail rejected the email request.",
       );
     }
-  } catch (error: any) {
+  } catch (error) {
+    const err = (error ?? {}) as ZeptoMailError;
     // ---------------------------------------------------------
     // 1. LOG THE ENTIRE ERROR OBJECT
     // ---------------------------------------------------------
@@ -90,15 +106,13 @@ export async function sendEmail({
       finalMessage = error.message;
     }
     // Case B: SDK/Library throws a plain object with 'error' property
-    else if (error?.error) {
+    else if (err.error) {
       finalMessage =
-        typeof error.error === "string"
-          ? error.error
-          : JSON.stringify(error.error);
+        typeof err.error === "string" ? err.error : JSON.stringify(err.error);
     }
     // Case C: SDK/Library throws a plain object with 'message' property (but not instanceof Error)
-    else if (error?.message) {
-      finalMessage = error.message;
+    else if (typeof err.message === "string" && err.message) {
+      finalMessage = err.message;
     }
     // Case D: Fallback to stringifying the whole object if it looks useful
     else if (error && typeof error === "object") {
@@ -108,16 +122,16 @@ export async function sendEmail({
     // ---------------------------------------------------------
     // 3. CHECK FOR HTTP RESPONSE DETAILS (Axios/Request style)
     // ---------------------------------------------------------
-    if (error.response) {
-      const status = error.response.status;
-      const data = error.response.data;
+    if (err.response) {
+      const status = err.response.status;
+      const data = err.response.data;
       console.error("🚨 [ZeptoMail] Response Status:", status);
 
       if (data) {
         const apiMsg =
           typeof data === "string"
             ? data
-            : data.message || JSON.stringify(data);
+            : (data as { message?: string }).message || JSON.stringify(data);
         finalMessage += ` (Status ${status}): ${apiMsg}`;
       }
     }

@@ -26,7 +26,15 @@ export async function GET(event: APIEvent) {
 
   const meeting = await prisma.meetingRequest.findUnique({
     where: { id },
-    include: {
+    select: {
+      id: true,
+      slotId: true,
+      status: true,
+      message: true,
+      meetUri: true,
+      meetSpaceId: true,
+      guestName: true,
+      guestEmail: true,
       slot: true,
       business: {
         select: {
@@ -43,11 +51,6 @@ export async function GET(event: APIEvent) {
     return new Response("Meeting not found", { status: 404 });
   }
 
-  // Same check PATCH performs. This handler is reached from a one-click link in
-  // the notification email, but the link only identifies the meeting -- without
-  // this any signed-in user could decide someone else's booking, and the accept
-  // branch below spends the *business owner's* Google tokens to make a Meet
-  // space.
   if (meeting.business.userId !== session.user.id) {
     return new Response("Forbidden", { status: 403 });
   }
@@ -75,7 +78,6 @@ export async function GET(event: APIEvent) {
     }
   });
 
-  // Auto-create a Google Meet link when the meeting is accepted.
   let meetUri: string | undefined;
   if (action === "accept") {
     const meetLink = await createMeetLink(meeting.business.userId);
@@ -96,23 +98,28 @@ export async function GET(event: APIEvent) {
       day: "numeric",
     });
 
-    const { html, text } = renderMeetingDecisionEmail({
-      requesterName: meeting.requester.name || meeting.requester.email,
-      businessName: meeting.business.name,
-      date: slotDate,
-      startTime: meeting.slot.startTime,
-      endTime: meeting.slot.endTime,
-      decision: newStatus as "accepted" | "rejected",
-      meetUri,
-    });
+    const recipientEmail = meeting.requester?.email ?? meeting.guestEmail;
+    const recipientName = meeting.requester?.name ?? meeting.guestName;
 
-    await sendEmail({
-      to: meeting.requester.email,
-      toName: meeting.requester.name,
-      subject: `Your meeting request with ${meeting.business.name} was ${newStatus}`,
-      text,
-      html,
-    });
+    if (recipientEmail) {
+      const { html, text } = renderMeetingDecisionEmail({
+        requesterName: recipientName ?? "Guest",
+        businessName: meeting.business.name,
+        date: slotDate,
+        startTime: meeting.slot.startTime,
+        endTime: meeting.slot.endTime,
+        decision: newStatus as "accepted" | "rejected",
+        meetUri,
+      });
+
+      await sendEmail({
+        to: recipientEmail,
+        toName: recipientName ?? undefined,
+        subject: `Your meeting request with ${meeting.business.name} was ${newStatus}`,
+        text,
+        html,
+      });
+    }
   } catch (err) {
     console.error("[marketplace/meetings] Failed to send decision email:", err);
   }
@@ -162,7 +169,15 @@ export async function PATCH(event: APIEvent) {
 
     const meeting = await prisma.meetingRequest.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        slotId: true,
+        status: true,
+        message: true,
+        meetUri: true,
+        meetSpaceId: true,
+        guestName: true,
+        guestEmail: true,
         slot: true,
         business: {
           select: {
@@ -206,7 +221,6 @@ export async function PATCH(event: APIEvent) {
       }
     });
 
-    // Auto-create a Google Meet link when the meeting is accepted.
     let meetUri: string | undefined;
     if (action === "accept") {
       const meetLink = await createMeetLink(meeting.business.userId);
@@ -227,23 +241,28 @@ export async function PATCH(event: APIEvent) {
         day: "numeric",
       });
 
-      const { html, text } = renderMeetingDecisionEmail({
-        requesterName: meeting.requester.name || meeting.requester.email,
-        businessName: meeting.business.name,
-        date: slotDate,
-        startTime: meeting.slot.startTime,
-        endTime: meeting.slot.endTime,
-        decision: newStatus as "accepted" | "rejected",
-        meetUri,
-      });
+      const recipientEmail = meeting.requester?.email ?? meeting.guestEmail;
+      const recipientName = meeting.requester?.name ?? meeting.guestName;
 
-      await sendEmail({
-        to: meeting.requester.email,
-        toName: meeting.requester.name,
-        subject: `Your meeting request with ${meeting.business.name} was ${newStatus}`,
-        text,
-        html,
-      });
+      if (recipientEmail) {
+        const { html, text } = renderMeetingDecisionEmail({
+          requesterName: recipientName ?? "Guest",
+          businessName: meeting.business.name,
+          date: slotDate,
+          startTime: meeting.slot.startTime,
+          endTime: meeting.slot.endTime,
+          decision: newStatus as "accepted" | "rejected",
+          meetUri,
+        });
+
+        await sendEmail({
+          to: recipientEmail,
+          toName: recipientName ?? undefined,
+          subject: `Your meeting request with ${meeting.business.name} was ${newStatus}`,
+          text,
+          html,
+        });
+      }
     } catch (err) {
       console.error(
         "[marketplace/meetings] Failed to send decision email:",

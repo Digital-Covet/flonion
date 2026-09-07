@@ -12,9 +12,9 @@ export default function Navbar(props: NavbarProps) {
   return (
     <nav class="fixed top-0 z-50 w-full border-b border-border bg-card/80 shadow-sm backdrop-blur-md">
       <div class="w-full flex items-center justify-between px-4 py-4 md:px-16">
-        <a class="flex items-center" href="#" aria-label="Flonion home">
+        <A class="flex items-center" href="/" aria-label="Flonion home">
           <InlineCombinationMark class="h-4" />
-        </a>
+        </A>
 
         <div class="hidden items-center gap-6 md:flex">
           {navLinks.map((link) => (

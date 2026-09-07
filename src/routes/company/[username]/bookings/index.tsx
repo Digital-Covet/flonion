@@ -1,7 +1,8 @@
 import { Meta, Title } from "@solidjs/meta";
 import { useParams } from "@solidjs/router";
 import { AlertTriangle, Loader2 } from "lucide-solid";
-import { createResource, Show } from "solid-js";
+import { createResource, createSignal, Show } from "solid-js";
+import BookingForm from "~/components/company/bookings/BookingForm";
 import PublicScheduleCalendar from "~/components/company/bookings/PublicScheduleCalendar";
 import PublicScheduleHeader from "~/components/company/bookings/PublicScheduleHeader";
 
@@ -78,6 +79,9 @@ async function fetchSchedule(username?: string): Promise<ScheduleData | null> {
 export default function PublicBookingsPage() {
   const params = useParams<{ username: string }>();
   const [data] = createResource(() => params.username, fetchSchedule);
+  const [selectedSlot, setSelectedSlot] = createSignal<ScheduleEvent | null>(
+    null,
+  );
 
   return (
     <>
@@ -130,8 +134,20 @@ export default function PublicBookingsPage() {
                   bookingStartTime={data()!.business.bookingStartTime}
                   bookingEndTime={data()!.business.bookingEndTime}
                   slotDuration={data()!.business.slotDuration}
+                  onSlotSelect={setSelectedSlot}
                 />
               </div>
+
+              <Show when={selectedSlot()}>
+                <BookingForm
+                  slot={selectedSlot()!}
+                  businessId={data()!.business.username ?? ""}
+                  businessName={data()!.business.name}
+                  username={params.username}
+                  onClose={() => setSelectedSlot(null)}
+                  onSuccess={() => setSelectedSlot(null)}
+                />
+              </Show>
             </Show>
           </Show>
         </div>

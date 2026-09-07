@@ -6,7 +6,7 @@ export { FeaturedBanner } from "./featured-banner";
 export { FeaturedProjectTile } from "./featured-project-tile";
 export { GlassCard } from "./glass-card";
 export { HeroSection } from "./hero-section";
-export { type IconName, iconMap } from "./icon-map";
+export { type IconName, iconMap, toIconName } from "./icon-map";
 export { MetaItem } from "./meta-item";
 export { Scheduler } from "./scheduler";
 export { SectionHeading } from "./section-heading";

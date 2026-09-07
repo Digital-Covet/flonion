@@ -116,7 +116,7 @@ Do not output any explanation.`,
   const content =
     typeof response.content === "string"
       ? response.content
-      : response.content.map((c: any) => ("text" in c ? c.text : "")).join("");
+      : response.content.map((c) => ("text" in c ? c.text : "")).join("");
 
   return sentimentAnalysisSchema.parse(JSON.parse(content));
 }

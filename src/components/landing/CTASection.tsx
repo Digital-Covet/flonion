@@ -1,3 +1,4 @@
+import { A } from "@solidjs/router";
 import ArrowRight from "lucide-solid/icons/arrow-right";
 import { createSignal, onCleanup, onMount } from "solid-js";
 
@@ -34,13 +35,13 @@ export default function CTASection() {
           <h2 class="mb-8 font-heading text-[32px] font-bold leading-tight md:text-[48px] md:leading-[1.1]">
             Ready to become the #1 rated business in your area?
           </h2>
-          <a
+          <A
             class="inline-flex items-center gap-2 rounded-lg bg-white px-8 py-4 text-sm font-bold text-primary shadow-md transition-all duration-200 hover:bg-teal-50 hover:scale-[1.02] hover:-translate-y-0.5 active:scale-[0.98]"
-            href="#"
+            href="/signup"
           >
             Start Your Free Trial
             <ArrowRight size={18} aria-hidden="true" />
-          </a>
+          </A>
           <p class="mt-4 text-xs text-teal-100">
             No credit card required - 14-day free trial
           </p>

@@ -35,7 +35,6 @@ export function SettingsPage() {
     placeId,
     setPlaceId,
     reviewLink,
-    setReviewLink,
     reviewLinks,
     setReviewLinks,
     logo,

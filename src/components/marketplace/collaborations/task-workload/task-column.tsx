@@ -82,6 +82,7 @@ export default function TaskColumn(props: TaskColumnProps) {
         </Tooltip.Root>
       </div>
       <Collapsible.Content class="flex flex-col gap-3 data-[state=closed]:animate-collapsible-close data-[state=open]:animate-collapsible-open">
+        {/* biome-ignore lint/a11y/noStaticElementInteractions: drop target for drag-and-drop, which has no keyboard path yet; a role here would advertise an interaction that does not exist */}
         <div
           class="flex flex-col gap-3 min-h-[100px] rounded transition-colors"
           onDragOver={handleDragOver}
@@ -92,6 +93,7 @@ export default function TaskColumn(props: TaskColumnProps) {
       </Collapsible.Content>
       <Show when={props.showAddTask}>
         <button
+          type="button"
           onClick={props.onAddTask}
           class="mt-3 flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground py-2 border border-dashed border-border rounded hover:bg-card transition-colors w-full"
         >

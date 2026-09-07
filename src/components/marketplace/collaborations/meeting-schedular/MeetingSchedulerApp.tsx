@@ -7,7 +7,7 @@ import {
   Video,
 } from "lucide-solid";
 import { createResource, createSignal, Show } from "solid-js";
-import { APP_DOMAIN, currentOrigin } from "~/lib/constants";
+import { currentOrigin } from "~/lib/constants";
 import BookableWindows from "./BookableWindows";
 import LoadOverview from "./LoadOverview";
 import ScheduleSettingsModal from "./ScheduleSettingsModal";
@@ -36,26 +36,16 @@ async function fetchScheduleSettings() {
 }
 
 function MeetingSchedulerApp() {
-  const [settings, { refetch: refetchSettings }] = createResource(
-    fetchScheduleSettings,
-  );
+  const [settings] = createResource(fetchScheduleSettings);
   const [view, setView] = createSignal<"upcoming" | "availability">("upcoming");
   const [weekOffset, setWeekOffset] = createSignal(0);
   const [linkMenuOpen, setLinkMenuOpen] = createSignal(false);
-  const [_copied, setCopied] = createSignal(false);
   const [scheduleCopied, setScheduleCopied] = createSignal(false);
   const [creatingMeet, setCreatingMeet] = createSignal(false);
   const [meetCopied, setMeetCopied] = createSignal(false);
   const [meetError, setMeetError] = createSignal("");
   const [settingsOpen, setSettingsOpen] = createSignal(false);
   const [slotsVersion, setSlotsVersion] = createSignal(0);
-
-  const _copyLink = async () => {
-    const url = `${APP_DOMAIN}/marketplace`;
-    await navigator.clipboard?.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1600);
-  };
 
   const copyScheduleLink = async () => {
     const username = settings()?.username;

@@ -1,9 +1,10 @@
+import type { RouteSectionProps } from "@solidjs/router";
 import { Suspense } from "solid-js";
 import LogoComponent from "~/assets/logomark";
 import { AppSidebar } from "~/components/layout/app-sidebar";
 import { MobileNavigation } from "~/components/layout/mobile-navigation";
 
-export default function AppLayout(props: { children: any }) {
+export default function AppLayout(props: RouteSectionProps) {
   return (
     <div class="flex h-dvh overflow-hidden bg-background text-foreground">
       <AppSidebar />

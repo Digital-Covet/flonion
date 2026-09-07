@@ -44,3 +44,30 @@ export interface AnimatedStarRatingProps {
   delay?: number;
   inView?: boolean;
 }
+
+export interface PricingTier {
+  name: string;
+  monthlyPrice: number | null;
+  annualPrice: number | null;
+  description: string;
+  badge?: string;
+  features: string[];
+  cta: string;
+  ctaHref: string;
+  highlighted?: boolean;
+}
+
+export interface ComparisonFeature {
+  category: string;
+  features: {
+    name: string;
+    starter: string | boolean;
+    business: string | boolean;
+    enterprise: string | boolean;
+  }[];
+}
+
+export interface PricingFaqItem {
+  question: string;
+  answer: string;
+}

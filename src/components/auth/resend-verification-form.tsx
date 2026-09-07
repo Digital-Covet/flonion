@@ -9,6 +9,7 @@ import {
   onCleanup,
   Switch,
 } from "solid-js";
+import { authErrorMessage } from "@/lib/auth-errors";
 import type { FormStatus, ResendVerificationFormProps } from "@/types/auth-ui";
 
 const SUBMISSION_DELAY_MS = 1200;
@@ -40,9 +41,12 @@ export const ResendVerificationForm: Component<ResendVerificationFormProps> = (
       );
       await props.onSubmit?.(email());
       setStatus("success");
-    } catch (e: any) {
+    } catch (e) {
       setErrorMessage(
-        e?.message ?? "Failed to send verification email. Please try again.",
+        authErrorMessage(
+          e,
+          "Failed to send verification email. Please try again.",
+        ),
       );
       setStatus("idle");
     }

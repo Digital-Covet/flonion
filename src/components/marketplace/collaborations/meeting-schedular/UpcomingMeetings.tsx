@@ -44,6 +44,7 @@ function toMeeting(m: MeetingData) {
     location: "Online",
     locationIcon: (props: { class?: string }) => (
       <svg
+        aria-hidden="true"
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 24"
         fill="none"
@@ -151,12 +152,14 @@ function UpcomingMeetings() {
                   <Show when={meeting.rawStatus === "pending"}>
                     <div class="flex gap-2 ml-16 mb-2">
                       <button
+                        type="button"
                         onClick={() => handleAccept(meeting.id)}
                         class="px-3 py-1 text-xs font-medium rounded-md bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors"
                       >
                         Accept
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleReject(meeting.id)}
                         class="px-3 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors"
                       >

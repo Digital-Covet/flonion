@@ -22,10 +22,7 @@ export function SentimentTrendChart() {
           Sentiment Trend
         </h2>
 
-        <div
-          class="flex items-center gap-4 text-xs text-muted-foreground"
-          aria-label="Chart legend"
-        >
+        <div class="flex items-center gap-4 text-xs text-muted-foreground">
           <span class="flex items-center gap-2">
             <span class="size-3 rounded-sm bg-primary" aria-hidden="true" />
             Positive

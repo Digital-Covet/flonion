@@ -188,7 +188,12 @@ function ScheduleSettingsModal(props: ScheduleSettingsModalProps) {
     <Show when={props.open}>
       <Portal>
         <div class="fixed inset-0 z-50 flex items-center justify-center">
-          <div
+          {/* Pointer-only backdrop: every dialog here already ships a labelled
+              Close button, so keep this one out of the tab order. */}
+          <button
+            type="button"
+            tabindex="-1"
+            aria-label="Close dialog"
             class="fixed inset-0 bg-black/50 backdrop-blur-sm"
             onClick={props.onClose}
           />
@@ -224,10 +229,10 @@ function ScheduleSettingsModal(props: ScheduleSettingsModalProps) {
                 }
               >
                 {/* Working Days */}
-                <div class="mb-5">
-                  <label class="mb-2 block text-sm font-medium text-foreground">
+                <fieldset class="mb-5">
+                  <legend class="mb-2 block text-sm font-medium text-foreground">
                     Working Days
-                  </label>
+                  </legend>
                   <div class="flex flex-wrap gap-2">
                     <For each={DAY_LABELS}>
                       {(day) => (
@@ -245,16 +250,17 @@ function ScheduleSettingsModal(props: ScheduleSettingsModalProps) {
                       )}
                     </For>
                   </div>
-                </div>
+                </fieldset>
 
                 {/* Working Hours */}
-                <div class="mb-5">
-                  <label class="mb-2 block text-sm font-medium text-foreground">
+                <fieldset class="mb-5">
+                  <legend class="mb-2 block text-sm font-medium text-foreground">
                     Working Hours (IST)
-                  </label>
+                  </legend>
                   <div class="flex items-center gap-3">
                     <input
                       type="time"
+                      aria-label="Working hours start"
                       value={workingStart()}
                       onInput={(e) => setWorkingStart(e.currentTarget.value)}
                       class="h-9 flex-1 rounded-md border border-border bg-transparent px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20"
@@ -262,24 +268,26 @@ function ScheduleSettingsModal(props: ScheduleSettingsModalProps) {
                     <span class="text-sm text-muted-foreground">to</span>
                     <input
                       type="time"
+                      aria-label="Working hours end"
                       value={workingEnd()}
                       onInput={(e) => setWorkingEnd(e.currentTarget.value)}
                       class="h-9 flex-1 rounded-md border border-border bg-transparent px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
-                </div>
+                </fieldset>
 
                 {/* Booking Time Window */}
-                <div class="mb-5">
-                  <label class="mb-2 block text-sm font-medium text-foreground">
+                <fieldset class="mb-5">
+                  <legend class="mb-2 block text-sm font-medium text-foreground">
                     Booking Time Window (IST)
-                  </label>
+                  </legend>
                   <p class="mb-2 text-xs text-muted-foreground">
                     Only these hours will be shown as available to visitors.
                   </p>
                   <div class="flex items-center gap-3">
                     <input
                       type="time"
+                      aria-label="Booking window start"
                       value={bookingStart()}
                       onInput={(e) => setBookingStart(e.currentTarget.value)}
                       class="h-9 flex-1 rounded-md border border-border bg-transparent px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20"
@@ -287,18 +295,19 @@ function ScheduleSettingsModal(props: ScheduleSettingsModalProps) {
                     <span class="text-sm text-muted-foreground">to</span>
                     <input
                       type="time"
+                      aria-label="Booking window end"
                       value={bookingEnd()}
                       onInput={(e) => setBookingEnd(e.currentTarget.value)}
                       class="h-9 flex-1 rounded-md border border-border bg-transparent px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20"
                     />
                   </div>
-                </div>
+                </fieldset>
 
                 {/* Slot Duration */}
-                <div class="mb-5">
-                  <label class="mb-2 block text-sm font-medium text-foreground">
+                <fieldset class="mb-5">
+                  <legend class="mb-2 block text-sm font-medium text-foreground">
                     Slot Duration
-                  </label>
+                  </legend>
                   <div class="flex gap-2">
                     <For each={DURATION_OPTIONS}>
                       {(opt) => (
@@ -316,7 +325,7 @@ function ScheduleSettingsModal(props: ScheduleSettingsModalProps) {
                       )}
                     </For>
                   </div>
-                </div>
+                </fieldset>
 
                 <Show when={statusMsg()}>
                   <div

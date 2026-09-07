@@ -43,7 +43,6 @@ export default function TeamPage() {
 
   const [members, setMembers] = createSignal<TeamMember[]>([]);
   const [invitations, setInvitations] = createSignal<PendingInvitation[]>([]);
-  const [_loading, setLoading] = createSignal(true);
   const [ownerId, setOwnerId] = createSignal<string | null>(null);
 
   const [inviteEmail, setInviteEmail] = createSignal("");
@@ -96,7 +95,6 @@ export default function TeamPage() {
 
   onMount(async () => {
     await Promise.all([fetchMembers(), fetchInvitations(), fetchBusiness()]);
-    setLoading(false);
   });
 
   const handleSendInvite = async (e: Event) => {
@@ -351,6 +349,7 @@ export default function TeamPage() {
                           </For>
                         </select>
                         <button
+                          type="button"
                           onClick={() => handleRemoveMember(member.id)}
                           class="text-muted-foreground hover:text-destructive transition-colors"
                         >
@@ -410,6 +409,7 @@ export default function TeamPage() {
                       }
                     >
                       <button
+                        type="button"
                         onClick={() => handleCancelInvitation(invitation.id)}
                         class="text-xs text-muted-foreground hover:text-destructive transition-colors"
                       >

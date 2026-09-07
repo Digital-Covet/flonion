@@ -12,7 +12,11 @@ import {
   onCleanup,
   Switch,
 } from "solid-js";
-import { authErrorCode, EMAIL_NOT_VERIFIED } from "@/lib/auth-errors";
+import {
+  authErrorCode,
+  authErrorMessage,
+  EMAIL_NOT_VERIFIED,
+} from "@/lib/auth-errors";
 import type { FormStatus, SignInFormProps } from "@/types/auth-ui";
 
 const SUBMISSION_DELAY_MS = 1200;
@@ -51,8 +55,8 @@ export const SignInForm: Component<SignInFormProps> = (props) => {
         setEmail("");
         setPassword("");
       }, SUCCESS_RESET_DELAY_MS);
-    } catch (e: any) {
-      const message = e?.message ?? "Sign in failed. Please try again.";
+    } catch (e) {
+      const message = authErrorMessage(e, "Sign in failed. Please try again.");
       setErrorMessage(message);
       setErrorCode(authErrorCode(e));
       props.onError?.(message);

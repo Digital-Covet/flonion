@@ -24,6 +24,14 @@ export type IconName =
   | "box"
   | "check";
 
+/**
+ * Service icons arrive from the database as free-form strings, so anything the
+ * map doesn't know falls back to a generic icon rather than rendering nothing.
+ */
+export function toIconName(name: string): IconName {
+  return name in iconMap ? (name as IconName) : "box";
+}
+
 export const iconMap: Record<
   IconName,
   Component<{ size?: number; class?: string }>

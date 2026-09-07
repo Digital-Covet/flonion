@@ -1,3 +1,4 @@
+import { A } from "@solidjs/router";
 import ArrowRight from "lucide-solid/icons/arrow-right";
 import MessageSquareText from "lucide-solid/icons/message-square-text";
 import PlayCircle from "lucide-solid/icons/play-circle";
@@ -48,16 +49,16 @@ export default function HeroSection(props: HeroSectionProps) {
             reviews and grow their reputation automatically.
           </p>
           <div class="flex flex-col gap-2 sm:flex-row">
-            <a
+            <A
               class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3.5 text-sm font-semibold text-primary-foreground shadow-md transition-all duration-200 hover:bg-primary-hover hover:scale-[1.02] hover:-translate-y-0.5 active:scale-[0.98]"
-              href="#"
+              href="/signup"
             >
               Get Started Free
               <ArrowRight size={20} aria-hidden="true" />
-            </a>
+            </A>
             <a
               class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-8 py-3.5 text-sm font-semibold text-card-foreground shadow-sm transition-all duration-200 hover:bg-muted hover:scale-[1.02] hover:-translate-y-0.5 active:scale-[0.98]"
-              href="#"
+              href="#how-it-works"
             >
               See How it Works
               <PlayCircle size={20} class="text-primary" aria-hidden="true" />
@@ -66,7 +67,11 @@ export default function HeroSection(props: HeroSectionProps) {
         </div>
 
         <div class="relative mt-8 hidden h-[550px] w-full md:mt-0 md:block">
+          {/* A mock dashboard with invented data: decorative illustration, and
+              the tilt is a pointer-only flourish with nothing behind it. */}
           <div
+            aria-hidden="true"
+            role="presentation"
             class="tilt-card absolute inset-0 z-10 mx-auto flex max-w-[500px] translate-x-4 translate-y-4 flex-col gap-5 rounded-xl border border-border bg-card/94 p-6 shadow-md backdrop-blur-xl will-change-transform"
             onMouseMove={(e) => handleTilt(e, e.currentTarget)}
             onMouseLeave={(e) => resetTilt(e.currentTarget)}
@@ -121,9 +126,7 @@ export default function HeroSection(props: HeroSectionProps) {
                 <div class="text-sm font-semibold text-card-foreground">
                   Recent Activity
                 </div>
-                <a class="text-xs text-primary hover:underline" href="#">
-                  View All
-                </a>
+                <span class="text-xs text-primary">View All</span>
               </div>
               <div class="space-y-3">
                 {[

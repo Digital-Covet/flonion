@@ -285,19 +285,21 @@
   }
 }
 
+/* biome-ignore-start lint/complexity/noImportantStyles: the reduced-motion override must beat component animation styles */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.001ms;
-    animation-iteration-count: 1;
-    scroll-behavior: auto;
-    transition-duration: 0.001ms;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
   }
 
   .trusted-marquee,
   .idle-float,
   .idle-float-delayed {
-    animation: none;
+    animation: none !important;
   }
 }
+/* biome-ignore-end lint/complexity/noImportantStyles: end reduced-motion override */

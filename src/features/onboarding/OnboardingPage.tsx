@@ -11,13 +11,11 @@ import {
   ReviewStep,
   type TeamInvite,
 } from "~/components/onboarding";
-import { authClient } from "~/lib/auth-client";
 import { useSettings } from "~/stores/settings-store";
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const _session = authClient.useSession();
 
   const [pendingInvite, setPendingInvite] = createSignal<{
     token: string;
@@ -124,10 +122,6 @@ export default function OnboardingPage() {
 
   const handleReviewBack = () => {
     updateStep(2);
-  };
-
-  const _handleReviewContinue = () => {
-    updateStep(4);
   };
 
   const handleAddInvite = (invite: TeamInvite) => {
@@ -433,6 +427,7 @@ export default function OnboardingPage() {
                 fallback={
                   <div class="flex gap-3 mt-2">
                     <button
+                      type="button"
                       onClick={handleAcceptInvitation}
                       disabled={inviteLoading()}
                       class="px-6 py-2.5 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
@@ -440,6 +435,7 @@ export default function OnboardingPage() {
                       {inviteLoading() ? "Accepting..." : "Accept Invitation"}
                     </button>
                     <button
+                      type="button"
                       onClick={() => setConfirmingDecline(true)}
                       disabled={inviteLoading()}
                       class="px-6 py-2.5 text-sm font-medium text-muted-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
@@ -460,6 +456,7 @@ export default function OnboardingPage() {
                   </p>
                   <div class="flex gap-3">
                     <button
+                      type="button"
                       onClick={handleDeclineInvitation}
                       disabled={inviteLoading()}
                       class="px-6 py-2.5 text-sm font-medium text-muted-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
@@ -467,6 +464,7 @@ export default function OnboardingPage() {
                       {inviteLoading() ? "Declining..." : "Yes, create my own"}
                     </button>
                     <button
+                      type="button"
                       onClick={() => setConfirmingDecline(false)}
                       disabled={inviteLoading()}
                       class="px-6 py-2.5 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"

@@ -97,6 +97,7 @@ const ActionButton: Component<{
 
   return (
     <button
+      type="button"
       class={cn(
         "shrink-0 h-10 px-5 rounded-lg font-medium text-sm transition-all whitespace-nowrap",
         buttonClass(),

@@ -150,6 +150,7 @@ export const InviteTeamStep: Component<InviteTeamStepProps> = (props) => {
                     </td>
                     <td class="px-4 py-3">
                       <button
+                        type="button"
                         onClick={() => props.onRemoveInvite(invite.email)}
                         class="text-muted-foreground hover:text-destructive transition-colors"
                       >
@@ -166,12 +167,14 @@ export const InviteTeamStep: Component<InviteTeamStepProps> = (props) => {
 
       <div class="flex justify-between items-center pt-4 border-t border-border">
         <button
+          type="button"
           onClick={props.onSkip}
           class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           Skip for now
         </button>
         <button
+          type="button"
           onClick={props.onContinue}
           class="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-primary-foreground bg-primary rounded-lg hover:bg-primary-hover transition-colors"
         >

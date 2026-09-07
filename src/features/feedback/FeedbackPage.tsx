@@ -218,6 +218,7 @@ export function FeedbackPage() {
                   {(star) => {
                     const selected = () => star <= rating() && rating() > 0;
                     return (
+                      // biome-ignore lint/a11y/useSemanticElements: the star rating is a button-based radiogroup by design, inside a <fieldset> with role="radiogroup"
                       <button
                         type="button"
                         role="radio"

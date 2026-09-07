@@ -68,7 +68,6 @@ export default function PublicReviewPage() {
   const [cooldown, setCooldown] = createSignal(false);
   const [showSuggestions, setShowSuggestions] = createSignal(false);
   const [visitorName, setVisitorName] = createSignal("");
-  const [_businessId, setBusinessId] = createSignal<string | null>(null);
 
   let dismissTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -95,7 +94,6 @@ export default function PublicReviewPage() {
 
     const isBusinessId = isCuid(urlParam);
     if (isBusinessId) {
-      setBusinessId(urlParam);
     }
 
     const query = isBusinessId

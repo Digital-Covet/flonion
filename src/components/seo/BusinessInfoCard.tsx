@@ -78,7 +78,10 @@ const BusinessInfoCard: Component<BusinessInfoCardProps> = (props) => {
             <ExternalLink size={12} />
             View on Google
           </a>
-          <button class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50"
+          >
             <Edit size={12} />
             Edit Profile
           </button>

@@ -116,6 +116,7 @@ function RatingStars(props: { rating: number; pill?: boolean; size?: number }) {
         "flex items-center text-amber-400": true,
         "rounded-full bg-amber-400/10 px-3 py-1": !!props.pill,
       }}
+      role="img"
       aria-label={`${props.rating} out of 5 stars`}
     >
       <For each={stars}>

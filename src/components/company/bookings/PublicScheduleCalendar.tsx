@@ -15,6 +15,7 @@ interface PublicScheduleCalendarProps {
   bookingStartTime: string;
   bookingEndTime: string;
   slotDuration: number;
+  onSlotSelect?: (event: ScheduleEvent) => void;
 }
 
 type ViewMode = "week" | "month";
@@ -313,11 +314,17 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
                           <div class="min-h-[2.5rem] rounded-md border border-border/40 px-1 py-0.5">
                             <For each={dayEvents}>
                               {(event) => (
-                                <div
-                                  class={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                                <button
+                                  type="button"
+                                  onClick={
                                     event.status === "available"
-                                      ? "bg-green-50 text-green-700 border border-green-200"
-                                      : "bg-slate-100 text-slate-600 border border-slate-200"
+                                      ? () => props.onSlotSelect?.(event)
+                                      : undefined
+                                  }
+                                  class={`rounded px-1.5 py-0.5 text-[10px] font-medium text-left w-full ${
+                                    event.status === "available"
+                                      ? "bg-green-50 text-green-700 border border-green-200 cursor-pointer hover:bg-green-100 transition-colors"
+                                      : "bg-slate-100 text-slate-600 border border-slate-200 cursor-default"
                                   }`}
                                 >
                                   <span class="block truncate">
@@ -325,7 +332,7 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
                                       ? "Open"
                                       : event.title || "Busy"}
                                   </span>
-                                </div>
+                                </button>
                               )}
                             </For>
                           </div>
@@ -425,11 +432,17 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
             <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
               <For each={selectedDayEvents()}>
                 {(event) => (
-                  <div
-                    class={`rounded-lg border px-3 py-2 text-sm ${
+                  <button
+                    type="button"
+                    onClick={
                       event.status === "available"
-                        ? "border-green-200 bg-green-50 text-green-800"
-                        : "border-slate-200 bg-slate-50 text-slate-600"
+                        ? () => props.onSlotSelect?.(event)
+                        : undefined
+                    }
+                    class={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                      event.status === "available"
+                        ? "border-green-200 bg-green-50 text-green-800 cursor-pointer hover:bg-green-100"
+                        : "border-slate-200 bg-slate-50 text-slate-600 cursor-default"
                     }`}
                   >
                     <p class="font-medium">
@@ -440,7 +453,7 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
                         ? "Open Slot"
                         : event.title || "Booked"}
                     </p>
-                  </div>
+                  </button>
                 )}
               </For>
             </div>

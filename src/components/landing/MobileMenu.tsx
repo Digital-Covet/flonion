@@ -1,4 +1,5 @@
 import { Drawer, type DrawerOpenChangeDetails } from "@ark-ui/solid/drawer";
+import { A } from "@solidjs/router";
 import X from "lucide-solid/icons/x";
 import Wordmark from "~/assets/wordmark";
 import { navLinks } from "~/constants/landing";
@@ -24,9 +25,14 @@ export default function MobileMenu(props: MobileMenuProps) {
             </Drawer.Grabber>
 
             <div class="flex items-center justify-between px-4 pb-6">
-              <a class="flex items-center" href="#" onClick={props.onClose}>
+              <A
+                class="flex items-center"
+                href="/"
+                aria-label="Flonion home"
+                onClick={props.onClose}
+              >
                 <Wordmark class="h-8" />
-              </a>
+              </A>
               <Drawer.CloseTrigger
                 class="p-2 text-primary"
                 aria-label="Close menu"
@@ -51,20 +57,20 @@ export default function MobileMenu(props: MobileMenuProps) {
             </nav>
 
             <div class="mt-auto flex flex-col gap-4 px-4 pb-10">
-              <a
+              <A
                 class="rounded-lg border border-primary py-4 text-center font-bold text-primary"
-                href="#"
+                href="/login"
                 onClick={props.onClose}
               >
                 Login
-              </a>
-              <a
+              </A>
+              <A
                 class="rounded-lg bg-primary py-4 text-center font-bold text-primary-foreground shadow-md"
-                href="#"
+                href="/signup"
                 onClick={props.onClose}
               >
                 Get Started
-              </a>
+              </A>
             </div>
           </Drawer.Content>
         </Drawer.Positioner>

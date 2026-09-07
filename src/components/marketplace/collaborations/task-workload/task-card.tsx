@@ -78,6 +78,7 @@ export default function TaskCard(props: TaskCardProps) {
   };
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop has no keyboard path yet; a role here would advertise an interaction that does not exist
     <div
       draggable="true"
       onDragStart={handleDragStart}
@@ -163,11 +164,9 @@ export default function TaskCard(props: TaskCardProps) {
               </Show>
             }
           >
-            <img
-              alt="Assignee"
-              class="w-6 h-6 rounded-full"
-              src={props.task.assignee?.image!}
-            />
+            {(image) => (
+              <img alt="Assignee" class="w-6 h-6 rounded-full" src={image()} />
+            )}
           </Show>
           <Show when={!isDone()}>
             <Show

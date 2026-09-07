@@ -35,6 +35,7 @@ export default function FeaturesSection() {
 
         <div class="grid gap-8 md:grid-cols-2">
           {featureItems.map((feature, index) => (
+            // biome-ignore lint/a11y/noStaticElementInteractions: the tilt is a pointer-only flourish on a static card; there is no behaviour here to expose to assistive tech
             <div
               class={`tilt-card relative overflow-hidden rounded-xl border border-border bg-card p-8 shadow-md transition-all duration-300 will-change-transform ${
                 visible()

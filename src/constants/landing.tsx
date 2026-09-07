@@ -10,9 +10,12 @@ import Store from "lucide-solid/icons/store";
 import UtensilsCrossed from "lucide-solid/icons/utensils-crossed";
 import type {
   BusinessLogo,
+  ComparisonFeature,
   FaqItem,
   FeatureItem,
   NavLink,
+  PricingFaqItem,
+  PricingTier,
   TestimonialItem,
 } from "~/types/landing";
 
@@ -20,6 +23,7 @@ export const navLinks: NavLink[] = [
   { label: "Features", href: "#features" },
   { label: "How it Works", href: "#how-it-works" },
   { href: "#reviews", label: "Reviews" },
+  { label: "Pricing", href: "/pricing" },
   { href: "#faq", label: "FAQ" },
 ];
 
@@ -190,5 +194,207 @@ export const dashboardStats = [
     label: "Average Rating",
     value: "4.8",
     progress: 90,
+  },
+];
+
+export const pricingTiers: PricingTier[] = [
+  {
+    name: "Starter",
+    monthlyPrice: 0,
+    annualPrice: 0,
+    description:
+      "Perfect for small businesses just getting started with online reputation.",
+    features: [
+      "50 AI-powered reviews/month",
+      "1 user seat",
+      "WhatsApp & SMS collection",
+      "Google Business integration",
+      "Basic reputation dashboard",
+      "Email support",
+    ],
+    cta: "Get Started Free",
+    ctaHref: "/signup",
+  },
+  {
+    name: "Business",
+    monthlyPrice: 29,
+    annualPrice: 290,
+    description:
+      "For growing businesses that need multi-platform presence and AI marketing.",
+    badge: "Most Popular",
+    features: [
+      "500 AI-powered reviews/month",
+      "5 user seats",
+      "Multi-platform (Google, Facebook, Justdial)",
+      "AI marketing content generation",
+      "Real-time notifications & alerts",
+      "Advanced analytics & insights",
+      "Priority email & chat support",
+    ],
+    cta: "Start Free Trial",
+    ctaHref: "/signup",
+    highlighted: true,
+  },
+  {
+    name: "Enterprise",
+    monthlyPrice: 99,
+    annualPrice: 990,
+    description:
+      "For large organizations requiring custom solutions and dedicated support.",
+    features: [
+      "Unlimited AI-powered reviews",
+      "Unlimited user seats",
+      "All Business features included",
+      "Custom API access & integrations",
+      "Dedicated account manager",
+      "Custom branding & white-label",
+      "SLA guarantee (99.9% uptime)",
+      "Onboarding & training session",
+    ],
+    cta: "Contact Sales",
+    ctaHref: "/contact",
+  },
+];
+
+export const comparisonFeatures: ComparisonFeature[] = [
+  {
+    category: "Review Collection",
+    features: [
+      {
+        name: "AI-powered reviews/month",
+        starter: "50",
+        business: "500",
+        enterprise: "Unlimited",
+      },
+      {
+        name: "WhatsApp & SMS collection",
+        starter: true,
+        business: true,
+        enterprise: true,
+      },
+      {
+        name: "Automated follow-ups",
+        starter: false,
+        business: true,
+        enterprise: true,
+      },
+      {
+        name: "Custom review request templates",
+        starter: false,
+        business: true,
+        enterprise: true,
+      },
+    ],
+  },
+  {
+    category: "Platforms",
+    features: [
+      {
+        name: "Google Business",
+        starter: true,
+        business: true,
+        enterprise: true,
+      },
+      { name: "Facebook", starter: false, business: true, enterprise: true },
+      { name: "Justdial", starter: false, business: true, enterprise: true },
+      {
+        name: "Custom platform integration",
+        starter: false,
+        business: false,
+        enterprise: true,
+      },
+    ],
+  },
+  {
+    category: "AI & Marketing",
+    features: [
+      {
+        name: "Basic dashboard",
+        starter: true,
+        business: true,
+        enterprise: true,
+      },
+      {
+        name: "AI marketing content generation",
+        starter: false,
+        business: true,
+        enterprise: true,
+      },
+      {
+        name: "Sentiment analysis",
+        starter: false,
+        business: true,
+        enterprise: true,
+      },
+      {
+        name: "Competitor benchmarking",
+        starter: false,
+        business: false,
+        enterprise: true,
+      },
+    ],
+  },
+  {
+    category: "Team & Support",
+    features: [
+      {
+        name: "User seats",
+        starter: "1",
+        business: "5",
+        enterprise: "Unlimited",
+      },
+      {
+        name: "Email support",
+        starter: true,
+        business: true,
+        enterprise: true,
+      },
+      {
+        name: "Priority chat support",
+        starter: false,
+        business: true,
+        enterprise: true,
+      },
+      {
+        name: "Dedicated account manager",
+        starter: false,
+        business: false,
+        enterprise: true,
+      },
+      {
+        name: "SLA guarantee",
+        starter: false,
+        business: false,
+        enterprise: true,
+      },
+    ],
+  },
+];
+
+export const pricingFaqItems: PricingFaqItem[] = [
+  {
+    question: "Can I switch plans at any time?",
+    answer:
+      "Yes, you can upgrade or downgrade your plan at any time. When upgrading, you'll be charged the prorated difference. When downgrading, the change takes effect at the end of your current billing cycle.",
+  },
+  {
+    question: "Is there a free trial for paid plans?",
+    answer:
+      "Absolutely! Both Business and Enterprise plans come with a 14-day free trial. No credit card required to start. You'll only be charged after the trial ends.",
+  },
+  {
+    question: "What payment methods do you accept?",
+    answer:
+      "We accept all major credit and debit cards (Visa, Mastercard, RuPay), UPI, and net banking. For Enterprise plans, we also support invoice-based payments.",
+  },
+  {
+    question: "What happens when I reach my review limit?",
+    answer:
+      "On the Starter plan, collection pauses until the next billing cycle. On Business and Enterprise, you'll receive a notification and can choose to upgrade or wait for the next cycle.",
+  },
+  {
+    question: "Do you offer refunds?",
+    answer:
+      "Yes, we offer a full refund within 7 days of any new subscription or upgrade. Contact our support team and we'll process it promptly.",
   },
 ];

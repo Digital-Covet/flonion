@@ -11,6 +11,7 @@ import {
   ServiceTile,
   StarRating,
   StatTile,
+  toIconName,
 } from "~/components/marketplace/portfolio";
 
 const RESERVED_ROUTES = new Set([
@@ -200,7 +201,7 @@ export const StudioProfile = () => {
                 <For each={services()}>
                   {(s) => (
                     <ServiceTile
-                      icon={s.icon as any}
+                      icon={toIconName(s.icon)}
                       title={s.title}
                       description={s.description}
                     />

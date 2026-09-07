@@ -134,8 +134,11 @@ model MeetingRequest {
   slot        AvailabilitySlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
   businessId  String
   business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  requesterId String
-  requester   User     @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  requesterId String?
+  requester   User?    @relation(fields: [requesterId], references: [id], onDelete: SetNull)
+  guestName   String?
+  guestEmail  String?
+  guestPhone  String?
   status      String   @default("pending") // pending | accepted | rejected | cancelled
   message     String?
   meetUri     String?

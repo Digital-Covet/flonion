@@ -1,8 +1,12 @@
 import type { JSX } from "solid-js/jsx-runtime";
 
 const SVGComponent = (props: JSX.SvgSVGAttributes<SVGSVGElement>) => (
+  // Brand marks are decorative: every call site sits next to the product
+  // name or inside a labelled link, so callers can pass aria-hidden={false}
+  // and a <title> if one ever stands alone.
   <svg
     data-name="Layer 1"
+    aria-hidden="true"
     xmlns="http://www.w3.org/2000/svg"
     viewBox="105 462 875 155"
     {...props}

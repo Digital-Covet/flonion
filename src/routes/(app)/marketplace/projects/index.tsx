@@ -1,6 +1,7 @@
 import { Dialog } from "@ark-ui/solid/dialog";
 import { createListCollection, Select } from "@ark-ui/solid/select";
 import { Tabs } from "@ark-ui/solid/tabs";
+import { A } from "@solidjs/router";
 import { CalendarDays, X } from "lucide-solid";
 import { createMemo, createSignal, For, Show } from "solid-js";
 import { Portal } from "solid-js/web";
@@ -73,40 +74,6 @@ function ProjectsContent() {
     });
   };
 
-  const tomorrowMeetings = () => {
-    const tomorrow = new Date();
-    tomorrow.setHours(0, 0, 0, 0);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayAfter = new Date(tomorrow);
-    dayAfter.setDate(dayAfter.getDate() + 1);
-
-    return meetings().filter((m: { date: string }) => {
-      const meetingDate = new Date(m.date);
-      return meetingDate >= tomorrow && meetingDate < dayAfter;
-    });
-  };
-
-  const upcomingMeetings = () => {
-    const tomorrow = new Date();
-    tomorrow.setHours(0, 0, 0, 0);
-    tomorrow.setDate(tomorrow.getDate() + 2);
-
-    return meetings().filter((m: { date: string }) => {
-      const meetingDate = new Date(m.date);
-      return meetingDate >= tomorrow;
-    });
-  };
-
-  const _currentMeetings = () => {
-    const tab = document
-      .querySelector("[data-state=active]")
-      ?.textContent?.trim()
-      .toLowerCase();
-    if (tab === "tomorrow") return tomorrowMeetings();
-    if (tab === "upcoming") return upcomingMeetings();
-    return todayMeetings();
-  };
-
   return (
     <main class="flex-1 w-full max-w-7xl mx-auto p-6 flex flex-col gap-6 bg-background min-h-screen text-foreground">
       {/* Header Controls */}
@@ -159,12 +126,12 @@ function ProjectsContent() {
               <h3 class="text-lg font-semibold font-heading text-foreground flex items-center gap-2">
                 <CalendarDays class="text-primary" size={20} />
                 Team Meetings
-                <a
+                <A
                   class="text-sm font-medium text-primary hover:underline ml-2"
-                  href="#"
+                  href="/collaborations/meeting-schedular"
                 >
                   View All
-                </a>
+                </A>
               </h3>
 
               <Tabs.Root defaultValue="today">
@@ -272,9 +239,6 @@ function ProjectsContent() {
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-foreground mb-1">
-                    Assignee
-                  </label>
                   <Select.Root
                     collection={assigneeCollection()}
                     value={taskAssignee() ? [taskAssignee()] : []}
@@ -282,6 +246,9 @@ function ProjectsContent() {
                       if (details.value[0]) setTaskAssignee(details.value[0]);
                     }}
                   >
+                    <Select.Label class="block text-sm font-medium text-foreground mb-1">
+                      Assignee
+                    </Select.Label>
                     <Select.Control class="w-full">
                       <Select.Trigger class="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary/20 outline-none flex items-center justify-between">
                         <Select.ValueText placeholder="Select a team member" />
@@ -319,9 +286,6 @@ function ProjectsContent() {
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-foreground mb-1">
-                    Priority
-                  </label>
                   <Select.Root
                     collection={priorityCollection}
                     value={[taskPriority()]}
@@ -329,6 +293,9 @@ function ProjectsContent() {
                       if (details.value[0]) setTaskPriority(details.value[0]);
                     }}
                   >
+                    <Select.Label class="block text-sm font-medium text-foreground mb-1">
+                      Priority
+                    </Select.Label>
                     <Select.Control class="w-full">
                       <Select.Trigger class="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary/20 outline-none flex items-center justify-between">
                         <Select.ValueText placeholder="Select priority" />

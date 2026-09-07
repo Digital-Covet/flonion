@@ -77,8 +77,6 @@ export const Scheduler = (props: SchedulerProps) => {
     return Array.from(groups.entries());
   });
 
-  const _dayKeys = createMemo(() => groupedByDay().map(([key]) => key));
-
   const currentDaySlots = createMemo(() => {
     const idx = activeDay();
     const group = groupedByDay()[idx];

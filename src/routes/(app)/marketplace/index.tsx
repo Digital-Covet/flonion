@@ -159,26 +159,6 @@ export default function App() {
     );
   });
 
-  const _chips = createMemo(() => {
-    const result: { key: string; label: string }[] = [];
-    for (const c of categories())
-      result.push({ key: `cat:${c}`, label: `Category: ${c}` });
-    const { min, max } = ratingRange();
-    if (min > RATING_MIN || max < RATING_MAX) {
-      result.push({
-        key: "rating",
-        label: `Rating: ${min.toFixed(1)} - ${max.toFixed(1)}`,
-      });
-    }
-    return result;
-  });
-
-  const _removeChip = (key: string) => {
-    if (key.startsWith("cat:")) toggleCategory(key.slice(4));
-    else if (key === "rating")
-      setRatingRange({ min: RATING_MIN, max: RATING_MAX });
-  };
-
   const clearAll = () => {
     setCategories([]);
     setRatingRange({ min: RATING_MIN, max: RATING_MAX });

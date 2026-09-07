@@ -18,6 +18,12 @@ export class AuthError extends Error {
   }
 }
 
+/** Reads the message off whatever `authClient` returned, without trusting its shape. */
+export function authErrorMessage(error: unknown, fallback: string): string {
+  const message = (error as { message?: unknown } | null)?.message;
+  return typeof message === "string" && message ? message : fallback;
+}
+
 /** Reads the code off whatever `authClient` returned, without trusting its shape. */
 export function authErrorCode(error: unknown): string | null {
   const code = (error as { code?: unknown } | null)?.code;

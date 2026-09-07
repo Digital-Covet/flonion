@@ -12,6 +12,7 @@ import {
   onCleanup,
   Switch,
 } from "solid-js";
+import { authErrorMessage } from "@/lib/auth-errors";
 import type { FormStatus, SignUpFormProps } from "@/types/auth-ui";
 
 const PASSWORD_MIN_LENGTH = 8;
@@ -154,8 +155,8 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
 
     try {
       await props.onSubmit?.(email(), password(), name().trim());
-    } catch (e: any) {
-      setError(e?.message ?? "Sign up failed. Please try again.");
+    } catch (e) {
+      setError(authErrorMessage(e, "Sign up failed. Please try again."));
       setStatus("idle");
     }
   };
