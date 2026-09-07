@@ -1,20 +1,22 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "~/db/prisma";
 import { APP_DOMAIN } from "~/lib/constants";
+import { verifySignature } from "~/lib/crypto";
 import { createMeetLink } from "~/lib/google-meet";
+import { generateIcsInvite } from "~/lib/ics";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 import { sendEmail } from "~/services/email";
-import { renderMeetingDecisionEmail } from "~/services/email-templates";
+import {
+  renderMeetingConfirmationOwnerEmail,
+  renderMeetingConfirmationVisitorEmail,
+  renderMeetingDecisionEmail,
+} from "~/services/email-templates";
 
 export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
   const url = new URL(event.request.url);
   const id = url.pathname.split("/").pop();
   const action = url.searchParams.get("action");
+  const sig = url.searchParams.get("sig");
 
   if (!id || !action) {
     return new Response("Invalid request", { status: 400 });
@@ -22,6 +24,20 @@ export async function GET(event: APIEvent) {
 
   if (action !== "accept" && action !== "reject") {
     return new Response("Invalid action", { status: 400 });
+  }
+
+  // Allow authorization via valid HMAC signature OR active session.
+  let authorized = false;
+  if (sig) {
+    authorized = verifySignature(`${id}:${action}`, sig, "meeting-decision");
+  }
+  if (!authorized) {
+    const session = await getSessionFromHeaders(event.request.headers);
+    if (!session) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    // Session-based auth will be verified after fetching the meeting.
+    authorized = true;
   }
 
   const meeting = await prisma.meetingRequest.findUnique({
@@ -35,6 +51,7 @@ export async function GET(event: APIEvent) {
       meetSpaceId: true,
       guestName: true,
       guestEmail: true,
+      guestPhone: true,
       slot: true,
       business: {
         select: {
@@ -51,8 +68,12 @@ export async function GET(event: APIEvent) {
     return new Response("Meeting not found", { status: 404 });
   }
 
-  if (meeting.business.userId !== session.user.id) {
-    return new Response("Forbidden", { status: 403 });
+  // If authorized via session (not HMAC), verify ownership.
+  if (!sig) {
+    const session = await getSessionFromHeaders(event.request.headers);
+    if (!session || meeting.business.userId !== session.user.id) {
+      return new Response("Forbidden", { status: 403 });
+    }
   }
 
   if (meeting.status !== "pending") {
@@ -98,30 +119,114 @@ export async function GET(event: APIEvent) {
       day: "numeric",
     });
 
-    const recipientEmail = meeting.requester?.email ?? meeting.guestEmail;
-    const recipientName = meeting.requester?.name ?? meeting.guestName;
+    if (action === "accept") {
+      const ics = generateIcsInvite({
+        summary: `Meeting: ${meeting.requester?.name ?? meeting.guestName} & ${meeting.business.name}`,
+        description: [
+          `Visitor: ${meeting.requester?.name ?? meeting.guestName}`,
+          `Email: ${meeting.requester?.email ?? meeting.guestEmail}`,
+          `Phone: ${meeting.guestPhone}`,
+          meeting.message ? `Message: ${meeting.message}` : "",
+          meetUri ? `Google Meet: ${meetUri}` : "",
+        ]
+          .filter(Boolean)
+          .join("\\n"),
+        location: meetUri ?? "Google Meet",
+        organizer: {
+          name: meeting.business.user.name ?? meeting.business.user.email,
+          email: meeting.business.user.email,
+        },
+        attendees: [
+          {
+            name: meeting.requester?.name ?? meeting.guestName ?? "Guest",
+            email: meeting.requester?.email ?? meeting.guestEmail ?? "",
+          },
+          {
+            name: meeting.business.user.name ?? meeting.business.user.email,
+            email: meeting.business.user.email,
+          },
+        ],
+        start: new Date(`T${meeting.slot.startTime}`),
+        end: new Date(`T${meeting.slot.endTime}`),
+      });
 
-    if (recipientEmail) {
-      const { html, text } = renderMeetingDecisionEmail({
-        requesterName: recipientName ?? "Guest",
+      const icsAttachment = {
+        name: "invite.ics",
+        content: ics.base64,
+        mime_type: "text/calendar; method=REQUEST",
+      };
+
+      // Send confirmation email to visitor.
+      const visitorEmail = meeting.requester?.email ?? meeting.guestEmail;
+      const visitorName = meeting.requester?.name ?? meeting.guestName;
+      if (visitorEmail) {
+        const { html, text } = renderMeetingConfirmationVisitorEmail({
+          visitorName: visitorName ?? "Guest",
+          businessName: meeting.business.name,
+          date: slotDate,
+          startTime: meeting.slot.startTime,
+          endTime: meeting.slot.endTime,
+          meetUri,
+        });
+
+        await sendEmail({
+          to: visitorEmail,
+          toName: visitorName ?? undefined,
+          subject: `Your meeting with ${meeting.business.name} is confirmed!`,
+          text,
+          html,
+          attachments: [icsAttachment],
+        });
+      }
+
+      // Send confirmation email to owner.
+      const { html, text } = renderMeetingConfirmationOwnerEmail({
+        ownerName: meeting.business.user.name ?? meeting.business.user.email,
+        visitorName: visitorName ?? "Guest",
+        visitorEmail: meeting.requester?.email ?? meeting.guestEmail ?? "",
+        visitorPhone: meeting.guestPhone ?? "",
+        visitorMessage: meeting.message,
         businessName: meeting.business.name,
         date: slotDate,
         startTime: meeting.slot.startTime,
         endTime: meeting.slot.endTime,
-        decision: newStatus as "accepted" | "rejected",
         meetUri,
       });
 
       await sendEmail({
-        to: recipientEmail,
-        toName: recipientName ?? undefined,
-        subject: `Your meeting request with ${meeting.business.name} was ${newStatus}`,
+        to: meeting.business.user.email,
+        toName: meeting.business.user.name,
+        subject: `Meeting confirmed with ${visitorName ?? "Guest"}`,
         text,
         html,
+        attachments: [icsAttachment],
       });
+    } else {
+      // Rejection: send decision email to visitor.
+      const recipientEmail = meeting.requester?.email ?? meeting.guestEmail;
+      const recipientName = meeting.requester?.name ?? meeting.guestName;
+
+      if (recipientEmail) {
+        const { html, text } = renderMeetingDecisionEmail({
+          requesterName: recipientName ?? "Guest",
+          businessName: meeting.business.name,
+          date: slotDate,
+          startTime: meeting.slot.startTime,
+          endTime: meeting.slot.endTime,
+          decision: "rejected",
+        });
+
+        await sendEmail({
+          to: recipientEmail,
+          toName: recipientName ?? undefined,
+          subject: `Your meeting request with ${meeting.business.name} was rejected`,
+          text,
+          html,
+        });
+      }
     }
   } catch (err) {
-    console.error("[marketplace/meetings] Failed to send decision email:", err);
+    console.error("[marketplace/meetings] Failed to send email:", err);
   }
 
   const dashboardUrl = `${APP_DOMAIN}/collaborations/meeting-schedular`;
@@ -178,6 +283,7 @@ export async function PATCH(event: APIEvent) {
         meetSpaceId: true,
         guestName: true,
         guestEmail: true,
+        guestPhone: true,
         slot: true,
         business: {
           select: {
@@ -241,33 +347,114 @@ export async function PATCH(event: APIEvent) {
         day: "numeric",
       });
 
-      const recipientEmail = meeting.requester?.email ?? meeting.guestEmail;
-      const recipientName = meeting.requester?.name ?? meeting.guestName;
+      if (action === "accept") {
+        const ics = generateIcsInvite({
+          summary: `Meeting: ${meeting.requester?.name ?? meeting.guestName} & ${meeting.business.name}`,
+          description: [
+            `Visitor: ${meeting.requester?.name ?? meeting.guestName}`,
+            `Email: ${meeting.requester?.email ?? meeting.guestEmail}`,
+            `Phone: ${meeting.guestPhone}`,
+            meeting.message ? `Message: ${meeting.message}` : "",
+            meetUri ? `Google Meet: ${meetUri}` : "",
+          ]
+            .filter(Boolean)
+            .join("\\n"),
+          location: meetUri ?? "Google Meet",
+          organizer: {
+            name: meeting.business.user.name ?? meeting.business.user.email,
+            email: meeting.business.user.email,
+          },
+          attendees: [
+            {
+              name: meeting.requester?.name ?? meeting.guestName ?? "Guest",
+              email: meeting.requester?.email ?? meeting.guestEmail ?? "",
+            },
+            {
+              name: meeting.business.user.name ?? meeting.business.user.email,
+              email: meeting.business.user.email,
+            },
+          ],
+          start: new Date(`T${meeting.slot.startTime}`),
+          end: new Date(`T${meeting.slot.endTime}`),
+        });
 
-      if (recipientEmail) {
-        const { html, text } = renderMeetingDecisionEmail({
-          requesterName: recipientName ?? "Guest",
+        const icsAttachment = {
+          name: "invite.ics",
+          content: ics.base64,
+          mime_type: "text/calendar; method=REQUEST",
+        };
+
+        // Send confirmation email to visitor.
+        const visitorEmail = meeting.requester?.email ?? meeting.guestEmail;
+        const visitorName = meeting.requester?.name ?? meeting.guestName;
+        if (visitorEmail) {
+          const { html, text } = renderMeetingConfirmationVisitorEmail({
+            visitorName: visitorName ?? "Guest",
+            businessName: meeting.business.name,
+            date: slotDate,
+            startTime: meeting.slot.startTime,
+            endTime: meeting.slot.endTime,
+            meetUri,
+          });
+
+          await sendEmail({
+            to: visitorEmail,
+            toName: visitorName ?? undefined,
+            subject: `Your meeting with ${meeting.business.name} is confirmed!`,
+            text,
+            html,
+            attachments: [icsAttachment],
+          });
+        }
+
+        // Send confirmation email to owner.
+        const { html, text } = renderMeetingConfirmationOwnerEmail({
+          ownerName: meeting.business.user.name ?? meeting.business.user.email,
+          visitorName: visitorName ?? "Guest",
+          visitorEmail: meeting.requester?.email ?? meeting.guestEmail ?? "",
+          visitorPhone: meeting.guestPhone ?? "",
+          visitorMessage: meeting.message,
           businessName: meeting.business.name,
           date: slotDate,
           startTime: meeting.slot.startTime,
           endTime: meeting.slot.endTime,
-          decision: newStatus as "accepted" | "rejected",
           meetUri,
         });
 
         await sendEmail({
-          to: recipientEmail,
-          toName: recipientName ?? undefined,
-          subject: `Your meeting request with ${meeting.business.name} was ${newStatus}`,
+          to: meeting.business.user.email,
+          toName: meeting.business.user.name,
+          subject: `Meeting confirmed with ${visitorName ?? "Guest"}`,
           text,
           html,
+          attachments: [icsAttachment],
         });
+      } else {
+        // Rejection: send decision email to visitor.
+        const recipientEmail = meeting.requester?.email ?? meeting.guestEmail;
+        const recipientName = meeting.requester?.name ?? meeting.guestName;
+
+        if (recipientEmail) {
+          const { html, text } = renderMeetingDecisionEmail({
+            requesterName: recipientName ?? "Guest",
+            businessName: meeting.business.name,
+            date: slotDate,
+            startTime: meeting.slot.startTime,
+            endTime: meeting.slot.endTime,
+            decision: "rejected",
+          });
+
+          await sendEmail({
+            to: recipientEmail,
+            toName: recipientName ?? undefined,
+            subject: `Your meeting request with ${meeting.business.name} was rejected`,
+            text,
+            html,
+          });
+        }
       }
     } catch (err) {
-      console.error(
-        "[marketplace/meetings] Failed to send decision email:",
-        err,
-      );
+      console.error("[marketplace/meetings] Failed to send email:", err);
     }
 
     return Response.json({ meeting: { ...meeting, status: newStatus } });
