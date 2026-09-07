@@ -6,9 +6,9 @@ import MeetingRow from "./MeetingRow";
 import SectionShell from "./SectionShell";
 import SegmentControl from "./SegmentControl";
 
-async function fetchMeetings(type: string): Promise<MeetingData[]> {
+async function fetchMeetings(category: string): Promise<MeetingData[]> {
   if (typeof window === "undefined") return [];
-  const res = await fetch(`/api/marketplace/meetings?type=${type}`);
+  const res = await fetch(`/api/marketplace/meetings?category=${category}`);
   if (!res.ok) return [];
   const data = await res.json();
   return Array.isArray(data.meetings) ? data.meetings : [];
@@ -46,7 +46,7 @@ function toMeeting(m: MeetingData) {
         <rect x="2" y="6" width="14" height="12" rx="2" />
       </svg>
     ),
-    category: "partner" as const,
+    category: (m.category || "partner") as "partner" | "team",
     status:
       m.status === "accepted" ? ("Confirmed" as const) : ("Pending" as const),
     participants: [requesterName.charAt(0)?.toUpperCase() ?? "?"],

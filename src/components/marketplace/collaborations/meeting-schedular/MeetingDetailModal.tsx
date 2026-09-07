@@ -27,6 +27,7 @@ export interface MeetingData {
     name: string | null;
     email: string;
     image: string | null;
+    businessId?: string | null;
   } | null;
   guestName?: string | null;
   guestEmail?: string | null;
@@ -34,6 +35,7 @@ export interface MeetingData {
   status: string;
   message: string | null;
   createdAt: string;
+  category?: "partner" | "team";
 }
 
 interface MeetingDetailModalProps {

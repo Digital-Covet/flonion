@@ -13,6 +13,7 @@ export async function GET(event: APIEvent) {
 
   const url = new URL(event.request.url);
   const type = url.searchParams.get("type") ?? "all";
+  const category = url.searchParams.get("category") ?? "all";
   const statusFilter = url.searchParams.get("status") ?? undefined;
 
   try {
@@ -47,12 +48,34 @@ export async function GET(event: APIEvent) {
           select: { id: true, name: true, logo: true, username: true },
         },
         requester: {
-          select: { id: true, name: true, email: true, image: true },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            businessId: true,
+          },
         },
       },
     });
 
-    return Response.json({ meetings });
+    // Enrich meetings with category based on requester's business relationship
+    const enrichedMeetings = meetings.map((meeting) => {
+      const requesterBusinessId = meeting.requester?.businessId;
+      const meetingCategory =
+        requesterBusinessId && requesterBusinessId === meeting.businessId
+          ? "team"
+          : "partner";
+      return { ...meeting, category: meetingCategory };
+    });
+
+    // Filter by category if requested
+    const filteredMeetings =
+      category === "all"
+        ? enrichedMeetings
+        : enrichedMeetings.filter((m) => m.category === category);
+
+    return Response.json({ meetings: filteredMeetings });
   } catch (err) {
     console.error("[marketplace/meetings] query failed:", err);
     return Response.json({ error: "Failed to load meetings" }, { status: 500 });
