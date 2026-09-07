@@ -22,6 +22,7 @@ interface SendEmailOptions {
   text: string;
   html?: string;
   fromName?: string;
+  attachments?: Array<{ name: string; content: string; mime_type: string }>;
 }
 
 function createClient(): SendMailClient {
@@ -46,6 +47,7 @@ export async function sendEmail({
   text,
   html,
   fromName = "Flonion",
+  attachments,
 }: SendEmailOptions): Promise<void> {
   const senderAddress = process.env.ZEPTOMAIL_SENDER_ADDRESS;
   if (!senderAddress)
@@ -67,6 +69,15 @@ export async function sendEmail({
       subject,
       textbody: text,
       htmlbody: html ?? text,
+      ...(attachments && attachments.length > 0
+        ? {
+            attachment: attachments.map((a) => ({
+              name: a.name,
+              content: a.content,
+              mime_type: a.mime_type,
+            })),
+          }
+        : {}),
     })) as ZeptoMailResponse;
 
     if (response?.data && response.data.length > 0) {

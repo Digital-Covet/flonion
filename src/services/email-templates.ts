@@ -1717,6 +1717,428 @@ If you have questions, please contact support at ${SUPPORT_EMAIL}.`;
   };
 }
 
+/* ---------------- Meeting confirmation templates ---------------- */
+
+interface MeetingConfirmationVisitorEmailParams {
+  visitorName: string;
+  businessName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  meetUri?: string;
+}
+
+export function renderMeetingConfirmationVisitorEmail({
+  visitorName,
+  businessName,
+  date,
+  startTime,
+  endTime,
+  meetUri,
+}: MeetingConfirmationVisitorEmailParams): { html: string; text: string } {
+  const safeVisitor = escapeHtml(visitorName);
+  const safeBusiness = escapeHtml(businessName);
+  const safeDate = escapeHtml(date);
+  const safeStart = escapeHtml(startTime);
+  const safeEnd = escapeHtml(endTime);
+
+  const meetButtonHtml = meetUri
+    ? `
+    <p
+      style="
+        margin: 0 0 16px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      Join the meeting online:
+    </p>
+    <p style="margin: 0 0 24px 0; text-align: center;">
+      ${renderButton(meetUri, "Join Google Meet")}
+    </p>
+    `
+    : `
+    <p
+      style="
+        margin: 0 0 24px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      A meeting link will be shared separately by ${safeBusiness}.
+    </p>
+    `;
+
+  const htmlBody = `
+    <p
+      style="
+        margin: 0 0 16px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      Hello ${safeVisitor},
+    </p>
+
+    <p
+      style="
+        margin: 0 0 24px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      Your meeting with <strong>${safeBusiness}</strong> has been confirmed.
+    </p>
+
+    <table
+      role="presentation"
+      width="100%"
+      border="0"
+      cellspacing="0"
+      cellpadding="0"
+      style="margin: 0 0 24px 0;"
+    >
+      <tr>
+        <td
+          style="
+            padding: 16px;
+            background-color: #f0f5ff;
+            border-left: 4px solid #16a34a;
+            border-radius: 6px;
+            font-family: Arial, Helvetica, sans-serif;
+          "
+        >
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #555555;">
+            Date: <strong style="color: #111111;">${safeDate}</strong>
+          </p>
+          <p style="margin: 0; font-size: 14px; color: #555555;">
+            Time: <strong style="color: #111111;">${safeStart} &ndash; ${safeEnd}</strong>
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    ${meetButtonHtml}
+
+    <p
+      style="
+        margin: 0 0 24px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        line-height: 22px;
+        color: #555555;
+      "
+    >
+      A calendar invite (.ics) is attached to this email. Open it to add this
+      meeting to your calendar.
+    </p>
+
+    <p
+      style="
+        margin: 16px 0 0 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      If you have questions, please contact support at
+      <a
+        href="mailto:${escapeHtmlAttr(SUPPORT_EMAIL)}"
+        style="color:#0060ff;text-decoration:none;"
+      >
+        ${escapeHtml(SUPPORT_EMAIL)}
+      </a>.
+    </p>
+  `;
+
+  const textBody = `Hello ${visitorName},
+
+Your meeting with ${businessName} has been confirmed.
+
+Date: ${date}
+Time: ${startTime} – ${endTime}
+${meetUri ? `\nJoin the meeting: ${meetUri}` : "\nA meeting link will be shared separately."}
+
+A calendar invite (.ics) is attached to this email.
+
+If you have questions, please contact support at ${SUPPORT_EMAIL}.`;
+
+  return {
+    html: renderBaseHtml(`Meeting confirmed with ${businessName}`, htmlBody),
+    text: textBody,
+  };
+}
+
+interface MeetingConfirmationOwnerEmailParams {
+  ownerName: string;
+  visitorName: string;
+  visitorEmail: string;
+  visitorPhone: string;
+  visitorMessage: string | null;
+  businessName: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  meetUri?: string;
+}
+
+export function renderMeetingConfirmationOwnerEmail({
+  ownerName,
+  visitorName,
+  visitorEmail,
+  visitorPhone,
+  visitorMessage,
+  date,
+  startTime,
+  endTime,
+  meetUri,
+}: MeetingConfirmationOwnerEmailParams): { html: string; text: string } {
+  const safeOwner = escapeHtml(ownerName);
+  const safeVisitor = escapeHtml(visitorName);
+  const safeEmail = escapeHtml(visitorEmail);
+  const safePhone = escapeHtml(visitorPhone);
+  const safeDate = escapeHtml(date);
+  const safeStart = escapeHtml(startTime);
+  const safeEnd = escapeHtml(endTime);
+  const safeMessage = visitorMessage ? escapeHtml(visitorMessage) : null;
+
+  const meetButtonHtml = meetUri
+    ? `
+    <p
+      style="
+        margin: 0 0 16px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      Join the meeting online:
+    </p>
+    <p style="margin: 0 0 24px 0; text-align: center;">
+      ${renderButton(meetUri, "Join Google Meet")}
+    </p>
+    `
+    : `
+    <p
+      style="
+        margin: 0 0 24px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      Google Meet is not connected. A meeting link will be shared separately.
+    </p>
+    `;
+
+  const messageHtml = safeMessage
+    ? `
+    <p style="margin: 0 0 4px 0; font-size: 14px; color: #555555;">
+      Message:
+    </p>
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin: 0 0 16px 0;">
+      <tr>
+        <td
+          style="
+            padding: 12px 16px;
+            background-color: #f6f7f9;
+            border-left: 3px solid #0060ff;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 14px;
+            line-height: 22px;
+            color: #444444;
+          "
+        >
+          ${safeMessage}
+        </td>
+      </tr>
+    </table>
+    `
+    : "";
+
+  const htmlBody = `
+    <p
+      style="
+        margin: 0 0 16px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      Hello ${safeOwner},
+    </p>
+
+    <p
+      style="
+        margin: 0 0 24px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      Your meeting with <strong>${safeVisitor}</strong> has been confirmed.
+    </p>
+
+    <table
+      role="presentation"
+      width="100%"
+      border="0"
+      cellspacing="0"
+      cellpadding="0"
+      style="margin: 0 0 24px 0;"
+    >
+      <tr>
+        <td
+          style="
+            padding: 16px;
+            background-color: #f0f5ff;
+            border-left: 4px solid #16a34a;
+            border-radius: 6px;
+            font-family: Arial, Helvetica, sans-serif;
+          "
+        >
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #555555;">
+            Date: <strong style="color: #111111;">${safeDate}</strong>
+          </p>
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #555555;">
+            Time: <strong style="color: #111111;">${safeStart} &ndash; ${safeEnd}</strong>
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    <p
+      style="
+        margin: 0 0 12px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        line-height: 22px;
+        color: #555555;
+      "
+    >
+      Visitor details:
+    </p>
+
+    <table
+      role="presentation"
+      width="100%"
+      border="0"
+      cellspacing="0"
+      cellpadding="0"
+      style="margin: 0 0 24px 0;"
+    >
+      <tr>
+        <td
+          style="
+            padding: 16px;
+            background-color: #f6f7f9;
+            border-left: 3px solid #0060ff;
+            border-radius: 6px;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 14px;
+            line-height: 22px;
+            color: #444444;
+          "
+        >
+          <p style="margin: 0 0 4px 0;">
+            <strong style="color: #111111;">Name:</strong> ${safeVisitor}
+          </p>
+          <p style="margin: 0 0 4px 0;">
+            <strong style="color: #111111;">Email:</strong>
+            <a href="mailto:${safeEmail}" style="color: #0060ff; text-decoration: none;">${safeEmail}</a>
+          </p>
+          <p style="margin: 0 0 4px 0;">
+            <strong style="color: #111111;">Phone:</strong> ${safePhone}
+          </p>
+          ${messageHtml}
+        </td>
+      </tr>
+    </table>
+
+    ${meetButtonHtml}
+
+    <p
+      style="
+        margin: 0 0 24px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 14px;
+        line-height: 22px;
+        color: #555555;
+      "
+    >
+      A calendar invite (.ics) is attached to this email. Open it to add this
+      meeting to your calendar.
+    </p>
+
+    <p
+      style="
+        margin: 16px 0 0 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      "
+    >
+      If you have questions, please contact support at
+      <a
+        href="mailto:${escapeHtmlAttr(SUPPORT_EMAIL)}"
+        style="color:#0060ff;text-decoration:none;"
+      >
+        ${escapeHtml(SUPPORT_EMAIL)}
+      </a>.
+    </p>
+  `;
+
+  const textBody = `Hello ${ownerName},
+
+Your meeting with ${visitorName} has been confirmed.
+
+Date: ${date}
+Time: ${startTime} – ${endTime}
+
+Visitor details:
+  Name: ${visitorName}
+  Email: ${visitorEmail}
+  Phone: ${visitorPhone}
+${visitorMessage ? `\n  Message: ${visitorMessage}` : ""}
+${meetUri ? `\nJoin the meeting: ${meetUri}` : "\nGoogle Meet is not connected. A meeting link will be shared separately."}
+
+A calendar invite (.ics) is attached to this email.
+
+If you have questions, please contact support at ${SUPPORT_EMAIL}.`;
+
+  return {
+    html: renderBaseHtml(`Meeting confirmed with ${visitorName}`, htmlBody),
+    text: textBody,
+  };
+}
+
 interface TeamInvitationEmailParams {
   inviterName: string;
   companyName: string;
