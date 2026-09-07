@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-solid";
-import { createResource, For, Show } from "solid-js";
+import { createResource, For, Show, Suspense } from "solid-js";
 import type { CalendarEventTone } from "~/types";
 import CalendarEvent from "./CalendarEvent";
 import SectionShell from "./SectionShell";
@@ -102,7 +102,7 @@ function WeeklyCalendar(props: WeeklyCalendarProps) {
   const eventsForDay = (dayIndex: number) => {
     const date = weekDates()[dayIndex];
     const dateKey = formatDateKey(date);
-    const daySlots = (slots() ?? []).filter((s) => {
+    const daySlots = (slots.latest ?? []).filter((s) => {
       const slotDate = new Date(s.date);
       return formatDateKey(slotDate) === dateKey;
     });
@@ -169,77 +169,90 @@ function WeeklyCalendar(props: WeeklyCalendarProps) {
         </div>
       </header>
 
-      <div class="overflow-x-auto px-5 pt-5">
-        <div class="min-w-[44rem] pb-3">
-          <div class={`${GRID_COLUMNS} border-b border-border pb-2`}>
-            <div />
-            <For each={DAYS}>
-              {(day, index) => (
-                <div class="text-center">
-                  <div
-                    class={
-                      isToday(index())
-                        ? "text-xs font-semibold tracking-wide text-primary uppercase"
-                        : "text-xs font-medium tracking-wide text-muted-foreground uppercase"
-                    }
-                  >
-                    {day}
-                  </div>
-                  <div
-                    class={
-                      isToday(index())
-                        ? "mx-auto mt-1 grid size-7 place-items-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
-                        : "mx-auto mt-1 grid size-7 place-items-center text-sm font-medium text-foreground"
-                    }
-                  >
-                    {weekDates()[index()].getDate()}
-                  </div>
-                </div>
-              )}
-            </For>
+      <Suspense
+        fallback={
+          <div class="p-8 text-center text-sm text-muted-foreground">
+            Loading calendar...
           </div>
-
-          <div class={GRID_COLUMNS}>
-            <div class="relative" style={{ height: bodyHeight }}>
-              <For each={hours}>
-                {(hour, index) => (
-                  <span
-                    class="absolute right-2 -translate-y-1/2 text-[11px] tabular-nums text-muted-foreground"
-                    style={{ top: `${(index() / SLOT_COUNT) * 100}%` }}
-                  >
-                    {formatHour(hour)}
-                  </span>
+        }
+      >
+        <div class="overflow-x-auto px-5 pt-5">
+          <div class="min-w-[44rem] pb-3">
+            <div class={`${GRID_COLUMNS} border-b border-border pb-2`}>
+              <div />
+              <For each={DAYS}>
+                {(day, index) => (
+                  <div class="text-center">
+                    <div
+                      class={
+                        isToday(index())
+                          ? "text-xs font-semibold tracking-wide text-primary uppercase"
+                          : "text-xs font-medium tracking-wide text-muted-foreground uppercase"
+                      }
+                    >
+                      {day}
+                    </div>
+                    <div
+                      class={
+                        isToday(index())
+                          ? "mx-auto mt-1 grid size-7 place-items-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+                          : "mx-auto mt-1 grid size-7 place-items-center text-sm font-medium text-foreground"
+                      }
+                    >
+                      {weekDates()[index()].getDate()}
+                    </div>
+                  </div>
                 )}
               </For>
             </div>
 
-            <For each={DAYS}>
-              {(_day, index) => (
-                <div
-                  class={`group/day relative border-r border-border/60 last:border-r-0 ${isToday(index()) ? "bg-primary/5" : ""}`}
-                  style={{ height: bodyHeight, "background-image": hourLines }}
-                >
-                  <For each={eventsForDay(index())}>
-                    {(event) => (
-                      <CalendarEvent
-                        class="inset-x-0.5"
-                        style={{
-                          top: `${offsetPercent(event.startHour)}%`,
-                          height: `calc(${heightPercent(event.duration)}% - 0.125rem)`,
-                          "min-height": "1.25rem",
-                        }}
-                        tone={event.tone}
-                      >
-                        <span class="truncate text-[11px]">{event.label}</span>
-                      </CalendarEvent>
-                    )}
-                  </For>
-                </div>
-              )}
-            </For>
+            <div class={GRID_COLUMNS}>
+              <div class="relative" style={{ height: bodyHeight }}>
+                <For each={hours}>
+                  {(hour, index) => (
+                    <span
+                      class="absolute right-2 -translate-y-1/2 text-[11px] tabular-nums text-muted-foreground"
+                      style={{ top: `${(index() / SLOT_COUNT) * 100}%` }}
+                    >
+                      {formatHour(hour)}
+                    </span>
+                  )}
+                </For>
+              </div>
+
+              <For each={DAYS}>
+                {(_day, index) => (
+                  <div
+                    class={`group/day relative border-r border-border/60 last:border-r-0 ${isToday(index()) ? "bg-primary/5" : ""}`}
+                    style={{
+                      height: bodyHeight,
+                      "background-image": hourLines,
+                    }}
+                  >
+                    <For each={eventsForDay(index())}>
+                      {(event) => (
+                        <CalendarEvent
+                          class="inset-x-0.5"
+                          style={{
+                            top: `${offsetPercent(event.startHour)}%`,
+                            height: `calc(${heightPercent(event.duration)}% - 0.125rem)`,
+                            "min-height": "1.25rem",
+                          }}
+                          tone={event.tone}
+                        >
+                          <span class="truncate text-[11px]">
+                            {event.label}
+                          </span>
+                        </CalendarEvent>
+                      )}
+                    </For>
+                  </div>
+                )}
+              </For>
+            </div>
           </div>
         </div>
-      </div>
+      </Suspense>
 
       <div class="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 pt-3 pb-5">
         <span class="flex items-center gap-1.5 text-xs text-muted-foreground">

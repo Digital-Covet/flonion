@@ -49,7 +49,7 @@ function MeetingSchedulerApp() {
   const [slotsVersion, setSlotsVersion] = createSignal(0);
 
   const copyScheduleLink = async () => {
-    const username = settings()?.username;
+    const username = settings.latest?.username;
     const origin = currentOrigin();
     const url = username
       ? `${origin}/company/${encodeURIComponent(username)}/bookings`
@@ -60,7 +60,7 @@ function MeetingSchedulerApp() {
   };
 
   const openSchedulePreview = () => {
-    const username = settings()?.username;
+    const username = settings.latest?.username;
     if (username) {
       window.open(
         `/company/${encodeURIComponent(username)}/bookings`,
@@ -142,7 +142,7 @@ function MeetingSchedulerApp() {
                       ? "Schedule link copied"
                       : "Copy public schedule link"}
                   </button>
-                  <Show when={settings()?.username}>
+                  <Show when={settings.latest?.username}>
                     <button
                       type="button"
                       onClick={openSchedulePreview}

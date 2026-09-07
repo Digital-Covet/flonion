@@ -1,5 +1,6 @@
 import { clientOnly } from "@solidjs/start";
 import { Loader2 } from "lucide-solid";
+import { Suspense } from "solid-js";
 
 const MeetingSchedulerApp = clientOnly(
   () =>
@@ -10,12 +11,20 @@ const MeetingSchedulerApp = clientOnly(
 
 export default function MeetingSchedulerPage() {
   return (
-    <MeetingSchedulerApp
+    <Suspense
       fallback={
         <div class="flex h-96 items-center justify-center">
           <Loader2 class="size-6 animate-spin text-muted-foreground" />
         </div>
       }
-    />
+    >
+      <MeetingSchedulerApp
+        fallback={
+          <div class="flex h-96 items-center justify-center">
+            <Loader2 class="size-6 animate-spin text-muted-foreground" />
+          </div>
+        }
+      />
+    </Suspense>
   );
 }

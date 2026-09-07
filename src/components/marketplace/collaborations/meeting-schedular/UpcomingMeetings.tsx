@@ -1,14 +1,21 @@
 import { CalendarDays } from "lucide-solid";
-import { createMemo, createResource, createSignal, For, Show } from "solid-js";
+import {
+  createMemo,
+  createResource,
+  createSignal,
+  For,
+  Show,
+  Suspense,
+} from "solid-js";
 import type { MeetingFilter } from "~/types";
 import MeetingDetailModal, { type MeetingData } from "./MeetingDetailModal";
 import MeetingRow from "./MeetingRow";
 import SectionShell from "./SectionShell";
 import SegmentControl from "./SegmentControl";
 
-async function fetchMeetings(category: string): Promise<MeetingData[]> {
+async function fetchMeetings(): Promise<MeetingData[]> {
   if (typeof window === "undefined") return [];
-  const res = await fetch(`/api/marketplace/meetings?category=${category}`);
+  const res = await fetch("/api/marketplace/meetings?category=all");
   if (!res.ok) return [];
   const data = await res.json();
   return Array.isArray(data.meetings) ? data.meetings : [];
@@ -58,13 +65,26 @@ function toMeeting(m: MeetingData) {
 
 function UpcomingMeetings() {
   const [filter, setFilter] = createSignal<MeetingFilter>("all");
-  const [meetings, { mutate }] = createResource(filter, fetchMeetings);
+  const [meetings, { mutate }] = createResource(fetchMeetings);
   const [selectedMeeting, setSelectedMeeting] =
     createSignal<MeetingData | null>(null);
 
   const filteredMeetings = createMemo(() => {
-    const list = meetings() ?? [];
-    return list.map(toMeeting);
+    const list = meetings.latest ?? [];
+    const activeFilter = filter();
+    const filtered =
+      activeFilter === "all"
+        ? list
+        : list.filter((m) => {
+            const requesterBusinessId = m.requester?.businessId;
+            const category =
+              m.category ||
+              (requesterBusinessId && requesterBusinessId === m.business?.id
+                ? "team"
+                : "partner");
+            return category === activeFilter;
+          });
+    return filtered.map(toMeeting);
   });
 
   const handleAccept = async (id: string) => {
@@ -121,8 +141,7 @@ function UpcomingMeetings() {
           </div>
         </header>
         <div class="flex min-h-40 flex-col gap-1 p-3 sm:p-5">
-          <Show
-            when={!meetings.loading}
+          <Suspense
             fallback={
               <p class="py-8 text-center text-sm text-muted-foreground">
                 Loading meetings...
@@ -130,46 +149,55 @@ function UpcomingMeetings() {
             }
           >
             <Show
-              when={filteredMeetings().length > 0}
+              when={!meetings.loading}
               fallback={
                 <p class="py-8 text-center text-sm text-muted-foreground">
-                  No meetings found.
+                  Loading meetings...
                 </p>
               }
             >
-              <For each={filteredMeetings()}>
-                {(meeting, index) => (
-                  <div>
-                    <MeetingRow
-                      meeting={meeting}
-                      delay={index() * 70}
-                      onClick={() =>
-                        setSelectedMeeting(meeting.rawData ?? null)
-                      }
-                    />
-                    <Show when={meeting.rawStatus === "pending"}>
-                      <div class="flex gap-2 ml-16 mb-2">
-                        <button
-                          type="button"
-                          onClick={() => handleAccept(meeting.id)}
-                          class="px-3 py-1 text-xs font-medium rounded-md bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleReject(meeting.id)}
-                          class="px-3 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </Show>
-                  </div>
-                )}
-              </For>
+              <Show
+                when={filteredMeetings().length > 0}
+                fallback={
+                  <p class="py-8 text-center text-sm text-muted-foreground">
+                    No meetings found.
+                  </p>
+                }
+              >
+                <For each={filteredMeetings()}>
+                  {(meeting, index) => (
+                    <div>
+                      <MeetingRow
+                        meeting={meeting}
+                        delay={index() * 70}
+                        onClick={() =>
+                          setSelectedMeeting(meeting.rawData ?? null)
+                        }
+                      />
+                      <Show when={meeting.rawStatus === "pending"}>
+                        <div class="flex gap-2 ml-16 mb-2">
+                          <button
+                            type="button"
+                            onClick={() => handleAccept(meeting.id)}
+                            class="px-3 py-1 text-xs font-medium rounded-md bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleReject(meeting.id)}
+                            class="px-3 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </Show>
+                    </div>
+                  )}
+                </For>
+              </Show>
             </Show>
-          </Show>
+          </Suspense>
         </div>
       </SectionShell>
       <MeetingDetailModal
