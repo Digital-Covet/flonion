@@ -19,7 +19,10 @@ interface MeetingData {
     name: string | null;
     email: string;
     image: string | null;
-  };
+  } | null;
+  guestName?: string | null;
+  guestEmail?: string | null;
+  guestPhone?: string | null;
   status: string;
   message: string | null;
   createdAt: string;
@@ -35,11 +38,18 @@ async function fetchMeetings(type: string): Promise<MeetingData[]> {
 
 function toMeeting(m: MeetingData) {
   const d = new Date(m.slot.date);
+  const requesterName =
+    m.requester?.name ||
+    m.guestName ||
+    m.requester?.email ||
+    m.guestEmail ||
+    "Guest";
+
   return {
     id: m.id,
     month: d.toLocaleDateString("en-US", { month: "short" }),
     day: String(d.getDate()),
-    title: m.business.name,
+    title: m.business?.name || requesterName,
     time: `${m.slot.startTime} - ${m.slot.endTime}`,
     location: "Online",
     locationIcon: (props: { class?: string }) => (
@@ -61,9 +71,9 @@ function toMeeting(m: MeetingData) {
     category: "partner" as const,
     status:
       m.status === "accepted" ? ("Confirmed" as const) : ("Pending" as const),
-    participants: [m.requester.name?.charAt(0)?.toUpperCase() ?? "?"],
+    participants: [requesterName.charAt(0)?.toUpperCase() ?? "?"],
     rawStatus: m.status,
-    requesterName: m.requester.name || m.requester.email,
+    requesterName,
   };
 }
 
