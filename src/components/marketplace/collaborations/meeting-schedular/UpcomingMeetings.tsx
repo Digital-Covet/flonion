@@ -1,32 +1,10 @@
 import { CalendarDays } from "lucide-solid";
 import { createMemo, createResource, createSignal, For, Show } from "solid-js";
 import type { MeetingFilter } from "~/types";
+import MeetingDetailModal, { type MeetingData } from "./MeetingDetailModal";
 import MeetingRow from "./MeetingRow";
 import SectionShell from "./SectionShell";
 import SegmentControl from "./SegmentControl";
-
-interface MeetingData {
-  id: string;
-  slot: { date: string; startTime: string; endTime: string };
-  business: {
-    id: string;
-    name: string;
-    logo: string | null;
-    username: string | null;
-  };
-  requester: {
-    id: string;
-    name: string | null;
-    email: string;
-    image: string | null;
-  } | null;
-  guestName?: string | null;
-  guestEmail?: string | null;
-  guestPhone?: string | null;
-  status: string;
-  message: string | null;
-  createdAt: string;
-}
 
 async function fetchMeetings(type: string): Promise<MeetingData[]> {
   if (typeof window === "undefined") return [];
@@ -74,12 +52,15 @@ function toMeeting(m: MeetingData) {
     participants: [requesterName.charAt(0)?.toUpperCase() ?? "?"],
     rawStatus: m.status,
     requesterName,
+    rawData: m,
   };
 }
 
 function UpcomingMeetings() {
   const [filter, setFilter] = createSignal<MeetingFilter>("all");
   const [meetings, { mutate }] = createResource(filter, fetchMeetings);
+  const [selectedMeeting, setSelectedMeeting] =
+    createSignal<MeetingData | null>(null);
 
   const filteredMeetings = createMemo(() => {
     const list = meetings() ?? [];
@@ -119,71 +100,84 @@ function UpcomingMeetings() {
   };
 
   return (
-    <SectionShell>
-      <header class="flex flex-col gap-4 border-b border-border p-5 xl:flex-row xl:items-center xl:justify-between">
-        <h3 class="flex items-center gap-2">
-          <CalendarDays class="size-5 text-primary" />
-          Upcoming Meetings
-        </h3>
-        <div class="flex items-center gap-3 overflow-x-auto pb-1 xl:pb-0">
-          <SegmentControl
-            compact
-            value={filter()}
-            onChange={setFilter}
-            options={[
-              { label: "All Meetings", value: "all" },
-              { label: "External Partners", value: "partner" },
-              { label: "Internal Team", value: "team" },
-            ]}
-          />
-        </div>
-      </header>
-      <div class="flex min-h-40 flex-col gap-1 p-3 sm:p-5">
-        <Show
-          when={!meetings.loading}
-          fallback={
-            <p class="py-8 text-center text-sm text-muted-foreground">
-              Loading meetings...
-            </p>
-          }
-        >
+    <>
+      <SectionShell>
+        <header class="flex flex-col gap-4 border-b border-border p-5 xl:flex-row xl:items-center xl:justify-between">
+          <h3 class="flex items-center gap-2">
+            <CalendarDays class="size-5 text-primary" />
+            Upcoming Meetings
+          </h3>
+          <div class="flex items-center gap-3 overflow-x-auto pb-1 xl:pb-0">
+            <SegmentControl
+              compact
+              value={filter()}
+              onChange={setFilter}
+              options={[
+                { label: "All Meetings", value: "all" },
+                { label: "External Partners", value: "partner" },
+                { label: "Internal Team", value: "team" },
+              ]}
+            />
+          </div>
+        </header>
+        <div class="flex min-h-40 flex-col gap-1 p-3 sm:p-5">
           <Show
-            when={filteredMeetings().length > 0}
+            when={!meetings.loading}
             fallback={
               <p class="py-8 text-center text-sm text-muted-foreground">
-                No meetings found.
+                Loading meetings...
               </p>
             }
           >
-            <For each={filteredMeetings()}>
-              {(meeting, index) => (
-                <div>
-                  <MeetingRow meeting={meeting} delay={index() * 70} />
-                  <Show when={meeting.rawStatus === "pending"}>
-                    <div class="flex gap-2 ml-16 mb-2">
-                      <button
-                        type="button"
-                        onClick={() => handleAccept(meeting.id)}
-                        class="px-3 py-1 text-xs font-medium rounded-md bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors"
-                      >
-                        Accept
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleReject(meeting.id)}
-                        class="px-3 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors"
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </Show>
-                </div>
-              )}
-            </For>
+            <Show
+              when={filteredMeetings().length > 0}
+              fallback={
+                <p class="py-8 text-center text-sm text-muted-foreground">
+                  No meetings found.
+                </p>
+              }
+            >
+              <For each={filteredMeetings()}>
+                {(meeting, index) => (
+                  <div>
+                    <MeetingRow
+                      meeting={meeting}
+                      delay={index() * 70}
+                      onClick={() =>
+                        setSelectedMeeting(meeting.rawData ?? null)
+                      }
+                    />
+                    <Show when={meeting.rawStatus === "pending"}>
+                      <div class="flex gap-2 ml-16 mb-2">
+                        <button
+                          type="button"
+                          onClick={() => handleAccept(meeting.id)}
+                          class="px-3 py-1 text-xs font-medium rounded-md bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleReject(meeting.id)}
+                          class="px-3 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </Show>
+                  </div>
+                )}
+              </For>
+            </Show>
           </Show>
-        </Show>
-      </div>
-    </SectionShell>
+        </div>
+      </SectionShell>
+      <MeetingDetailModal
+        open={selectedMeeting() !== null}
+        meeting={selectedMeeting()}
+        onClose={() => setSelectedMeeting(null)}
+      />
+    </>
   );
 }
 

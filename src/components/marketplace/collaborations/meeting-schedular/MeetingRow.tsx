@@ -9,8 +9,12 @@ function MeetingRow(props: MeetingRowProps) {
 
   return (
     <article
-      class="list-enter group flex flex-col gap-4 rounded-lg border border-transparent p-3 transition-all hover:border-border hover:bg-background sm:flex-row sm:items-center sm:justify-between"
+      class="list-enter group flex flex-col gap-4 rounded-lg border border-transparent p-3 transition-all hover:border-border hover:bg-background cursor-pointer sm:flex-row sm:items-center sm:justify-between"
       style={{ "animation-delay": `${props.delay}ms` }}
+      onClick={props.onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") props.onClick?.();
+      }}
     >
       <div class="flex min-w-0 items-center gap-4">
         <div

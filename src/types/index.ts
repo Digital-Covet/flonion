@@ -87,6 +87,7 @@ export interface Meeting {
   participants: string[];
   rawStatus?: string;
   requesterName?: string;
+  rawData?: unknown;
 }
 
 export interface SegmentControlOption<T extends string> {
@@ -113,6 +114,7 @@ export interface AvatarGroupProps {
 export interface MeetingRowProps {
   meeting: Meeting;
   delay: number;
+  onClick?: () => void;
 }
 
 export interface CalendarEventProps {
