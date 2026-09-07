@@ -216,6 +216,14 @@ export async function POST(event: APIEvent) {
       data: { onboardingCompleted: true, businessId: business.id },
     });
 
+    // Someone who gave up waiting on a team and made their own business would
+    // otherwise leave a live row in that team's queue, which an admin can only
+    // resolve by clicking approve and getting an error.
+    await prisma.joinRequest.updateMany({
+      where: { userId: session.user.id, status: "pending" },
+      data: { status: "cancelled", pendingUserId: null },
+    });
+
     // Google's aggregate rating is cached on the business so the marketplace
     // can rank on it without an API round-trip per card. A failed lookup keeps
     // whatever was stored before rather than blocking the save.

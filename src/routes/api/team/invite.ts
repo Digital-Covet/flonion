@@ -3,6 +3,7 @@ import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "~/db/prisma";
 import { canManageTeam, getBusinessContext } from "~/lib/business-context";
 import { COMPANY_NAME } from "~/lib/constants";
+import { inspectOwnedBusiness } from "~/lib/empty-business";
 import { checkRateLimit } from "~/lib/rate-limit";
 import { isValidRole } from "~/lib/roles";
 import { getSessionFromHeaders } from "~/lib/server-auth";
@@ -84,7 +85,11 @@ export async function POST(event: APIEvent) {
     // inviter learns immediately rather than the invitee hitting a dead link.
     const existingUser = await prisma.user.findUnique({
       where: { email: normalizedEmail },
-      select: { businessId: true, business: { select: { id: true } } },
+      select: {
+        id: true,
+        businessId: true,
+        business: { select: { id: true } },
+      },
     });
 
     if (existingUser?.businessId === ctx.businessId) {
@@ -94,20 +99,34 @@ export async function POST(event: APIEvent) {
       );
     }
 
-    if (existingUser?.business) {
-      return Response.json(
-        {
-          error: "That account already owns a business and cannot join a team",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (existingUser?.businessId) {
+    if (existingUser?.businessId && !existingUser.business) {
       return Response.json(
         { error: "That account is already part of another team" },
         { status: 400 },
       );
+    }
+
+    // Owning a business is no longer a hard block: accept-invite offers to
+    // discard one that is completely untouched. Only a business with data in it
+    // makes the invitation unacceptable, and the inviter should learn that here
+    // rather than after the invitee hits a dead link.
+    if (existingUser?.business) {
+      const owned = await inspectOwnedBusiness(
+        prisma,
+        existingUser.business.id,
+        existingUser.id,
+      );
+
+      if (owned && !owned.empty) {
+        return Response.json(
+          {
+            error:
+              "That account already owns a business with data in it and cannot join a team",
+            blockers: owned.blockers,
+          },
+          { status: 400 },
+        );
+      }
     }
 
     const existingInvitation = await prisma.invitation.findFirst({
