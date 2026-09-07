@@ -39,14 +39,14 @@ export default function Navbar(props: NavbarProps) {
 
           <A
             class="hidden px-4 py-2 text-sm font-semibold text-primary transition-colors duration-200 hover:text-primary-hover md:inline-block"
-            href="/login"
+            href="https://app.flonion.com/login"
           >
             Login
           </A>
 
           <A
             class="hidden rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors duration-200 hover:bg-primary-hover hover:scale-[1.02] hover:-translate-y-0.5 active:scale-[0.98] md:inline-block"
-            href="/signup"
+            href="https://app.flonion.com/signup"
           >
             Get Started
           </A>
