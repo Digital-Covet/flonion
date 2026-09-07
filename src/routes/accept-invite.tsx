@@ -9,10 +9,11 @@ export default function AcceptInvitePage() {
   const [searchParams] = useSearchParams();
   const session = authClient.useSession();
 
-  const [status, setStatus] = createSignal<"loading" | "error" | "success">(
-    "loading",
-  );
+  const [status, setStatus] = createSignal<
+    "loading" | "error" | "success" | "confirm"
+  >("loading");
   const [errorMessage, setErrorMessage] = createSignal("");
+  const [ownedBusinessName, setOwnedBusinessName] = createSignal("");
 
   const getToken = () => {
     if (typeof window === "undefined") return null;
@@ -23,22 +24,42 @@ export default function AcceptInvitePage() {
     return raw;
   };
 
-  const handleAcceptInvite = async (token: string) => {
+  const handleAcceptInvite = async (token: string, confirmDelete = false) => {
+    setStatus("loading");
     try {
       const res = await fetch("/api/team/accept-invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({
+          token,
+          ...(confirmDelete ? { confirmDeleteOwnedBusiness: true } : {}),
+        }),
       });
 
       if (res.ok) {
         setStatus("success");
         setTimeout(() => navigate("/dashboard"), 1500);
-      } else {
-        const data = await res.json();
-        setErrorMessage(data.error || "Failed to accept invitation");
-        setStatus("error");
+        return;
       }
+
+      const data = await res.json().catch(() => null);
+
+      // Accepting costs them the empty business they own. Never done silently:
+      // the server refuses until the UI has named it and the user agreed.
+      if (res.status === 409 && data?.requiresConfirmation) {
+        setOwnedBusinessName(data.ownedBusiness?.name ?? "your business");
+        setStatus("confirm");
+        return;
+      }
+
+      const blockers =
+        Array.isArray(data?.blockers) && data.blockers.length > 0
+          ? ` (${data.blockers.join(", ")})`
+          : "";
+      setErrorMessage(
+        `${data?.error ?? "Failed to accept invitation"}${blockers}`,
+      );
+      setStatus("error");
     } catch {
       setErrorMessage("Failed to accept invitation. Please try again.");
       setStatus("error");
@@ -82,41 +103,66 @@ export default function AcceptInvitePage() {
       <Title>Accept Invitation</Title>
       <main class="flex min-h-dvh items-center justify-center bg-background px-6">
         <div class="flex w-full max-w-md flex-col items-center gap-4 text-center">
-          <Show
-            when={status() === "loading"}
-            fallback={
-              status() === "success" ? (
-                <>
-                  <div class="text-lg font-medium text-foreground">
-                    Invitation accepted!
-                  </div>
-                  <p class="text-sm text-muted-foreground">
-                    Redirecting you to the dashboard...
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div class="text-lg font-medium text-destructive">
-                    Invitation failed
-                  </div>
-                  <p class="text-sm text-muted-foreground">{errorMessage()}</p>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/dashboard")}
-                    class="mt-2 px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary-hover transition-colors"
-                  >
-                    Go to Dashboard
-                  </button>
-                </>
-              )
-            }
-          >
+          <Show when={status() === "loading"}>
             <div class="text-lg font-medium text-foreground">
               Accepting invitation...
             </div>
             <p class="text-sm text-muted-foreground">
               Please wait while we process your request.
             </p>
+          </Show>
+
+          <Show when={status() === "success"}>
+            <div class="text-lg font-medium text-foreground">
+              Invitation accepted!
+            </div>
+            <p class="text-sm text-muted-foreground">
+              Redirecting you to the dashboard...
+            </p>
+          </Show>
+
+          <Show when={status() === "confirm"}>
+            <div class="text-lg font-medium text-foreground">
+              Delete "{ownedBusinessName()}" and join this team?
+            </div>
+            <p class="text-sm text-muted-foreground">
+              You can only belong to one business. "{ownedBusinessName()}" is
+              empty — nothing has been added to it — so joining will permanently
+              delete it. This can't be undone.
+            </p>
+            <div class="mt-2 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => {
+                  const token = getToken();
+                  if (token) handleAcceptInvite(token, true);
+                }}
+                class="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary-hover transition-colors"
+              >
+                Delete and join
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard")}
+                class="px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted transition-colors"
+              >
+                Keep my business
+              </button>
+            </div>
+          </Show>
+
+          <Show when={status() === "error"}>
+            <div class="text-lg font-medium text-destructive">
+              Invitation failed
+            </div>
+            <p class="text-sm text-muted-foreground">{errorMessage()}</p>
+            <button
+              type="button"
+              onClick={() => navigate("/dashboard")}
+              class="mt-2 px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary-hover transition-colors"
+            >
+              Go to Dashboard
+            </button>
           </Show>
         </div>
       </main>

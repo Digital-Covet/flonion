@@ -1796,3 +1796,170 @@ If you didn't expect this invitation, you can safely ignore this email.`;
     text: textBody,
   };
 }
+
+const PARAGRAPH_STYLE = `
+        margin: 0 0 24px 0;
+        padding: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 26px;
+        color: #222222;
+      `;
+
+interface JoinRequestReceivedEmailParams {
+  requesterName: string;
+  requesterEmail: string;
+  businessName: string;
+  /** Free text written by the requester. Escaped here, truncated by the API. */
+  message: string | null;
+  reviewUrl: string;
+}
+
+/** Sent to the owner and admins when someone asks to join their team. */
+export function renderJoinRequestReceivedEmail({
+  requesterName,
+  requesterEmail,
+  businessName,
+  message,
+  reviewUrl,
+}: JoinRequestReceivedEmailParams): { html: string; text: string } {
+  const safeName = escapeHtml(requesterName);
+  const safeEmail = escapeHtml(requesterEmail);
+  const safeBusiness = escapeHtml(businessName);
+
+  const messageHtml = message
+    ? `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin: 0 0 24px 0;">
+      <tr>
+        <td
+          style="
+            padding: 16px 20px;
+            background-color: #f6f7f9;
+            border-left: 3px solid #0060ff;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 15px;
+            line-height: 24px;
+            color: #444444;
+          "
+        >
+          ${escapeHtml(message)}
+        </td>
+      </tr>
+    </table>
+  `
+    : "";
+
+  const htmlBody = `
+    <p style="${PARAGRAPH_STYLE}">
+      <strong>${safeName}</strong> (${safeEmail}) has asked to join
+      <strong>${safeBusiness}</strong>.
+    </p>
+
+    ${messageHtml}
+
+    <p style="${PARAGRAPH_STYLE}">
+      Review the request and pick their role from your team settings. Nobody is
+      added until you approve.
+    </p>
+
+    ${renderButton(reviewUrl, "Review Request")}
+
+    ${renderFallbackLink(reviewUrl)}
+  `;
+
+  const textBody = `Hello,
+
+${requesterName} (${requesterEmail}) has asked to join ${businessName}.
+${message ? `\nTheir message:\n"${message}"\n` : ""}
+Review the request and pick their role from your team settings. Nobody is added
+until you approve:
+${reviewUrl}`;
+
+  return {
+    html: renderBaseHtml(
+      `${requesterName} wants to join ${businessName}`,
+      htmlBody,
+    ),
+    text: textBody,
+  };
+}
+
+interface JoinRequestApprovedEmailParams {
+  businessName: string;
+  role: string;
+  dashboardUrl: string;
+}
+
+/** Sent to the requester once an owner or admin approves them. */
+export function renderJoinRequestApprovedEmail({
+  businessName,
+  role,
+  dashboardUrl,
+}: JoinRequestApprovedEmailParams): { html: string; text: string } {
+  const safeBusiness = escapeHtml(businessName);
+  const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
+  const safeRole = escapeHtml(roleLabel);
+
+  const htmlBody = `
+    <p style="${PARAGRAPH_STYLE}">
+      You're in. Your request to join <strong>${safeBusiness}</strong> was
+      approved and you've been added as a <strong>${safeRole}</strong>.
+    </p>
+
+    ${renderButton(dashboardUrl, "Go to Dashboard")}
+
+    ${renderFallbackLink(dashboardUrl)}
+  `;
+
+  const textBody = `Hello,
+
+You're in. Your request to join ${businessName} was approved and you've been
+added as a ${roleLabel}.
+
+Go to your dashboard:
+${dashboardUrl}`;
+
+  return {
+    html: renderBaseHtml(`You've joined ${businessName}`, htmlBody),
+    text: textBody,
+  };
+}
+
+interface JoinRequestRejectedEmailParams {
+  businessName: string;
+}
+
+/**
+ * Sent to the requester when their request is turned down.
+ *
+ * Deliberately has no call to action: re-requesting the same business is rate
+ * limited for 24 hours, so a button here would only lead to an error.
+ */
+export function renderJoinRequestRejectedEmail({
+  businessName,
+}: JoinRequestRejectedEmailParams): { html: string; text: string } {
+  const safeBusiness = escapeHtml(businessName);
+
+  const htmlBody = `
+    <p style="${PARAGRAPH_STYLE}">
+      Your request to join <strong>${safeBusiness}</strong> wasn't approved.
+    </p>
+
+    <p style="${PARAGRAPH_STYLE}">
+      If you think this was a mistake, reach out to whoever manages the team
+      directly and ask them to invite you.
+    </p>
+  `;
+
+  const textBody = `Hello,
+
+Your request to join ${businessName} wasn't approved.
+
+If you think this was a mistake, reach out to whoever manages the team directly
+and ask them to invite you.`;
+
+  return {
+    html: renderBaseHtml(`Your request to join ${businessName}`, htmlBody),
+    text: textBody,
+  };
+}

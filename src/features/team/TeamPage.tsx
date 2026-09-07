@@ -31,6 +31,26 @@ interface PendingInvitation {
   };
 }
 
+interface JoinRequest {
+  id: string;
+  message: string | null;
+  /** "pending" | "approved" | "rejected" | "cancelled" */
+  status: string;
+  grantedRole: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
+  };
+  reviewedBy: {
+    name: string;
+    email: string;
+  } | null;
+}
+
 const fieldInputClass =
   "w-full rounded-lg border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
 
@@ -49,6 +69,16 @@ export default function TeamPage() {
   const [inviteRole, setInviteRole] = createSignal<UserRole>("member");
   const [inviteError, setInviteError] = createSignal("");
   const [sending, setSending] = createSignal(false);
+
+  const [joinRequests, setJoinRequests] = createSignal<JoinRequest[]>([]);
+  const [joinRequestError, setJoinRequestError] = createSignal("");
+  const [reviewingId, setReviewingId] = createSignal<string | null>(null);
+  const [reviewRoles, setReviewRoles] = createSignal<Record<string, UserRole>>(
+    {},
+  );
+
+  const roleFor = (requestId: string): UserRole =>
+    reviewRoles()[requestId] ?? "member";
 
   const isAdmin = () => {
     const member = members().find((m) => m.id === currentUserId());
@@ -81,6 +111,55 @@ export default function TeamPage() {
     }
   };
 
+  const fetchJoinRequests = async () => {
+    try {
+      // A plain member gets 403 here, which just leaves the queue empty and the
+      // whole section unrendered -- same as the other fetchers.
+      const res = await fetch("/api/team/join-requests");
+      if (res.ok) {
+        const data = await res.json();
+        setJoinRequests(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch join requests:", err);
+    }
+  };
+
+  const handleReviewJoinRequest = async (
+    requestId: string,
+    action: "approve" | "reject",
+  ) => {
+    setReviewingId(requestId);
+    setJoinRequestError("");
+
+    try {
+      const res = await fetch(`/api/team/join-requests/${requestId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, role: roleFor(requestId) }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        const blockers =
+          Array.isArray(data?.blockers) && data.blockers.length > 0
+            ? ` (${data.blockers.join(", ")})`
+            : "";
+        setJoinRequestError(
+          `${data?.error ?? "Couldn't review the request."}${blockers}`,
+        );
+      }
+
+      // Refetched either way: a co-admin may have resolved it already, and an
+      // approval changes the member list too.
+      await Promise.all([fetchJoinRequests(), fetchMembers()]);
+    } catch {
+      setJoinRequestError("Couldn't review the request. Please try again.");
+    } finally {
+      setReviewingId(null);
+    }
+  };
+
   const fetchBusiness = async () => {
     try {
       const res = await fetch("/api/business");
@@ -94,7 +173,12 @@ export default function TeamPage() {
   };
 
   onMount(async () => {
-    await Promise.all([fetchMembers(), fetchInvitations(), fetchBusiness()]);
+    await Promise.all([
+      fetchMembers(),
+      fetchInvitations(),
+      fetchBusiness(),
+      fetchJoinRequests(),
+    ]);
   });
 
   const handleSendInvite = async (e: Event) => {
@@ -274,6 +358,125 @@ export default function TeamPage() {
                 {sending() ? "Sending..." : "Send Invitation"}
               </button>
             </form>
+          </section>
+        </Show>
+
+        {/* Join Requests -- the actionable queue, so it sits above the roster */}
+        <Show when={(isAdmin() || isOwner()) && joinRequests().length > 0}>
+          <section class="bg-card p-6 rounded-xl shadow-sm border border-border">
+            <h3 class="text-lg font-semibold font-heading text-foreground mb-4 flex items-center gap-2">
+              <UserPlus size={20} class="text-primary" />
+              Join Requests (
+              {joinRequests().filter((r) => r.status === "pending").length})
+            </h3>
+
+            <Show when={joinRequestError()}>
+              <p role="alert" class="text-sm text-destructive mb-4">
+                {joinRequestError()}
+              </p>
+            </Show>
+
+            <div class="divide-y divide-border">
+              <For each={joinRequests()}>
+                {(request) => (
+                  <div class="flex flex-col gap-3 py-4 md:flex-row md:items-start md:justify-between">
+                    <div class="flex min-w-0 items-start gap-4">
+                      <Show
+                        when={request.user.image}
+                        fallback={
+                          <div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium text-muted-foreground">
+                            {(request.user.name || request.user.email)
+                              .charAt(0)
+                              .toUpperCase()}
+                          </div>
+                        }
+                      >
+                        <img
+                          src={request.user.image ?? ""}
+                          alt=""
+                          class="size-10 shrink-0 rounded-full object-cover"
+                        />
+                      </Show>
+
+                      <div class="min-w-0">
+                        <p class="truncate font-medium text-foreground">
+                          {request.user.name || request.user.email}
+                        </p>
+                        <p class="truncate text-sm text-muted-foreground">
+                          {request.user.email}
+                        </p>
+                        <Show when={request.message}>
+                          <p class="mt-2 rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                            {request.message}
+                          </p>
+                        </Show>
+                        <p class="mt-1 text-xs text-muted-foreground">
+                          Requested{" "}
+                          {new Date(request.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Show
+                      when={request.status === "pending"}
+                      fallback={
+                        <p class="shrink-0 text-sm text-muted-foreground">
+                          {request.status === "approved"
+                            ? `Approved as ${getRoleLabel(request.grantedRole ?? "member")}`
+                            : request.status === "rejected"
+                              ? "Rejected"
+                              : "Cancelled"}
+                          {request.reviewedBy
+                            ? ` by ${request.reviewedBy.name || request.reviewedBy.email}`
+                            : ""}
+                        </p>
+                      }
+                    >
+                      <div class="flex shrink-0 items-center gap-2">
+                        <select
+                          aria-label="Role to grant"
+                          value={roleFor(request.id)}
+                          onChange={(e) =>
+                            setReviewRoles((prev) => ({
+                              ...prev,
+                              [request.id]: e.currentTarget.value as UserRole,
+                            }))
+                          }
+                          disabled={reviewingId() === request.id}
+                          class="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition-shadow focus:border-primary focus:ring-4 focus:ring-primary/10 disabled:opacity-50"
+                        >
+                          <For each={ROLE_DEFINITIONS}>
+                            {(r) => <option value={r.value}>{r.label}</option>}
+                          </For>
+                        </select>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleReviewJoinRequest(request.id, "approve")
+                          }
+                          disabled={reviewingId() === request.id}
+                          class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
+                        >
+                          Approve
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleReviewJoinRequest(request.id, "reject")
+                          }
+                          disabled={reviewingId() === request.id}
+                          class="rounded-lg bg-muted px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/80 disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </Show>
+                  </div>
+                )}
+              </For>
+            </div>
           </section>
         </Show>
 

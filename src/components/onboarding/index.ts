@@ -1,8 +1,12 @@
 export type { BasicsData } from "./BasicsStep";
 export { BasicsStep } from "./BasicsStep";
 export { CategoryChips } from "./CategoryChips";
+export { ChooseStartStep } from "./ChooseStartStep";
 export type { TeamInvite } from "./InviteTeamStep";
 export { InviteTeamStep } from "./InviteTeamStep";
+export { JoinPendingStep } from "./JoinPendingStep";
+export type { FoundBusiness } from "./JoinTeamStep";
+export { JoinTeamStep } from "./JoinTeamStep";
 export { LogoUpload } from "./LogoUpload";
 export { PlatformsStep } from "./PlatformsStep";
 export { ProgressStepper } from "./ProgressStepper";
