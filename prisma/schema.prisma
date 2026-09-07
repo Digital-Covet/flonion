@@ -35,6 +35,8 @@ model User {
   meetingRequests  MeetingRequest[]
   assignedTasks    Task[]
   sentInvitations  Invitation[] @relation("InvitationSender")
+  joinRequests         JoinRequest[] @relation("JoinRequestRequester")
+  reviewedJoinRequests JoinRequest[] @relation("JoinRequestReviewer")
 
   @@unique([email])
   @@index([businessId])
@@ -99,6 +101,7 @@ model Business {
   tasks             Task[]
   teamMeetings      TeamMeeting[]
   invitations       Invitation[]
+  joinRequests      JoinRequest[]
   services          Service[]
   projects          Project[]
   contacts          BusinessContact[]
@@ -317,6 +320,47 @@ model Invitation {
   @@index([email])
   @@index([businessId])
   @@map("invitation")
+}
+
+/// A user who owns nothing and belongs to nobody asking to join an existing business.
+///
+/// `pendingUserId` mirrors `userId` while the row is pending and is set to NULL the
+/// instant it resolves. Postgres treats NULLs as distinct inside a unique index, so
+/// this one declarative constraint enforces "at most one pending request per user"
+/// while still permitting an unbounded history of resolved rows -- which a plain
+/// @@unique([businessId, userId]) would forbid, permanently blocking a re-request
+/// after a rejection. It also makes creation race-proof: a double-submit surfaces as
+/// P2002 instead of two live rows.
+model JoinRequest {
+  id            String    @id @default(cuid())
+  businessId    String
+  business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation("JoinRequestRequester", fields: [userId], references: [id], onDelete: Cascade)
+  /// NULL once resolved. See the note above.
+  pendingUserId String?   @unique
+  /// Optional note from the requester. Trimmed to 300 chars by the API.
+  message       String?
+  /// pending | approved | rejected | cancelled
+  /// `cancelled` is written both when the joiner withdraws (reviewedById NULL) and
+  /// when approval finds them already on another team.
+  status        String    @default("pending")
+  /// Role granted at approval time. NULL until approved.
+  grantedRole   String?
+  /// The requester explicitly agreed that approving this may delete the empty
+  /// business they own. Approval refuses to delete anything without it.
+  consentDeleteOwnedBusiness Boolean @default(false)
+  /// SetNull rather than Cascade: removing an admin must not erase the audit trail
+  /// of the members they approved.
+  reviewedById  String?
+  reviewedBy    User?     @relation("JoinRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([businessId, status])
+  @@index([userId, createdAt])
+  @@map("join_request")
 }
 
 model Service {
