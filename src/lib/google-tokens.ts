@@ -17,6 +17,18 @@ export interface TokenSet {
  * browser sent the cookie". Both are fixed here.
  */
 
+/**
+ * Signals that the owner's Google grant is gone — no stored tokens, or Google
+ * rejected the refresh token outright. Callers should prompt a reconnect.
+ * Any other failure is transient and must NOT be reported this way.
+ */
+export class GoogleAuthRequiredError extends Error {
+  constructor(message = "Not authenticated with Google") {
+    super(message);
+    this.name = "GoogleAuthRequiredError";
+  }
+}
+
 async function readTokenSet(userId: string): Promise<TokenSet | null> {
   const row = await prisma.googleToken.findUnique({ where: { userId } });
   if (!row) return null;
@@ -24,8 +36,16 @@ async function readTokenSet(userId: string): Promise<TokenSet | null> {
   const accessToken = decrypt(row.accessToken);
   const refreshToken = decrypt(row.refreshToken);
 
-  // Undecryptable rows mean a rotated/incorrect key. Treat as not connected.
-  if (!accessToken || !refreshToken) return null;
+  // Undecryptable rows mean a rotated/incorrect key. Treat as not connected,
+  // but say so loudly: silently, this is indistinguishable from "never
+  // connected", and it makes every owner appear to need a fresh integration.
+  if (!accessToken || !refreshToken) {
+    console.error(
+      `[google-tokens] stored tokens for user ${userId} could not be decrypted. ` +
+        "TOKEN_ENCRYPTION_KEY/COOKIE_SECRET has most likely changed; this user must reconnect Google.",
+    );
+    return null;
+  }
 
   return {
     accessToken,
@@ -57,10 +77,18 @@ export async function getTokens(userId: string): Promise<TokenSet | undefined> {
   return (await readTokenSet(userId)) ?? undefined;
 }
 
-export async function hasValidTokens(userId: string): Promise<boolean> {
+/**
+ * Whether the owner has a usable Google grant.
+ *
+ * Deliberately keyed on the refresh token, not on `expiresAt`. Access tokens
+ * expire hourly; the refresh token is what makes the connection durable.
+ * Checking expiry here previously reported every owner as disconnected an hour
+ * after connecting — ahead of `getValidAccessToken`, which would have quietly
+ * refreshed — so they re-ran the integration on nearly every visit.
+ */
+export async function isGoogleConnected(userId: string): Promise<boolean> {
   const tokenSet = await readTokenSet(userId);
-  if (!tokenSet) return false;
-  return Date.now() < tokenSet.expiresAt - 60_000;
+  return Boolean(tokenSet?.refreshToken);
 }
 
 export async function clearTokens(userId: string): Promise<void> {
@@ -73,7 +101,7 @@ export async function clearTokens(userId: string): Promise<void> {
  */
 export async function refreshAccessToken(userId: string): Promise<string> {
   const tokenSet = await readTokenSet(userId);
-  if (!tokenSet) throw new Error("No tokens found for user");
+  if (!tokenSet) throw new GoogleAuthRequiredError("No tokens found for user");
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -92,7 +120,21 @@ export async function refreshAccessToken(userId: string): Promise<string> {
   });
 
   if (!response.ok) {
-    await clearTokens(userId);
+    const body = await response.json().catch(() => ({}));
+
+    // Only `invalid_grant` means the grant itself is dead (revoked, expired, or
+    // consent withdrawn). Deleting the row on any other failure meant a single
+    // Google 5xx or rate-limit blip permanently disconnected the owner.
+    if (body?.error === "invalid_grant") {
+      await clearTokens(userId);
+      throw new GoogleAuthRequiredError("Google refresh token was rejected");
+    }
+
+    console.error(
+      "[google-tokens] refresh failed (tokens kept):",
+      response.status,
+      body?.error ?? response.statusText,
+    );
     throw new Error("Failed to refresh access token");
   }
 
@@ -110,7 +152,7 @@ export async function refreshAccessToken(userId: string): Promise<string> {
 
 export async function getValidAccessToken(userId: string): Promise<string> {
   const tokenSet = await readTokenSet(userId);
-  if (!tokenSet) throw new Error("Not authenticated with Google");
+  if (!tokenSet) throw new GoogleAuthRequiredError();
 
   if (Date.now() < tokenSet.expiresAt - 60_000) {
     return tokenSet.accessToken;

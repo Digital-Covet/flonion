@@ -1,5 +1,9 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getValidAccessToken, hasValidTokens } from "~/lib/google-tokens";
+import {
+  GoogleAuthRequiredError,
+  getValidAccessToken,
+  isGoogleConnected,
+} from "~/lib/google-tokens";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 import type { GoogleReview, GoogleReviewsResponse } from "~/types/google";
 
@@ -9,7 +13,7 @@ export async function GET(event: APIEvent) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!(await hasValidTokens(session.user.id))) {
+  if (!(await isGoogleConnected(session.user.id))) {
     return Response.json(
       { error: "Not authenticated", authUrl: "/api/google/auth" },
       { status: 401 },
@@ -71,6 +75,14 @@ export async function GET(event: APIEvent) {
     return Response.json(response);
   } catch (err) {
     console.error("[google/reviews] request failed:", err);
+
+    if (err instanceof GoogleAuthRequiredError) {
+      return Response.json(
+        { error: "Not authenticated", authUrl: "/api/google/auth" },
+        { status: 401 },
+      );
+    }
+
     return Response.json({ error: "Failed to fetch reviews" }, { status: 500 });
   }
 }

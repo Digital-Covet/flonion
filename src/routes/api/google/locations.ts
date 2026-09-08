@@ -1,5 +1,9 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { getValidAccessToken, hasValidTokens } from "~/lib/google-tokens";
+import {
+  GoogleAuthRequiredError,
+  getValidAccessToken,
+  isGoogleConnected,
+} from "~/lib/google-tokens";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 import type { GoogleAccount, GoogleLocation } from "~/types/google";
 
@@ -103,7 +107,7 @@ export async function GET(_event: APIEvent) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!(await hasValidTokens(session.user.id))) {
+  if (!(await isGoogleConnected(session.user.id))) {
     return Response.json(
       { error: "Not authenticated", authUrl: "/api/google/auth" },
       { status: 401 },
@@ -165,6 +169,16 @@ export async function GET(_event: APIEvent) {
     return Response.json({ accounts: allLocations });
   } catch (err) {
     console.error("[google/locations] request failed:", err);
+
+    // Only a dead grant warrants sending the owner back through OAuth. A
+    // transient refresh failure must not be dressed up as "not connected".
+    if (err instanceof GoogleAuthRequiredError) {
+      return Response.json(
+        { error: "Not authenticated", authUrl: "/api/google/auth" },
+        { status: 401 },
+      );
+    }
+
     return Response.json(
       { error: "Failed to fetch locations" },
       { status: 500 },

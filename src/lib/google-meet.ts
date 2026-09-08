@@ -1,4 +1,4 @@
-import { getValidAccessToken, hasValidTokens } from "./google-tokens";
+import { getValidAccessToken, isGoogleConnected } from "./google-tokens";
 
 export interface MeetLink {
   meetUri: string;
@@ -17,7 +17,7 @@ export interface MeetLink {
  */
 export async function createMeetLink(userId: string): Promise<MeetLink | null> {
   try {
-    if (!(await hasValidTokens(userId))) return null;
+    if (!(await isGoogleConnected(userId))) return null;
 
     const accessToken = await getValidAccessToken(userId);
 

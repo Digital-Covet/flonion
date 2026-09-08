@@ -14,6 +14,8 @@ import {
  * fallback so existing deployments keep working, but a dedicated key is
  * better: it can be rotated without invalidating unrelated signed cookies.
  */
+let warnedAboutFallbackKey = false;
+
 function getRootSecret(): string {
   const key = process.env.TOKEN_ENCRYPTION_KEY ?? process.env.COOKIE_SECRET;
   if (!key) {
@@ -21,6 +23,20 @@ function getRootSecret(): string {
       "Missing environment variable: TOKEN_ENCRYPTION_KEY (or COOKIE_SECRET)",
     );
   }
+
+  // Warn once: on the fallback, every encrypted Google token is bound to
+  // COOKIE_SECRET. Introducing TOKEN_ENCRYPTION_KEY later — or rotating the
+  // cookie secret — silently makes every stored token undecryptable, which
+  // presents as owners having to reconnect Google on every visit.
+  if (!process.env.TOKEN_ENCRYPTION_KEY && !warnedAboutFallbackKey) {
+    warnedAboutFallbackKey = true;
+    console.warn(
+      "[crypto] TOKEN_ENCRYPTION_KEY is unset; falling back to COOKIE_SECRET. " +
+        "Stored Google tokens are encrypted with it — setting a dedicated key later, " +
+        "or rotating COOKIE_SECRET, will require every owner to reconnect Google.",
+    );
+  }
+
   return key;
 }
 

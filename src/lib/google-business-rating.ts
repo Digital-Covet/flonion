@@ -1,4 +1,4 @@
-import { getValidAccessToken, hasValidTokens } from "./google-tokens";
+import { getValidAccessToken, isGoogleConnected } from "./google-tokens";
 
 export interface BusinessRating {
   rating: number;
@@ -73,7 +73,7 @@ export async function fetchBusinessRating(
   if (!placeId) return null;
 
   try {
-    if (!(await hasValidTokens(userId))) return null;
+    if (!(await isGoogleConnected(userId))) return null;
 
     const accessToken = await getValidAccessToken(userId);
     const parent = await findLocationParent(accessToken, placeId);
