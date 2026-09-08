@@ -4,6 +4,7 @@ const tones: Record<BadgeTone, string> = {
   primary: "bg-positive-muted text-positive",
   orange: "bg-orange-muted text-orange",
   purple: "bg-purple-muted text-purple",
+  destructive: "bg-destructive-muted text-destructive",
 };
 
 function StatusBadge(props: StatusBadgeProps) {

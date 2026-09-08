@@ -70,8 +70,8 @@ export interface Review {
 }
 
 export type MeetingFilter = "all" | "partner" | "team";
-export type MeetingStatus = "Confirmed" | "Pending";
-export type BadgeTone = "primary" | "orange" | "purple";
+export type MeetingStatus = "Confirmed" | "Pending" | "Rejected" | "Cancelled";
+export type BadgeTone = "primary" | "orange" | "purple" | "destructive";
 export type CalendarEventTone = "muted" | "primary" | "orange";
 
 export interface Meeting {
@@ -86,6 +86,7 @@ export interface Meeting {
   status: MeetingStatus;
   participants: string[];
   rawStatus?: string;
+  direction?: "incoming" | "outgoing";
   requesterName?: string;
   rawData?: unknown;
 }

@@ -10,6 +10,7 @@ import {
 import type { MeetingFilter } from "~/types";
 import MeetingDetailModal, { type MeetingData } from "./MeetingDetailModal";
 import MeetingRow from "./MeetingRow";
+import { counterpartyName, statusDisplay } from "./meeting-display";
 import SectionShell from "./SectionShell";
 import SegmentControl from "./SegmentControl";
 
@@ -29,12 +30,13 @@ function toMeeting(m: MeetingData) {
     m.requester?.email ||
     m.guestEmail ||
     "Guest";
+  const direction = m.direction ?? "outgoing";
 
   return {
     id: m.id,
     month: d.toLocaleDateString("en-US", { month: "short" }),
     day: String(d.getDate()),
-    title: m.business?.name || requesterName,
+    title: counterpartyName({ ...m, direction }),
     time: `${m.slot.startTime} - ${m.slot.endTime}`,
     location: "Online",
     locationIcon: (props: { class?: string }) => (
@@ -54,10 +56,10 @@ function toMeeting(m: MeetingData) {
       </svg>
     ),
     category: (m.category || "partner") as "partner" | "team",
-    status:
-      m.status === "accepted" ? ("Confirmed" as const) : ("Pending" as const),
+    status: statusDisplay(m.status).label,
     participants: [requesterName.charAt(0)?.toUpperCase() ?? "?"],
     rawStatus: m.status,
+    direction,
     requesterName,
     rawData: m,
   };
@@ -65,9 +67,11 @@ function toMeeting(m: MeetingData) {
 
 function UpcomingMeetings() {
   const [filter, setFilter] = createSignal<MeetingFilter>("all");
-  const [meetings, { mutate }] = createResource(fetchMeetings);
+  const [meetings, { refetch }] = createResource(fetchMeetings);
   const [selectedMeeting, setSelectedMeeting] =
     createSignal<MeetingData | null>(null);
+  const [actionError, setActionError] = createSignal<string | null>(null);
+  const [pendingId, setPendingId] = createSignal<string | null>(null);
 
   const filteredMeetings = createMemo(() => {
     const list = meetings.latest ?? [];
@@ -87,35 +91,28 @@ function UpcomingMeetings() {
     return filtered.map(toMeeting);
   });
 
-  const handleAccept = async (id: string) => {
+  const handleDecision = async (id: string, action: "accept" | "reject") => {
     if (typeof window === "undefined") return;
-    const res = await fetch(`/api/marketplace/meetings/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "accept" }),
-    });
-    if (res.ok) {
-      mutate((prev) =>
-        (prev ?? []).map((m) =>
-          m.id === id ? { ...m, status: "accepted" } : m,
-        ),
-      );
-    }
-  };
-
-  const handleReject = async (id: string) => {
-    if (typeof window === "undefined") return;
-    const res = await fetch(`/api/marketplace/meetings/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "reject" }),
-    });
-    if (res.ok) {
-      mutate((prev) =>
-        (prev ?? []).map((m) =>
-          m.id === id ? { ...m, status: "rejected" } : m,
-        ),
-      );
+    setActionError(null);
+    setPendingId(id);
+    try {
+      const res = await fetch(`/api/marketplace/meetings/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setActionError(
+          (data as { error?: string }).error ?? "Failed to update the meeting.",
+        );
+        return;
+      }
+      refetch();
+    } catch {
+      setActionError("Something went wrong. Please try again.");
+    } finally {
+      setPendingId(null);
     }
   };
 
@@ -141,6 +138,11 @@ function UpcomingMeetings() {
           </div>
         </header>
         <div class="flex min-h-40 flex-col gap-1 p-3 sm:p-5">
+          <Show when={actionError()}>
+            <div class="mb-3 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
+              {actionError()}
+            </div>
+          </Show>
           <Suspense
             fallback={
               <p class="py-8 text-center text-sm text-muted-foreground">
@@ -174,23 +176,40 @@ function UpcomingMeetings() {
                           setSelectedMeeting(meeting.rawData ?? null)
                         }
                       />
-                      <Show when={meeting.rawStatus === "pending"}>
+                      <Show
+                        when={
+                          meeting.rawStatus === "pending" &&
+                          meeting.direction === "incoming"
+                        }
+                      >
                         <div class="flex gap-2 ml-16 mb-2">
                           <button
                             type="button"
-                            onClick={() => handleAccept(meeting.id)}
-                            class="px-3 py-1 text-xs font-medium rounded-md bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors"
+                            disabled={pendingId() === meeting.id}
+                            onClick={() => handleDecision(meeting.id, "accept")}
+                            class="px-3 py-1 text-xs font-medium rounded-md bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                           >
                             Accept
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleReject(meeting.id)}
-                            class="px-3 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors"
+                            disabled={pendingId() === meeting.id}
+                            onClick={() => handleDecision(meeting.id, "reject")}
+                            class="px-3 py-1 text-xs font-medium rounded-md bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                           >
                             Reject
                           </button>
                         </div>
+                      </Show>
+                      <Show
+                        when={
+                          meeting.rawStatus === "pending" &&
+                          meeting.direction === "outgoing"
+                        }
+                      >
+                        <p class="ml-16 mb-2 text-xs text-muted-foreground">
+                          Awaiting response
+                        </p>
                       </Show>
                     </div>
                   )}

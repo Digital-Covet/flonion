@@ -11,6 +11,7 @@ import {
 } from "lucide-solid";
 import { Show } from "solid-js";
 import { Portal } from "solid-js/web";
+import { counterpartyName, statusDisplay } from "./meeting-display";
 import StatusBadge from "./StatusBadge";
 
 export interface MeetingData {
@@ -36,6 +37,7 @@ export interface MeetingData {
   message: string | null;
   createdAt: string;
   category?: "partner" | "team";
+  direction?: "incoming" | "outgoing";
 }
 
 interface MeetingDetailModalProps {
@@ -72,13 +74,7 @@ function MeetingDetailModal(props: MeetingDetailModalProps) {
 
   const initial = () => requesterName().charAt(0)?.toUpperCase() ?? "?";
 
-  const statusLabel = () =>
-    meeting()?.status === "accepted" ? "Confirmed" : "Pending";
-
-  const statusTone = () =>
-    meeting()?.status === "accepted"
-      ? ("primary" as const)
-      : ("orange" as const);
+  const status = () => statusDisplay(meeting()?.status ?? "");
 
   return (
     <Dialog.Root
@@ -112,7 +108,9 @@ function MeetingDetailModal(props: MeetingDetailModalProps) {
                       </Show>
                       <div class="min-w-0">
                         <Dialog.Title class="font-heading text-lg font-semibold text-foreground truncate">
-                          {m().business?.name || "Meeting Details"}
+                          {m().business?.name
+                            ? counterpartyName(m())
+                            : "Meeting Details"}
                         </Dialog.Title>
                         <p class="text-xs text-muted-foreground truncate">
                           {formatDate(m().slot.date)}
@@ -190,8 +188,8 @@ function MeetingDetailModal(props: MeetingDetailModalProps) {
 
                     <div class="flex items-center gap-2">
                       <span class="text-xs text-muted-foreground">Status:</span>
-                      <StatusBadge tone={statusTone()}>
-                        {statusLabel()}
+                      <StatusBadge tone={status().tone}>
+                        {status().label}
                       </StatusBadge>
                     </div>
 

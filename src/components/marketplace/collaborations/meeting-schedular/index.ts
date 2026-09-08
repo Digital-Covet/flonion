@@ -6,6 +6,7 @@ export { default as LoadBar } from "./LoadBar";
 export { default as LoadOverview } from "./LoadOverview";
 export { default as MeetingRow } from "./MeetingRow";
 export { default as MeetingSchedulerApp } from "./MeetingSchedulerApp";
+export { counterpartyName, statusDisplay } from "./meeting-display";
 export { default as ScheduleSettingsModal } from "./ScheduleSettingsModal";
 export { default as SectionShell } from "./SectionShell";
 export { default as SegmentControl } from "./SegmentControl";

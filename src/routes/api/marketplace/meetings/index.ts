@@ -66,7 +66,11 @@ export async function GET(event: APIEvent) {
         requesterBusinessId && requesterBusinessId === meeting.businessId
           ? "team"
           : "partner";
-      return { ...meeting, category: meetingCategory };
+      const direction =
+        userBusiness && meeting.businessId === userBusiness.id
+          ? "incoming"
+          : "outgoing";
+      return { ...meeting, category: meetingCategory, direction };
     });
 
     // Filter by category if requested
