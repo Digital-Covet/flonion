@@ -17,6 +17,8 @@ interface TaskColumnProps {
   onAddTask?: () => void;
   onDrop?: (taskId: string, targetColumn: string) => void;
   onDragOver?: (e: DragEvent) => void;
+  onDelete?: (taskId: string) => Promise<void> | void;
+  onEdit?: (task: Task) => void;
 }
 
 export default function TaskColumn(props: TaskColumnProps) {
@@ -88,7 +90,9 @@ export default function TaskColumn(props: TaskColumnProps) {
           onDragOver={handleDragOver}
           onDrop={handleDrop}
         >
-          <For each={props.tasks}>{(task) => <TaskCard task={task} />}</For>
+          <For each={props.tasks}>
+            {(task) => <TaskCard task={task} onEdit={props.onEdit} />}
+          </For>
         </div>
       </Collapsible.Content>
       <Show when={props.showAddTask}>

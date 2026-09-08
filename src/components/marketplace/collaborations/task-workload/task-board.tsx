@@ -1,6 +1,6 @@
 import { LayoutDashboard } from "lucide-solid";
 import { For } from "solid-js";
-import { useTaskContext } from "~/stores/task-store";
+import { type Task, useTaskContext } from "~/stores/task-store";
 import TaskColumn from "./task-column";
 
 const columns = [
@@ -32,6 +32,7 @@ const columns = [
 
 interface TaskBoardProps {
   onAddTask?: () => void;
+  onEditTask?: (task: Task) => void;
 }
 
 export default function TaskBoard(props: TaskBoardProps) {
@@ -74,6 +75,7 @@ export default function TaskBoard(props: TaskBoardProps) {
                 showAddTask={column.id === "todo"}
                 tasks={tasksByColumn(column.id)}
                 onAddTask={column.id === "todo" ? props.onAddTask : undefined}
+                onEdit={props.onEditTask}
                 onDrop={handleDrop}
               />
             )}

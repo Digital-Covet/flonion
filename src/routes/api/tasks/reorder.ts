@@ -1,5 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "~/db/prisma";
+import { canManageTeam, getBusinessContext } from "~/lib/business-context";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 
 export async function PATCH(event: APIEvent) {
@@ -8,16 +9,15 @@ export async function PATCH(event: APIEvent) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { businessId: true },
-  });
+  // getBusinessContext also resolves businesses for owners whose `businessId`
+  // column is stale/NULL -- see the note in lib/business-context.ts.
+  const ctx = await getBusinessContext(session.user.id);
 
-  if (!user?.businessId) {
+  if (!ctx) {
     return Response.json({ error: "No business found" }, { status: 404 });
   }
 
-  const businessId = user.businessId;
+  const businessId = ctx.businessId;
 
   try {
     const body = await event.request.json();
@@ -38,11 +38,26 @@ export async function PATCH(event: APIEvent) {
 
     const existing = await prisma.task.findUnique({
       where: { id: taskId },
-      select: { businessId: true, column: true, position: true },
+      select: {
+        businessId: true,
+        column: true,
+        position: true,
+        assigneeId: true,
+      },
     });
 
     if (!existing || existing.businessId !== businessId) {
       return Response.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    // A move is an edit: owner/admins may move any task, members only their own.
+    if (!canManageTeam(ctx) && existing.assigneeId !== ctx.userId) {
+      return Response.json(
+        {
+          error: "Only the assignee, an admin, or the owner can move this task",
+        },
+        { status: 403 },
+      );
     }
 
     const oldColumn = existing.column;

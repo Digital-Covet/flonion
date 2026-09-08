@@ -1,5 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "~/db/prisma";
+import { getBusinessContext } from "~/lib/business-context";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 
 export async function GET(event: APIEvent) {
@@ -8,19 +9,18 @@ export async function GET(event: APIEvent) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { businessId: true },
-  });
+  // getBusinessContext also resolves businesses for owners whose `businessId`
+  // column is stale/NULL -- see the note in lib/business-context.ts.
+  const ctx = await getBusinessContext(session.user.id);
 
-  if (!user?.businessId) {
+  if (!ctx) {
     return Response.json({ error: "No business found" }, { status: 404 });
   }
 
   const url = new URL(event.request.url);
   const assigneeId = url.searchParams.get("assigneeId");
 
-  const where: Record<string, unknown> = { businessId: user.businessId };
+  const where: Record<string, unknown> = { businessId: ctx.businessId };
   if (assigneeId) {
     where.assigneeId = assigneeId;
   }
@@ -44,12 +44,9 @@ export async function POST(event: APIEvent) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { businessId: true },
-  });
+  const ctx = await getBusinessContext(session.user.id);
 
-  if (!user?.businessId) {
+  if (!ctx) {
     return Response.json({ error: "No business found" }, { status: 404 });
   }
 
@@ -69,7 +66,7 @@ export async function POST(event: APIEvent) {
     // unchecked id here turned this endpoint into a lookup for any user in the
     // system -- besides assigning work to someone who cannot see it.
     const assignee = await prisma.user.findFirst({
-      where: { id: assigneeId, businessId: user.businessId },
+      where: { id: assigneeId, businessId: ctx.businessId },
       select: { id: true },
     });
 
@@ -89,7 +86,7 @@ export async function POST(event: APIEvent) {
       : "medium";
 
     const maxPosition = await prisma.task.aggregate({
-      where: { businessId: user.businessId, column: taskColumn },
+      where: { businessId: ctx.businessId, column: taskColumn },
       _max: { position: true },
     });
 
@@ -102,7 +99,7 @@ export async function POST(event: APIEvent) {
         dueDate: dueDate ? new Date(dueDate) : null,
         position: (maxPosition._max.position ?? -1) + 1,
         assigneeId,
-        businessId: user.businessId,
+        businessId: ctx.businessId,
       },
       include: {
         assignee: {

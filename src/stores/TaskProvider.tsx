@@ -7,6 +7,7 @@ import {
   TaskContext,
   type TaskContextValue,
   type TeamMeeting,
+  type UpdateTaskData,
 } from "./task-store";
 
 export function TaskProvider(props: ParentProps) {
@@ -14,6 +15,8 @@ export function TaskProvider(props: ParentProps) {
   const [meetings, setMeetings] = createSignal<TeamMeeting[]>([]);
   const [teamMembers, setTeamMembers] = createSignal<TaskAssignee[]>([]);
   const [filter, setFilter] = createSignal<string>("whole-team");
+  const [currentUserId, setCurrentUserId] = createSignal<string | null>(null);
+  const [canManageTasks, setCanManageTasks] = createSignal(false);
 
   const fetchTasks = async () => {
     try {
@@ -53,11 +56,19 @@ export function TaskProvider(props: ParentProps) {
         if (data.teamMembers) {
           setTeamMembers(data.teamMembers);
         }
+        setCurrentUserId(data.currentUserId ?? null);
+        setCanManageTasks(!!data.isOwner || data.role === "admin");
       }
     } catch (err) {
       console.error("Failed to fetch team members:", err);
     }
   };
+
+  // Mirrors the permission check in PATCH/DELETE /api/tasks/[id] and
+  // /api/tasks/reorder: owner/admins may modify any task, members only
+  // tasks assigned to them.
+  const canEditTask = (task: Task) =>
+    canManageTasks() || task.assigneeId === currentUserId();
 
   const addTask = async (data: CreateTaskData): Promise<Task | null> => {
     try {
@@ -78,7 +89,7 @@ export function TaskProvider(props: ParentProps) {
     }
   };
 
-  const updateTask = async (taskId: string, data: Partial<Task>) => {
+  const updateTask = async (taskId: string, data: UpdateTaskData) => {
     try {
       const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
@@ -191,6 +202,9 @@ export function TaskProvider(props: ParentProps) {
     teamMembers,
     filter,
     setFilter,
+    currentUserId,
+    canManageTasks,
+    canEditTask,
     fetchTasks,
     fetchMeetings,
     fetchTeamMembers,

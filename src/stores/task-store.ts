@@ -46,6 +46,16 @@ export interface CreateTaskData {
   assigneeId: string;
 }
 
+/** The editable subset of a task accepted by PATCH /api/tasks/[id]. */
+export interface UpdateTaskData {
+  title?: string;
+  description?: string | null;
+  column?: string;
+  priority?: string;
+  dueDate?: string | null;
+  assigneeId?: string;
+}
+
 export interface CreateMeetingData {
   title: string;
   date: string;
@@ -60,11 +70,17 @@ export interface TaskContextValue {
   teamMembers: Accessor<TaskAssignee[]>;
   filter: Accessor<string>;
   setFilter: Setter<string>;
+  /** The signed-in user's id, used to recognize "my own" tasks. */
+  currentUserId: Accessor<string | null>;
+  /** Owner or admin -- may edit, move, or delete any task on the board. */
+  canManageTasks: Accessor<boolean>;
+  /** Whether the signed-in user may edit, move, or delete the given task. */
+  canEditTask: (task: Task) => boolean;
   fetchTasks: () => Promise<void>;
   fetchMeetings: () => Promise<void>;
   fetchTeamMembers: () => Promise<void>;
   addTask: (data: CreateTaskData) => Promise<Task | null>;
-  updateTask: (taskId: string, data: Partial<Task>) => Promise<void>;
+  updateTask: (taskId: string, data: UpdateTaskData) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   moveTask: (
     taskId: string,

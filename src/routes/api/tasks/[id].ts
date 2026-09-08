@@ -1,6 +1,47 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "~/db/prisma";
+import { canManageTeam, getBusinessContext } from "~/lib/business-context";
 import { getSessionFromHeaders } from "~/lib/server-auth";
+
+/** Owner/admins may modify any task; members only tasks assigned to them. */
+async function getEditableTask(event: APIEvent, taskId: string) {
+  const session = await getSessionFromHeaders(event.request.headers);
+  if (!session) {
+    return { error: Response.json({ error: "Unauthorized" }, { status: 401 }) };
+  }
+
+  const ctx = await getBusinessContext(session.user.id);
+  if (!ctx) {
+    return {
+      error: Response.json({ error: "No business found" }, { status: 404 }),
+    };
+  }
+
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { businessId: true, assigneeId: true },
+  });
+
+  if (!task || task.businessId !== ctx.businessId) {
+    return {
+      error: Response.json({ error: "Task not found" }, { status: 404 }),
+    };
+  }
+
+  if (!canManageTeam(ctx) && task.assigneeId !== ctx.userId) {
+    return {
+      error: Response.json(
+        {
+          error:
+            "Only the assignee, an admin, or the owner can modify this task",
+        },
+        { status: 403 },
+      ),
+    };
+  }
+
+  return { ctx };
+}
 
 export async function GET(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -23,12 +64,11 @@ export async function GET(event: APIEvent) {
     return Response.json({ error: "Task not found" }, { status: 404 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { businessId: true },
-  });
+  // getBusinessContext also resolves businesses for owners whose `businessId`
+  // column is stale/NULL -- see the note in lib/business-context.ts.
+  const ctx = await getBusinessContext(session.user.id);
 
-  if (!user?.businessId || task.businessId !== user.businessId) {
+  if (!ctx || task.businessId !== ctx.businessId) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -36,30 +76,11 @@ export async function GET(event: APIEvent) {
 }
 
 export async function PATCH(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const taskId = event.params.id;
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { businessId: true },
-  });
-
-  if (!user?.businessId) {
-    return Response.json({ error: "No business found" }, { status: 404 });
-  }
-
-  const existing = await prisma.task.findUnique({
-    where: { id: taskId },
-    select: { businessId: true },
-  });
-
-  if (!existing || existing.businessId !== user.businessId) {
-    return Response.json({ error: "Task not found" }, { status: 404 });
-  }
+  const guard = await getEditableTask(event, taskId);
+  if (guard.error) return guard.error;
+  const ctx = guard.ctx;
 
   try {
     const body = await event.request.json();
@@ -91,7 +112,7 @@ export async function PATCH(event: APIEvent) {
     if (typeof assigneeId === "string") {
       // Must be a member of this business -- see the note in tasks/index.ts.
       const assignee = await prisma.user.findFirst({
-        where: { id: assigneeId, businessId: user.businessId },
+        where: { id: assigneeId, businessId: ctx.businessId },
         select: { id: true },
       });
 
@@ -122,30 +143,10 @@ export async function PATCH(event: APIEvent) {
 }
 
 export async function DELETE(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const taskId = event.params.id;
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { businessId: true },
-  });
-
-  if (!user?.businessId) {
-    return Response.json({ error: "No business found" }, { status: 404 });
-  }
-
-  const existing = await prisma.task.findUnique({
-    where: { id: taskId },
-    select: { businessId: true },
-  });
-
-  if (!existing || existing.businessId !== user.businessId) {
-    return Response.json({ error: "Task not found" }, { status: 404 });
-  }
+  const guard = await getEditableTask(event, taskId);
+  if (guard.error) return guard.error;
 
   await prisma.task.delete({ where: { id: taskId } });
 

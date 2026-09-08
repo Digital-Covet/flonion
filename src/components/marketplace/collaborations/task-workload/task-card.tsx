@@ -5,6 +5,7 @@ import {
   CheckCircle,
   Clock,
   GripVertical,
+  Pencil,
   Trash2,
 } from "lucide-solid";
 import { createSignal, Show } from "solid-js";
@@ -17,12 +18,16 @@ interface TaskCardProps {
   onDragStart?: (e: DragEvent, task: Task) => void;
   onDragEnd?: (e: DragEvent, task: Task) => void;
   onDelete?: (taskId: string) => Promise<void> | void;
+  onEdit?: (task: Task) => void;
 }
 
 export default function TaskCard(props: TaskCardProps) {
-  const { deleteTask } = useTaskContext();
+  const { deleteTask, canEditTask } = useTaskContext();
   const [isDragging, setIsDragging] = createSignal(false);
   const [isDeleting, setIsDeleting] = createSignal(false);
+  // Owner/admins may modify any task; members only tasks assigned to them.
+  // The server enforces the same rule -- this only hides the affordances.
+  const canEdit = () => canEditTask(props.task);
   const isDone = () => props.task.column === "done";
   const isWaiting = () => props.task.column === "waiting";
   const hasProgress = () => props.task.column === "in_progress";
@@ -80,7 +85,7 @@ export default function TaskCard(props: TaskCardProps) {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop has no keyboard path yet; a role here would advertise an interaction that does not exist
     <div
-      draggable="true"
+      draggable={canEdit() ? "true" : "false"}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       class={`bg-card rounded p-4 shadow-sm group cursor-grab active:cursor-grabbing border transition-all duration-150 ${
@@ -108,25 +113,49 @@ export default function TaskCard(props: TaskCardProps) {
           </span>
         </Show>
         <div class="flex items-center gap-1">
-          <Tooltip.Root>
-            <Tooltip.Trigger
-              type="button"
-              onClick={handleDelete}
-              onMouseDown={(e) => e.stopPropagation()}
-              disabled={isDeleting()}
-              aria-label="Delete task"
-              class="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1 rounded transition-all opacity-60 md:opacity-0 md:group-hover:opacity-100 cursor-pointer disabled:opacity-50"
-            >
-              <Trash2 size={14} />
-            </Tooltip.Trigger>
-            <Portal>
-              <Tooltip.Positioner>
-                <Tooltip.Content class="bg-foreground text-background text-xs px-2 py-1 rounded shadow-lg z-50">
-                  Delete task
-                </Tooltip.Content>
-              </Tooltip.Positioner>
-            </Portal>
-          </Tooltip.Root>
+          <Show when={canEdit()}>
+            <Tooltip.Root>
+              <Tooltip.Trigger
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onEdit?.(props.task);
+                }}
+                aria-label="Edit task"
+                class="text-muted-foreground hover:text-primary hover:bg-primary/10 p-1 rounded transition-all opacity-60 md:opacity-0 md:group-hover:opacity-100 cursor-pointer"
+              >
+                <Pencil size={14} />
+              </Tooltip.Trigger>
+              <Portal>
+                <Tooltip.Positioner>
+                  <Tooltip.Content class="bg-foreground text-background text-xs px-2 py-1 rounded shadow-lg z-50">
+                    Edit task
+                  </Tooltip.Content>
+                </Tooltip.Positioner>
+              </Portal>
+            </Tooltip.Root>
+          </Show>
+          <Show when={canEdit()}>
+            <Tooltip.Root>
+              <Tooltip.Trigger
+                type="button"
+                onClick={handleDelete}
+                onMouseDown={(e) => e.stopPropagation()}
+                disabled={isDeleting()}
+                aria-label="Delete task"
+                class="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1 rounded transition-all opacity-60 md:opacity-0 md:group-hover:opacity-100 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 size={14} />
+              </Tooltip.Trigger>
+              <Portal>
+                <Tooltip.Positioner>
+                  <Tooltip.Content class="bg-foreground text-background text-xs px-2 py-1 rounded shadow-lg z-50">
+                    Delete task
+                  </Tooltip.Content>
+                </Tooltip.Positioner>
+              </Portal>
+            </Tooltip.Root>
+          </Show>
           <GripVertical
             size={14}
             class="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
