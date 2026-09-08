@@ -26,18 +26,25 @@ export async function GET(event: APIEvent) {
     return new Response("Invalid action", { status: 400 });
   }
 
-  // Allow authorization via valid HMAC signature OR active session.
-  let authorized = false;
+  // Allow authorization via valid HMAC signature OR active session (verified
+  // against the meeting owner after it is fetched). A present-but-invalid
+  // `sig` must NOT bypass the ownership check.
+  let hmacAuthorized = false;
   if (sig) {
-    authorized = verifySignature(`${id}:${action}`, sig, "meeting-decision");
+    hmacAuthorized = verifySignature(
+      `${id}:${action}`,
+      sig,
+      "meeting-decision",
+    );
   }
-  if (!authorized) {
-    const session = await getSessionFromHeaders(event.request.headers);
+
+  let session: Awaited<ReturnType<typeof getSessionFromHeaders>> = null;
+  if (!hmacAuthorized) {
+    session = await getSessionFromHeaders(event.request.headers);
     if (!session) {
       return new Response("Unauthorized", { status: 401 });
     }
-    // Session-based auth will be verified after fetching the meeting.
-    authorized = true;
+    // Session-based auth is verified against the meeting owner below.
   }
 
   const meeting = await prisma.meetingRequest.findUnique({
@@ -68,9 +75,8 @@ export async function GET(event: APIEvent) {
     return new Response("Meeting not found", { status: 404 });
   }
 
-  // If authorized via session (not HMAC), verify ownership.
-  if (!sig) {
-    const session = await getSessionFromHeaders(event.request.headers);
+  // If authorized via session (not a valid HMAC), verify ownership.
+  if (!hmacAuthorized) {
     if (!session || meeting.business.userId !== session.user.id) {
       return new Response("Forbidden", { status: 403 });
     }
