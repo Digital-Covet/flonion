@@ -122,12 +122,28 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
           drawFooter();
         };
         logoImg.onerror = () => {
-          drawTextOnly(ctx, canvasWidth, canvasHeight, qrSize, qrX, qrY, instructionText());
+          drawTextOnly(
+            ctx,
+            canvasWidth,
+            canvasHeight,
+            qrSize,
+            qrX,
+            qrY,
+            instructionText(),
+          );
           drawFooter();
         };
         logoImg.src = props.logo;
       } else {
-        drawTextOnly(ctx, canvasWidth, canvasHeight, qrSize, qrX, qrY, instructionText());
+        drawTextOnly(
+          ctx,
+          canvasWidth,
+          canvasHeight,
+          qrSize,
+          qrX,
+          qrY,
+          instructionText(),
+        );
         drawFooter();
       }
     };
