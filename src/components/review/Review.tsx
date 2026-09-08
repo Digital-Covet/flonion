@@ -68,18 +68,38 @@ function mapGoogleReviewToReview(googleReview: GoogleReview): Review {
   };
 }
 
+/**
+ * Whether the owner's Google account is linked -- a question about the stored
+ * grant, deliberately independent of whether the Business Profile API is
+ * currently answering. Inferring it from a reviews/locations fetch meant a
+ * quota error rendered as "not connected" and prompted a pointless reconnect.
+ */
+async function fetchConnected(): Promise<boolean> {
+  if (isServer) return false;
+  try {
+    const res = await fetch("/api/google/status");
+    if (!res.ok) return false;
+    const { connected } = await res.json();
+    return Boolean(connected);
+  } catch {
+    return false;
+  }
+}
+
 async function fetchReviews(): Promise<{
   reviews: Review[];
   connected: boolean;
 }> {
   if (isServer) return { reviews: [], connected: false };
 
+  const connected = await fetchConnected();
+
   try {
     const locationsRes = await fetch("/api/google/locations");
     if (locationsRes.status === 401) return { reviews: [], connected: false };
 
     const locationsData = await locationsRes.json();
-    if (locationsData.error) return { reviews: [], connected: false };
+    if (locationsData.error) return { reviews: [], connected };
 
     const allReviews: Review[] = [];
 
@@ -100,9 +120,9 @@ async function fetchReviews(): Promise<{
       }
     }
 
-    return { reviews: allReviews, connected: true };
+    return { reviews: allReviews, connected };
   } catch {
-    return { reviews: [], connected: false };
+    return { reviews: [], connected };
   }
 }
 

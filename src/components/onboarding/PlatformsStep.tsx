@@ -13,6 +13,20 @@ export const PlatformsStep: Component<PlatformsStepProps> = (props) => {
   const [connected, setConnected] = createSignal(false);
   const [connecting, setConnecting] = createSignal(false);
 
+  // The `?connected=true` hand-off from the OAuth callback only survives that
+  // one page load, so ask the server for the real state as well -- otherwise an
+  // owner who is already connected is shown the Connect button again.
+  const checkConnection = async () => {
+    try {
+      const res = await fetch("/api/google/status");
+      if (!res.ok) return;
+      const { connected: isConnected } = await res.json();
+      if (isConnected) setConnected(true);
+    } catch {
+      // Leave the current state alone.
+    }
+  };
+
   onMount(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -20,6 +34,7 @@ export const PlatformsStep: Component<PlatformsStepProps> = (props) => {
       setConnected(true);
       window.history.replaceState({}, "", window.location.pathname);
     }
+    checkConnection();
   });
 
   const handleConnect = () => {

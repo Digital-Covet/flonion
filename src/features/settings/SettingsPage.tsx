@@ -75,7 +75,33 @@ export function SettingsPage() {
   const [disconnectModalOpen, setDisconnectModalOpen] = createSignal(false);
   const [disconnecting, setDisconnecting] = createSignal(false);
 
+  /**
+   * Connection state comes from the stored Google grant, not from whether the
+   * Business Profile API happens to answer. Those are different questions: a
+   * project without Business Profile API quota returns a permanent 429, which
+   * previously made a connected owner look disconnected on every visit.
+   */
   const checkConnection = async () => {
+    try {
+      const res = await fetch("/api/google/status");
+      if (res.ok) {
+        const { connected: isConnected } = await res.json();
+        setConnected(Boolean(isConnected));
+        if (isConnected) await loadLocations();
+        return;
+      }
+      if (res.status === 401) return; // signed out
+    } catch {
+      // fall through to the legacy probe below
+    }
+
+    // The status endpoint is unavailable (older build, route not registered
+    // yet). Fall back to inferring from the locations call so this is never
+    // worse than the previous behaviour.
+    await loadLocations();
+  };
+
+  const loadLocations = async () => {
     try {
       setLocationsError("");
       setLocationsErrorHint("");
@@ -107,7 +133,7 @@ export function SettingsPage() {
         setLocations(allLocations);
       }
     } catch {
-      // Not connected or error -- stay disconnected
+      // Leave the locations list empty; connection state is tracked separately.
     }
   };
 
