@@ -70,7 +70,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
 
     const canvasWidth = DOWNLOAD_WIDTH;
     const canvasHeight = DOWNLOAD_HEIGHT;
-    const qrSize = 196;
+    const qrSize = 350;
     const canvas = document.createElement("canvas");
     canvas.width = canvasWidth * DOWNLOAD_SCALE;
     canvas.height = canvasHeight * DOWNLOAD_SCALE;
@@ -93,7 +93,11 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
 
       const qrX = (canvasWidth - qrSize) / 2;
       const qrY = 40;
+      // Nearest-neighbour keeps module edges hard when the QR bitmap the
+      // library produces is not an exact multiple of the drawn size.
+      ctx.imageSmoothingEnabled = false;
       ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+      ctx.imageSmoothingEnabled = true;
 
       const drawFooter = () => {
         const footer = new Image();
