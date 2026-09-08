@@ -15,6 +15,9 @@ interface QRCodeDisplayProps {
 
 const QR_SIZE = 160;
 const CANVAS_SCALE = 2;
+const DOWNLOAD_WIDTH = 420;
+const DOWNLOAD_HEIGHT = 595;
+const DOWNLOAD_SCALE = 3;
 const QR_FOOTER_SRC = "/qr_footer.png";
 
 function getQrUrl(
@@ -65,17 +68,20 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
     const url = getQrUrl(props.businessUsername, props.businessId, props.url);
     if (!url) return;
 
-    const canvasWidth = 420;
-    const canvasHeight = 595;
+    const canvasWidth = DOWNLOAD_WIDTH;
+    const canvasHeight = DOWNLOAD_HEIGHT;
     const qrSize = 196;
     const canvas = document.createElement("canvas");
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
+    canvas.width = canvasWidth * DOWNLOAD_SCALE;
+    canvas.height = canvasHeight * DOWNLOAD_SCALE;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Draw in base units; the transform rasterizes everything at DOWNLOAD_SCALE.
+    ctx.scale(DOWNLOAD_SCALE, DOWNLOAD_SCALE);
+
     const qrDataUrl = await QRCode.toDataURL(url, {
-      width: qrSize,
+      width: qrSize * DOWNLOAD_SCALE,
       margin: 2,
       errorCorrectionLevel: "H",
       color: { dark: "#1a1a2e", light: "#ffffff" },
