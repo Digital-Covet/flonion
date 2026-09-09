@@ -213,7 +213,7 @@ export const pricingTiers: PricingTier[] = [
       "Email support",
     ],
     cta: "Get Started Free",
-    ctaHref: "/signup",
+    ctaHref: "https://app.flonion.com/signup",
   },
   {
     name: "Business",

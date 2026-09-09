@@ -59,14 +59,14 @@ export default function MobileMenu(props: MobileMenuProps) {
             <div class="mt-auto flex flex-col gap-4 px-4 pb-10">
               <A
                 class="rounded-lg border border-primary py-4 text-center font-bold text-primary"
-                href="/login"
+                href="https://app.flonion.com/login"
                 onClick={props.onClose}
               >
                 Login
               </A>
               <A
                 class="rounded-lg bg-primary py-4 text-center font-bold text-primary-foreground shadow-md"
-                href="/signup"
+                href="https://app.flonion.com/signup"
                 onClick={props.onClose}
               >
                 Get Started

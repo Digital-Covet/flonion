@@ -51,7 +51,7 @@ export default function HeroSection(props: HeroSectionProps) {
           <div class="flex flex-col gap-2 sm:flex-row">
             <A
               class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3.5 text-sm font-semibold text-primary-foreground shadow-md transition-all duration-200 hover:bg-primary-hover hover:scale-[1.02] hover:-translate-y-0.5 active:scale-[0.98]"
-              href="/signup"
+              href="https://app.flonion.com/signup"
             >
               Get Started Free
               <ArrowRight size={20} aria-hidden="true" />
@@ -174,11 +174,10 @@ export default function HeroSection(props: HeroSectionProps) {
             <div class="flex h-20 items-end gap-2.5">
               {[30, 45, 60, 50, 85].map((height, i) => (
                 <div
-                  class={`w-5 rounded-t transition-colors hover:bg-primary ${
-                    i === 4
+                  class={`w-5 rounded-t transition-colors hover:bg-primary ${i === 4
                       ? "bg-primary shadow-[0_0_10px_rgba(15,118,110,0.4)]"
                       : "bg-slate-300"
-                  }`}
+                    }`}
                   style={{ height: `${height}%` }}
                 />
               ))}
