@@ -13,30 +13,35 @@ datasource db {
 }
 
 model User {
-  id               String      @id
-  name             String
-  email            String
-  emailVerified    Boolean     @default(false)
-  image            String?
-  role             String      @default("member")
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  twoFactorEnabled    Boolean?    @default(false)
-  onboardingCompleted Boolean     @default(false)
-  sessions            Session[]
-  accounts         Account[]
-  twofactors       TwoFactor[]
-  business         Business?   @relation("BusinessOwner")
-  businessId       String?
-  team             Business?   @relation("BusinessMember", fields: [businessId], references: [id], onDelete: SetNull)
-  sharedReviews    SharedReview[]
-  feedback         Feedback[]
-  googleToken      GoogleToken?
-  meetingRequests  MeetingRequest[]
-  assignedTasks    Task[]
-  sentInvitations  Invitation[] @relation("InvitationSender")
-  joinRequests         JoinRequest[] @relation("JoinRequestRequester")
-  reviewedJoinRequests JoinRequest[] @relation("JoinRequestReviewer")
+  id                   String           @id
+  name                 String
+  email                String
+  emailVerified        Boolean          @default(false)
+  image                String?
+  role                 String           @default("member")
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  twoFactorEnabled     Boolean?         @default(false)
+  onboardingCompleted  Boolean          @default(false)
+  /// Suspension state, written by the operator console and enforced by
+  /// better-auth's `admin` plugin. `banExpires` NULL means indefinite.
+  banned               Boolean?         @default(false)
+  banReason            String?
+  banExpires           DateTime?
+  sessions             Session[]
+  accounts             Account[]
+  twofactors           TwoFactor[]
+  business             Business?        @relation("BusinessOwner")
+  businessId           String?
+  team                 Business?        @relation("BusinessMember", fields: [businessId], references: [id], onDelete: SetNull)
+  sharedReviews        SharedReview[]
+  feedback             Feedback[]
+  googleToken          GoogleToken?
+  meetingRequests      MeetingRequest[]
+  assignedTasks        Task[]
+  sentInvitations      Invitation[]     @relation("InvitationSender")
+  joinRequests         JoinRequest[]    @relation("JoinRequestRequester")
+  reviewedJoinRequests JoinRequest[]    @relation("JoinRequestReviewer")
 
   @@unique([email])
   @@index([businessId])
@@ -60,44 +65,48 @@ model GoogleToken {
 }
 
 model Business {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation("BusinessOwner", fields: [userId], references: [id], onDelete: Cascade)
-  placeId    String?
-  reviewLink  String?
-  reviewLinks Json?
-  logo        String?
-  name      String
-  username  String?  @unique
-  phone     String?
-  address   String?
-  sector    String?
-  keywords  String?
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation("BusinessOwner", fields: [userId], references: [id], onDelete: Cascade)
+  placeId         String?
+  reviewLink      String?
+  reviewLinks     Json?
+  logo            String?
+  name            String
+  username        String?   @unique
+  phone           String?
+  address         String?
+  sector          String?
+  keywords        String?
   /// Owner-written blurb shown on the marketplace card.
-  description String?
+  description     String?
   /// Average rating cached from the Google Business Profile API.
-  rating      Float?
+  rating          Float?
   /// Total review count cached from the Google Business Profile API.
-  reviewCount Int?
+  reviewCount     Int?
+  /// When rating/reviewCount were last refreshed from Google. NULL means never,
+  /// or refreshed before this column existed. Without it staleness is unknowable
+  /// and every consumer has to hedge in the UI instead of stating a fact.
+  ratingUpdatedAt DateTime?
   /// Number of QR code scans for this business.
-  qrScanCount Int      @default(0)
+  qrScanCount     Int       @default(0)
 
   /// Schedule settings (all times in IST / Asia/Kolkata).
   /// Comma-separated day-of-week numbers: 0=Sun, 1=Mon, ..., 6=Sat.
-  workingDays      String  @default("1,2,3,4,5")
-  workingStartTime String  @default("09:00")
-  workingEndTime   String  @default("18:00")
-  bookingStartTime String  @default("14:00")
-  bookingEndTime   String  @default("17:00")
-  slotDuration     Int     @default(30)
-  timezone         String  @default("Asia/Kolkata")
+  workingDays      String @default("1,2,3,4,5")
+  workingStartTime String @default("09:00")
+  workingEndTime   String @default("18:00")
+  bookingStartTime String @default("14:00")
+  bookingEndTime   String @default("17:00")
+  slotDuration     Int    @default(30)
+  timezone         String @default("Asia/Kolkata")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   availabilitySlots AvailabilitySlot[]
   meetingRequests   MeetingRequest[]
-  teamMembers       User[]           @relation("BusinessMember")
+  teamMembers       User[]             @relation("BusinessMember")
   tasks             Task[]
   teamMeetings      TeamMeeting[]
   invitations       Invitation[]
@@ -106,6 +115,7 @@ model Business {
   projects          Project[]
   contacts          BusinessContact[]
   favoritePartners  FavoritePartner[]
+  sharedReviews     SharedReview[]
 
   @@index([sector])
   @@index([rating, createdAt])
@@ -132,22 +142,22 @@ model AvailabilitySlot {
 }
 
 model MeetingRequest {
-  id          String   @id @default(cuid())
-  slotId      String   @unique
+  id          String           @id @default(cuid())
+  slotId      String           @unique
   slot        AvailabilitySlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
   businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business    Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
   requesterId String?
-  requester   User?    @relation(fields: [requesterId], references: [id], onDelete: SetNull)
+  requester   User?            @relation(fields: [requesterId], references: [id], onDelete: SetNull)
   guestName   String?
   guestEmail  String?
   guestPhone  String?
-  status      String   @default("pending") // pending | accepted | rejected | cancelled
+  status      String           @default("pending") // pending | accepted | rejected | cancelled
   message     String?
   meetUri     String?
   meetSpaceId String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([businessId, status])
   @@index([requesterId])
@@ -155,15 +165,18 @@ model MeetingRequest {
 }
 
 model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id
+  expiresAt      DateTime
+  token          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Set when this session was created by an operator impersonating the user.
+  /// Drives the tenant-app banner and makes stopImpersonating possible.
+  impersonatedBy String?
 
   @@unique([token])
   @@index([userId])
@@ -218,49 +231,75 @@ model TwoFactor {
 }
 
 model SharedReview {
-  id           String   @id @default(cuid())
+  id           String           @id @default(cuid())
   text         String
   rating       Int
   reviewerName String?
   keywords     String?
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Denormalised at write time from the author's owned business or team.
+  ///
+  /// A review belongs to a person, and that person reaches a business through
+  /// either link -- never both. Resolving it at read time therefore costs a
+  /// two-step query on every list, filter and count. SetNull rather than
+  /// Cascade: deleting a business must not delete the reviews written about it.
+  businessId   String?
+  business     Business?        @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  /// visible | hidden | flagged
+  /// Written by the operator console. Without it, the only moderation verb
+  /// available on a review is deletion.
+  status       String           @default("visible")
+  /// Operator who hid or flagged it. Not a User FK -- operators are not tenants.
+  hiddenById   String?
+  hiddenAt     DateTime?
   analytics    ReviewAnalytics?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime         @default(now())
 
   @@index([userId])
+  @@index([businessId])
+  @@index([status])
   @@map("shared_review")
 }
 
 model ReviewAnalytics {
-  id          String   @id @default(cuid())
-  reviewId    String   @unique
-  review      SharedReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  visitCount     Int      @default(0)
-  reviewCount    Int      @default(0)
-  qrScanCount    Int      @default(0)
-  redirectCount  Int      @default(0)
-  aiCopyCount    Int      @default(0)
-  platformRedirects Json?  @default("{}")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String       @id @default(cuid())
+  reviewId          String       @unique
+  review            SharedReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  visitCount        Int          @default(0)
+  reviewCount       Int          @default(0)
+  qrScanCount       Int          @default(0)
+  redirectCount     Int          @default(0)
+  aiCopyCount       Int          @default(0)
+  platformRedirects Json?        @default("{}")
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   @@index([reviewId])
   @@map("review_analytics")
 }
 
 model Feedback {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  email     String
-  category  String
-  rating    Int
-  message   String
-  createdAt DateTime @default(now())
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  email        String
+  category     String
+  rating       Int
+  message      String
+  /// new | open | resolved | spam
+  /// Triage state for the operator console's support inbox.
+  status       String    @default("new")
+  /// Operator the thread is assigned to. An opaque id, not a User FK.
+  assignedTo   String?
+  resolvedAt   DateTime?
+  /// Internal note. Never shown to the person who submitted the feedback.
+  operatorNote String?
+  createdAt    DateTime  @default(now())
 
   @@index([userId])
+  @@index([status, createdAt])
   @@map("feedback")
 }
 
@@ -303,19 +342,19 @@ model TeamMeeting {
 }
 
 model Invitation {
-  id           String   @id @default(cuid())
-  email        String
-  businessId   String
-  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  role         String   @default("member")
-  invitedById  String
-  invitedBy    User     @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
-  token        String   @unique
+  id          String   @id @default(cuid())
+  email       String
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  role        String   @default("member")
+  invitedById String
+  invitedBy   User     @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+  token       String   @unique
   /// pending | accepted | declined | expired | cancelled
   /// `declined` is set when the invitee chooses to create their own business.
-  status       String   @default("pending")
-  expiresAt    DateTime
-  createdAt    DateTime @default(now())
+  status      String   @default("pending")
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
 
   @@index([email])
   @@index([businessId])
@@ -332,31 +371,31 @@ model Invitation {
 /// after a rejection. It also makes creation race-proof: a double-submit surfaces as
 /// P2002 instead of two live rows.
 model JoinRequest {
-  id            String    @id @default(cuid())
-  businessId    String
-  business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  userId        String
-  user          User      @relation("JoinRequestRequester", fields: [userId], references: [id], onDelete: Cascade)
+  id                         String    @id @default(cuid())
+  businessId                 String
+  business                   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId                     String
+  user                       User      @relation("JoinRequestRequester", fields: [userId], references: [id], onDelete: Cascade)
   /// NULL once resolved. See the note above.
-  pendingUserId String?   @unique
+  pendingUserId              String?   @unique
   /// Optional note from the requester. Trimmed to 300 chars by the API.
-  message       String?
+  message                    String?
   /// pending | approved | rejected | cancelled
   /// `cancelled` is written both when the joiner withdraws (reviewedById NULL) and
   /// when approval finds them already on another team.
-  status        String    @default("pending")
+  status                     String    @default("pending")
   /// Role granted at approval time. NULL until approved.
-  grantedRole   String?
+  grantedRole                String?
   /// The requester explicitly agreed that approving this may delete the empty
   /// business they own. Approval refuses to delete anything without it.
-  consentDeleteOwnedBusiness Boolean @default(false)
+  consentDeleteOwnedBusiness Boolean   @default(false)
   /// SetNull rather than Cascade: removing an admin must not erase the audit trail
   /// of the members they approved.
-  reviewedById  String?
-  reviewedBy    User?     @relation("JoinRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
-  reviewedAt    DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  reviewedById               String?
+  reviewedBy                 User?     @relation("JoinRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt                 DateTime?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
 
   @@index([businessId, status])
   @@index([userId, createdAt])
@@ -379,14 +418,14 @@ model Service {
 }
 
 model Project {
-  id          String   @id @default(cuid())
-  businessId  String
-  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  imageUrl    String
-  altText     String
-  position    Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  imageUrl   String
+  altText    String
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([businessId])
   @@map("project")
@@ -420,4 +459,71 @@ model FavoritePartner {
   @@index([userId])
   @@index([businessId])
   @@map("favorite_partner")
+}
+
+/// One row per LLM call, not per request.
+///
+/// A single AI request runs two sequential calls (sentiment, then draft or
+/// suggest), so one row per request would hide which stage burns the tokens and
+/// which one fails. The console groups by request when it needs to.
+///
+/// No foreign keys, deliberately: deleting a user must not erase the record of
+/// what their usage cost. Same reasoning as FavoritePartner.userId.
+model AiUsage {
+  id               String   @id @default(cuid())
+  /// NULL for suggest-review, which is a public endpoint. A NOT NULL column
+  /// here would make the ledger unwritable on exactly the endpoint most
+  /// exposed to abuse.
+  userId           String?
+  businessId       String?
+  /// draft-reply | suggest-review
+  endpoint         String
+  /// sentiment | draft | suggest
+  stage            String
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  /// Computed at write time from the pricing table, not derived at read time,
+  /// so a later price change cannot silently rewrite history.
+  costUsd          Decimal? @db.Decimal(12, 6)
+  latencyMs        Int
+  ok               Boolean  @default(true)
+  /// rate_limit | provider | parse | timeout
+  errorKind        String?
+  reviewId         String?
+  ip               String?
+  createdAt        DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([businessId, createdAt])
+  @@index([endpoint, createdAt])
+  @@map("ai_usage")
+}
+
+/// What an operator did, from the back-office console.
+///
+/// No foreign key to user: deleting a user must not erase the record of who
+/// deleted them. Written inside the same transaction as the mutation it
+/// describes, so a write cannot land unlogged.
+model AuditLog {
+  id         String   @id @default(cuid())
+  /// Opaque until the console has real accounts.
+  operatorId String
+  /// business.update | user.role.set | review.hide | user.impersonate | ...
+  action     String
+  /// business | user | shared_review | meeting_request | feedback | ...
+  entity     String
+  entityId   String
+  /// Changed fields only. Never secrets, never whole rows.
+  before     Json?
+  after      Json?
+  note       String?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([entity, entityId, createdAt])
+  @@index([operatorId, createdAt])
+  @@index([createdAt])
+  @@map("audit_log")
 }
