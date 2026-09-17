@@ -119,7 +119,7 @@ export function ChangePasswordCard(props: ChangePasswordCardProps) {
               setCurrentPassword((e.target as HTMLInputElement).value)
             }
             placeholder="Enter your current password"
-            class="h-10 w-full max-w-md rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            class="h-10 w-full max-w-md rounded-control border border-border bg-card px-4 text-base leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </Field.Root>
 
@@ -138,7 +138,7 @@ export function ChangePasswordCard(props: ChangePasswordCardProps) {
               setNewPassword((e.target as HTMLInputElement).value)
             }
             placeholder="Enter your new password"
-            class="h-10 w-full max-w-md rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            class="h-10 w-full max-w-md rounded-control border border-border bg-card px-4 text-base leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
           <Show when={newPassword()}>
             <div class="mt-1.5 flex items-center gap-2">
@@ -170,7 +170,7 @@ export function ChangePasswordCard(props: ChangePasswordCardProps) {
               setConfirmPassword((e.target as HTMLInputElement).value)
             }
             placeholder="Confirm your new password"
-            class="h-10 w-full max-w-md rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            class="h-10 w-full max-w-md rounded-control border border-border bg-card px-4 text-base leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
           <Show when={passwordsMismatch()}>
             <Field.ErrorText class="mt-1.5 block text-xs text-destructive">
@@ -184,14 +184,14 @@ export function ChangePasswordCard(props: ChangePasswordCardProps) {
         </Show>
 
         <Show when={success()}>
-          <p class="text-sm text-green-600">Password changed successfully.</p>
+          <p class="text-sm text-success">Password changed successfully.</p>
         </Show>
 
         <div class="flex justify-end pt-2">
           <button
             type="submit"
             disabled={loading()}
-            class="h-10 rounded-lg bg-primary px-6 text-sm font-medium leading-normal text-primary-foreground shadow-md transition-all hover:bg-primary/90 disabled:scale-95 disabled:opacity-70"
+            class="min-h-11 rounded-control bg-primary px-6 text-sm font-medium leading-normal text-primary-foreground shadow-md transition-all hover:bg-primary/90 disabled:scale-95 disabled:opacity-70"
           >
             {loading() ? "Updating..." : "Update Password"}
           </button>

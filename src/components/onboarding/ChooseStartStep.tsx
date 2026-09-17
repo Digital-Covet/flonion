@@ -9,7 +9,7 @@ interface ChooseStartStepProps {
 }
 
 const cardClass =
-  "group flex w-full items-start gap-4 rounded-lg border border-border bg-background p-4 text-left shadow-sm outline-none transition-all hover:border-primary hover:shadow-md focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/10";
+  "group flex w-full items-start gap-4 rounded-card border border-border bg-background p-4 text-left shadow-sm outline-none transition-all hover:border-primary hover:shadow-md focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/10";
 
 /**
  * The fork before onboarding commits someone to owning a business.

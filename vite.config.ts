@@ -13,6 +13,14 @@ export default defineConfig(({ command }) => ({
       "@generated": path.resolve(import.meta.dirname, "./generated"),
     },
   },
+  // The SolidStart dev error overlay imports these CommonJS packages; without
+  // pre-bundling, the browser gets the raw files and the ESM imports fail.
+  optimizeDeps: {
+    include: [
+      "@solidjs/start > source-map-js",
+      "@solidjs/start > error-stack-parser",
+    ],
+  },
   plugins: [
     solidStart({ middleware: "./src/middleware.ts" }),
     tailwindcss(),

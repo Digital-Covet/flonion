@@ -14,8 +14,7 @@ export interface FeatureItem {
   icon: JSX.Element;
   title: string;
   description: string;
-  mockup?: JSX.Element;
-  class?: string;
+  span?: boolean;
 }
 
 export interface TestimonialItem {
@@ -29,7 +28,7 @@ export interface TestimonialItem {
 export interface BusinessLogo {
   icon: JSX.Element;
   name: string;
-  color: string;
+  color?: string;
 }
 
 export interface StatItem {

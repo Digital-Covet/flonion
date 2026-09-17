@@ -1,6 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "~/db/prisma";
-import { APP_DOMAIN } from "~/lib/constants";
+import { meetingDecisionUrl } from "~/lib/meeting-decision";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 import { sendEmail } from "~/services/email";
 import { renderMeetingRequestEmail } from "~/services/email-templates";
@@ -183,6 +183,8 @@ export async function POST(event: APIEvent) {
     });
 
     try {
+      // Signed decision links work without a session (the GET handler shows a
+      // confirmation page; its POST verifies the signature and expiry).
       const { html, text } = renderMeetingRequestEmail({
         ownerName,
         requesterName,
@@ -191,8 +193,8 @@ export async function POST(event: APIEvent) {
         startTime: slot.startTime,
         endTime: slot.endTime,
         message: meeting.message ?? undefined,
-        acceptUrl: `${APP_DOMAIN}/api/marketplace/meetings/${meeting.id}?action=accept`,
-        rejectUrl: `${APP_DOMAIN}/api/marketplace/meetings/${meeting.id}?action=reject`,
+        acceptUrl: meetingDecisionUrl(meeting.id, "accept"),
+        rejectUrl: meetingDecisionUrl(meeting.id, "reject"),
       });
 
       await sendEmail({

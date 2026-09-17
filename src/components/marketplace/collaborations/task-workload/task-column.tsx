@@ -51,28 +51,36 @@ export default function TaskColumn(props: TaskColumnProps) {
 
   return (
     <Collapsible.Root
-      class={`flex flex-col bg-muted rounded-lg p-3 min-w-[280px] transition-all duration-200 ${
-        isDragOver() ? "ring-2 ring-primary/60 bg-muted/80" : ""
+      class={`flex w-full flex-col rounded-card bg-muted p-3 transition-colors duration-150 motion-reduce:transition-none lg:w-70 ${
+        isDragOver() ? "ring-2 ring-primary/60" : ""
       }`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div class="flex justify-between items-center mb-3 px-1">
-        <Collapsible.Trigger class="flex items-center gap-1 text-xs font-medium uppercase tracking-wider cursor-pointer hover:opacity-80 transition-opacity">
+      <div class="mb-3 flex items-center justify-between gap-2 px-1">
+        <Collapsible.Trigger
+          aria-label={`${props.title}, ${props.count} tasks`}
+          class="flex min-h-11 items-center gap-1.5 rounded-control text-xs font-medium tracking-wide uppercase transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
           <span class={props.headerColorClass}>
             {props.title}{" "}
-            <span class={`px-1.5 rounded ml-1 ${props.badgeBgClass}`}>
+            <span
+              class={`tnum ml-1 rounded-full px-1.5 py-0.5 ${props.badgeBgClass}`}
+            >
               {props.count}
             </span>
           </span>
-          <Collapsible.Indicator class="transition-transform duration-200 data-[state=open]:rotate-90">
-            <ChevronRight size={12} />
+          <Collapsible.Indicator class="transition-transform duration-150 motion-reduce:transition-none data-[state=open]:rotate-90">
+            <ChevronRight size={14} aria-hidden="true" />
           </Collapsible.Indicator>
         </Collapsible.Trigger>
         <Tooltip.Root>
-          <Tooltip.Trigger class="text-muted-foreground hover:text-primary">
-            <MoreHorizontal size={16} />
+          <Tooltip.Trigger
+            aria-label={`Options for ${props.title}`}
+            class="grid min-h-11 min-w-11 place-items-center rounded-control text-muted-foreground transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
+          >
+            <MoreHorizontal size={16} aria-hidden="true" />
           </Tooltip.Trigger>
           <Portal>
             <Tooltip.Positioner>
@@ -99,9 +107,9 @@ export default function TaskColumn(props: TaskColumnProps) {
         <button
           type="button"
           onClick={props.onAddTask}
-          class="mt-3 flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground py-2 border border-dashed border-border rounded hover:bg-card transition-colors w-full"
+          class="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-control border border-dashed border-control py-2.5 text-sm font-medium text-muted-foreground transition-colors duration-150 motion-reduce:transition-none hover:bg-card hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
-          <Plus size={16} /> Add Task
+          <Plus size={16} aria-hidden="true" /> Add Task
         </button>
       </Show>
     </Collapsible.Root>

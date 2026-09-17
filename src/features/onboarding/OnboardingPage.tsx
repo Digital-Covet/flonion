@@ -83,6 +83,61 @@ export default function OnboardingPage() {
 
   const [teamInvites, setTeamInvites] = createSignal<TeamInvite[]>([]);
 
+  /**
+   * Spec §6: draft persisted across refresh. Server (`GET /api/business`) wins
+   * when it has a business; otherwise the local draft rehydrates the form.
+   * Cleared on final completion (sendInvitesAndComplete).
+   */
+  const DRAFT_KEY = "flonion:onboarding-draft:v1";
+
+  const loadDraft = (): {
+    basics: BasicsData;
+    invites: TeamInvite[];
+  } | null => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as {
+        basics?: BasicsData;
+        invites?: TeamInvite[];
+      };
+      if (!parsed || typeof parsed !== "object" || !parsed.basics) return null;
+      return {
+        basics: { ...basicsData(), ...parsed.basics },
+        invites: Array.isArray(parsed.invites) ? parsed.invites : [],
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      // Storage unavailable (private mode) — draft simply won't persist.
+    }
+  };
+
+  // Debounced persist while in the create wizard (logo dataURLs included;
+  // quota errors are swallowed so typing never breaks).
+  createEffect(() => {
+    if (mode() !== "create") return;
+    const basics = basicsData();
+    const invites = teamInvites();
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          DRAFT_KEY,
+          JSON.stringify({ basics, invites, savedAt: Date.now() }),
+        );
+      } catch {
+        // Quota exceeded — keep the in-memory draft.
+      }
+    }, 400);
+    onCleanup(() => clearTimeout(timer));
+  });
+
   const updateStep = (step: number) => {
     setCurrentStep(step);
     setSearchParams({ step: String(step) });
@@ -152,6 +207,14 @@ export default function OnboardingPage() {
 
     // A ?step= deep link means they were already partway through the wizard.
     setMode(searchParams.step ? "create" : "choose");
+
+    // Rehydrate the persisted draft first; the server fetch below overwrites
+    // it only when a business already exists server-side.
+    const draft = loadDraft();
+    if (draft) {
+      setBasicsData(draft.basics);
+      setTeamInvites(draft.invites);
+    }
 
     fetch("/api/business")
       .then((res) => res.json())
@@ -442,6 +505,7 @@ export default function OnboardingPage() {
       return;
     }
 
+    clearDraft();
     navigate("/dashboard");
   };
 
@@ -524,7 +588,7 @@ export default function OnboardingPage() {
         />
 
         <section
-          class="relative z-10 flex w-full max-w-xl animate-fade-in-up flex-col gap-6 rounded-lg border border-border bg-card p-4 shadow-md sm:p-6"
+          class="e1-enter relative z-10 flex w-full max-w-xl flex-col gap-6 rounded-card border border-border bg-card p-4 shadow-md sm:p-6"
           aria-labelledby="onboarding-title"
         >
           <Show when={mode() === "create"}>
@@ -547,7 +611,7 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            <ProgressStepper currentStep={currentStep()} />
+            <ProgressStepper currentStep={currentStep()} onStep={updateStep} />
 
             <Show when={saveError()}>
               <p role="alert" class="text-sm text-destructive">
@@ -560,6 +624,7 @@ export default function OnboardingPage() {
                 data={basicsData()}
                 onChange={handleBasicsChange}
                 onContinue={handleBasicsContinue}
+                onBack={() => setMode("choose")}
               />
             </Show>
 
@@ -575,6 +640,7 @@ export default function OnboardingPage() {
                 data={basicsData()}
                 onComplete={handleComplete}
                 onBack={handleReviewBack}
+                onEdit={() => updateStep(1)}
                 saving={saving()}
               />
             </Show>
@@ -617,7 +683,7 @@ export default function OnboardingPage() {
               {/* Accepting can cost them an empty business they own. The
                   server refuses until this panel has named it. */}
               <Show when={confirmingDelete()}>
-                <div class="mt-2 flex flex-col items-center gap-3 rounded-lg border border-border bg-muted/40 p-4">
+                <div class="mt-2 flex flex-col items-center gap-3 rounded-card border border-border bg-muted/40 p-4">
                   <p class="text-sm text-muted-foreground">
                     You can only belong to one business.{" "}
                     <span class="font-medium text-foreground">
@@ -632,7 +698,7 @@ export default function OnboardingPage() {
                       type="button"
                       onClick={() => handleAcceptInvitation(true)}
                       disabled={inviteLoading()}
-                      class="px-6 py-2.5 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
+                      class="px-6 py-2.5 text-sm font-medium text-primary-foreground bg-primary rounded-control hover:bg-primary-hover transition-colors disabled:opacity-50"
                     >
                       {inviteLoading() ? "Joining..." : "Delete and join"}
                     </button>
@@ -640,7 +706,7 @@ export default function OnboardingPage() {
                       type="button"
                       onClick={() => setConfirmingDelete(false)}
                       disabled={inviteLoading()}
-                      class="px-6 py-2.5 text-sm font-medium text-muted-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
+                      class="px-6 py-2.5 text-sm font-medium text-muted-foreground bg-muted rounded-control hover:bg-muted/80 transition-colors disabled:opacity-50"
                     >
                       Go back
                     </button>
@@ -657,7 +723,7 @@ export default function OnboardingPage() {
                         type="button"
                         onClick={() => handleAcceptInvitation()}
                         disabled={inviteLoading()}
-                        class="px-6 py-2.5 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
+                        class="px-6 py-2.5 text-sm font-medium text-primary-foreground bg-primary rounded-control hover:bg-primary-hover transition-colors disabled:opacity-50"
                       >
                         {inviteLoading() ? "Accepting..." : "Accept Invitation"}
                       </button>
@@ -665,7 +731,7 @@ export default function OnboardingPage() {
                         type="button"
                         onClick={() => setConfirmingDecline(true)}
                         disabled={inviteLoading()}
-                        class="px-6 py-2.5 text-sm font-medium text-muted-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
+                        class="px-6 py-2.5 text-sm font-medium text-muted-foreground bg-muted rounded-control hover:bg-muted/80 transition-colors disabled:opacity-50"
                       >
                         Create My Own Business
                       </button>
@@ -673,7 +739,7 @@ export default function OnboardingPage() {
                   </Show>
                 }
               >
-                <div class="mt-2 flex flex-col items-center gap-3 rounded-lg border border-border bg-muted/40 p-4">
+                <div class="mt-2 flex flex-col items-center gap-3 rounded-card border border-border bg-muted/40 p-4">
                   <p class="text-sm text-muted-foreground">
                     If you create your own business, this account will{" "}
                     <span class="font-medium text-foreground">
@@ -687,7 +753,7 @@ export default function OnboardingPage() {
                       type="button"
                       onClick={handleDeclineInvitation}
                       disabled={inviteLoading()}
-                      class="px-6 py-2.5 text-sm font-medium text-muted-foreground bg-muted rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
+                      class="px-6 py-2.5 text-sm font-medium text-muted-foreground bg-muted rounded-control hover:bg-muted/80 transition-colors disabled:opacity-50"
                     >
                       {inviteLoading() ? "Declining..." : "Yes, create my own"}
                     </button>
@@ -695,7 +761,7 @@ export default function OnboardingPage() {
                       type="button"
                       onClick={() => setConfirmingDecline(false)}
                       disabled={inviteLoading()}
-                      class="px-6 py-2.5 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
+                      class="px-6 py-2.5 text-sm font-medium text-primary-foreground bg-primary rounded-control hover:bg-primary-hover transition-colors disabled:opacity-50"
                     >
                       Go back
                     </button>
@@ -787,7 +853,7 @@ export default function OnboardingPage() {
                 <button
                   type="button"
                   onClick={() => setMode("join-search")}
-                  class="rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
+                  class="rounded-control bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
                 >
                   Try another team
                 </button>
@@ -797,7 +863,7 @@ export default function OnboardingPage() {
                     setMode("create");
                     updateStep(1);
                   }}
-                  class="rounded-lg bg-muted px-6 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/80"
+                  class="rounded-control bg-muted px-6 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/80"
                 >
                   Set up my own business
                 </button>

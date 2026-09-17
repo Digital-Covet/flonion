@@ -17,7 +17,7 @@ interface CategoryChipsProps {
 export const CategoryChips: Component<CategoryChipsProps> = (props) => {
   return (
     <fieldset class="flex flex-col gap-2">
-      <legend class="text-sm font-semibold text-foreground">
+      <legend class="text-sm font-medium text-foreground">
         Business Category
       </legend>
       <div class="flex flex-wrap gap-2">
@@ -28,7 +28,7 @@ export const CategoryChips: Component<CategoryChipsProps> = (props) => {
             return (
               <button
                 type="button"
-                class="flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-semibold transition-colors"
+                class="flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors"
                 classList={{
                   "border-primary bg-primary text-primary-foreground":
                     isSelected(),

@@ -1,4 +1,5 @@
 import { Show } from "solid-js";
+import { ButtonLink } from "~/components/ui/button";
 import { Badge } from "./badge";
 import { Button } from "./button";
 import { MetaItem } from "./meta-item";
@@ -9,20 +10,24 @@ interface HeroSectionProps {
   description?: string | null;
   address?: string | null;
   sector?: string | null;
+  username?: string | null;
+  saved?: boolean;
+  saving?: boolean;
+  onSave?: () => void;
 }
 
 export const HeroSection = (props: HeroSectionProps) => (
-  <section class="glass-card rounded-xl p-6 relative overflow-hidden flex flex-col md:flex-row gap-4 items-start">
+  <section class="rounded-card border border-border bg-card p-6 relative overflow-hidden flex flex-col md:flex-row gap-4 items-start shadow-sm">
     <div
       class="absolute inset-0 z-0 opacity-10 bg-cover bg-center pointer-events-none"
       aria-hidden="true"
     />
 
-    <div class="z-10 w-24 h-24 md:w-32 md:h-32 rounded-lg bg-muted flex-shrink-0 border border-border overflow-hidden flex items-center justify-center">
+    <div class="z-10 w-24 h-24 md:w-32 md:h-32 rounded-card bg-muted flex-shrink-0 border border-border overflow-hidden flex items-center justify-center">
       <Show
         when={props.logo}
         fallback={
-          <span class="text-3xl md:text-4xl font-bold text-muted-foreground">
+          <span class="font-heading text-3xl md:text-4xl font-semibold text-muted-foreground">
             {props.name.charAt(0).toUpperCase()}
           </span>
         }
@@ -38,7 +43,7 @@ export const HeroSection = (props: HeroSectionProps) => (
     <div class="z-10 flex-1 flex flex-col justify-between h-full min-w-0">
       <div>
         <div class="flex items-center gap-3 mb-2 flex-wrap">
-          <h2 class="font-heading text-2xl md:text-3xl font-bold text-foreground">
+          <h2 class="font-heading text-2xl md:text-3xl font-semibold text-foreground">
             {props.name}
           </h2>
           <Badge>Verified</Badge>
@@ -59,8 +64,15 @@ export const HeroSection = (props: HeroSectionProps) => (
     </div>
 
     <div class="z-10 flex flex-col gap-3 w-full md:w-auto">
-      <Button variant="primary">Request Proposal</Button>
-      <Button variant="outline">Save Profile</Button>
+      {/* Primary contact CTA (spec §6): proposal request → booking page. */}
+      <Show when={props.username}>
+        <ButtonLink href={`/company/${props.username}/bookings`}>
+          Request Proposal
+        </ButtonLink>
+      </Show>
+      <Button variant="outline" onClick={props.onSave} disabled={props.saving}>
+        {props.saving ? "Saving…" : props.saved ? "Saved ✓" : "Save Profile"}
+      </Button>
     </div>
   </section>
 );

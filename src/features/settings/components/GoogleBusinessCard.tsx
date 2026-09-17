@@ -25,21 +25,21 @@ export function GoogleBusinessCard(props: GoogleBusinessCardProps) {
   const [showDetails, setShowDetails] = createSignal(false);
 
   return (
-    <div class="flex flex-col justify-between rounded-xl border border-border bg-card p-5 shadow-sm transition-all hover:border-border/80">
+    <div class="flex flex-col justify-between rounded-card border border-border bg-card p-5 shadow-sm transition-all hover:border-border/80">
       <div>
         {/* Header */}
         <div class="mb-4 flex items-start justify-between gap-3">
           <div class="flex items-center gap-3">
-            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#4285F4]/10 text-[#4285F4] shadow-xs">
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-control bg-[#4285F4]/10 text-[#4285F4] shadow-xs">
               <Store size={22} />
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <h4 class="text-base font-semibold text-foreground">
+                <h4 class="font-heading text-lg font-medium text-foreground">
                   Google Business Profile
                 </h4>
                 <Show when={props.connected}>
-                  <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                  <span class="inline-flex items-center gap-1 rounded-full bg-success-muted px-2 py-0.5 text-xs font-medium text-success">
                     <CheckCircle2 size={12} />
                     Connected
                   </span>
@@ -56,7 +56,7 @@ export function GoogleBusinessCard(props: GoogleBusinessCardProps) {
 
         {/* Error Notification */}
         <Show when={props.error}>
-          <div class="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-xs leading-4 text-destructive">
+          <div class="mb-4 rounded-card border border-destructive/20 bg-destructive-muted p-3 text-xs leading-4 text-destructive">
             <p class="font-medium">{props.error}</p>
             <Show when={props.errorHint}>
               <p class="mt-1 opacity-90">{props.errorHint}</p>
@@ -78,7 +78,7 @@ export function GoogleBusinessCard(props: GoogleBusinessCardProps) {
                 type="button"
                 onClick={props.onConnect}
                 disabled={props.connecting}
-                class="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 text-sm font-medium text-foreground transition-all hover:bg-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                class="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-border bg-background px-4 text-sm font-medium text-foreground transition-all hover:bg-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
               >
                 {props.connecting ? (
                   <>
@@ -114,7 +114,7 @@ export function GoogleBusinessCard(props: GoogleBusinessCardProps) {
                       props.onLocationSelect?.(idx);
                     }
                   }}
-                  class="h-9 w-full rounded-lg border border-border bg-background px-3 text-xs leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  class="min-h-11 w-full rounded-control border border-border bg-background px-3 text-sm leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
                   <option value="" disabled>
                     Choose a location...
@@ -142,9 +142,9 @@ export function GoogleBusinessCard(props: GoogleBusinessCardProps) {
                   value={props.placeId}
                   placeholder="ChIJaV_Z..."
                   onInput={props.onPlaceIdInput}
-                  class="mt-1 h-9 w-full rounded-lg border border-border bg-background px-3 text-xs transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono"
+                  class="mt-1 min-h-11 w-full rounded-control border border-border bg-background px-3 text-sm transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono"
                 />
-                <Field.HelperText class="mt-1 text-[11px] leading-4 text-muted-foreground/80">
+                <Field.HelperText class="mt-1 text-xs leading-4 text-muted-foreground/80">
                   Auto-populated from Google Business Profile. Editable for
                   manual overrides.
                 </Field.HelperText>
@@ -164,7 +164,7 @@ export function GoogleBusinessCard(props: GoogleBusinessCardProps) {
               </button>
 
               <Show when={showDetails()}>
-                <div class="mt-2 rounded-lg border border-border/70 bg-muted/40 p-3 text-xs text-muted-foreground space-y-1 font-mono">
+                <div class="mt-2 rounded-card border border-border/70 bg-muted/40 p-3 text-xs text-muted-foreground space-y-1 font-mono">
                   <p>Locations found: {props.locations?.length ?? 0}</p>
                   <p>Place ID: {props.placeId || "Not set"}</p>
                   <p>Status: Active Sync</p>

@@ -8,77 +8,93 @@ interface PhotoStatusCardProps {
   status: PhotoStatus;
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  Exterior: "bg-blue-500",
-  Interior: "bg-violet-500",
-  Products: "bg-amber-500",
-  Team: "bg-sky-500",
-};
-
+/* DS §2: bar colour is decorative — the count number beside it carries
+   meaning, so this never relies on hue alone. */
 function photoBarColor(count: number, max: number): string {
   const ratio = max > 0 ? count / max : 0;
-  if (ratio >= 0.7) return "bg-blue-500";
-  if (ratio >= 0.4) return "bg-amber-400";
-  return "bg-rose-400";
+  if (ratio >= 0.7) return "bg-success";
+  if (ratio >= 0.4) return "bg-warning";
+  return "bg-destructive";
 }
+
+const DOT: Record<string, string> = {
+  Exterior: "bg-secondary",
+  Interior: "bg-primary",
+  Products: "bg-warning",
+  Team: "bg-info",
+};
 
 const PhotoStatusCard: Component<PhotoStatusCardProps> = (props) => {
   const maxCount = () =>
     Math.max(...props.status.byCategory.map((c) => c.count), 1);
 
   return (
-    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm h-full">
-      <div class="mb-5 flex items-center gap-3">
-        <div class="flex size-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-          <Camera size={20} />
+    <div class="h-full rounded-card border border-border bg-card p-5 shadow-sm">
+      <div class="mb-4 flex items-center gap-3">
+        <div class="grid size-10 place-items-center rounded-control bg-positive-muted text-primary">
+          <Camera size={20} aria-hidden="true" />
         </div>
         <div>
-          <h3 class="text-lg font-bold text-slate-900">Photo Status</h3>
-          <p class="text-xs text-slate-500">
+          <h3 class="text-lg font-medium text-foreground">Photo status</h3>
+          <p class="tnum text-xs text-muted-foreground">
             {props.status.total} photos total
           </p>
         </div>
       </div>
 
-      <div class="space-y-3">
+      <ul class="grid gap-3">
         <For each={props.status.byCategory}>
           {(item) => (
-            <div>
+            <li>
               <div class="mb-1 flex items-center justify-between text-xs">
-                <span class="flex items-center gap-1.5 font-medium text-slate-700">
+                <span class="flex items-center gap-1.5 font-medium text-foreground">
                   <span
-                    class={`inline-block size-2 rounded-full ${CATEGORY_COLORS[item.category] ?? "bg-slate-400"}`}
+                    class={`inline-block size-2 rounded-full ${DOT[item.category] ?? "bg-control"}`}
+                    aria-hidden="true"
                   />
                   {item.category}
                 </span>
-                <span class="text-slate-500">{item.count}</span>
+                <span class="tnum text-muted-foreground">
+                  {item.count} photos
+                </span>
               </div>
-              <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+              <div
+                class="h-2 overflow-hidden rounded-full bg-muted"
+                role="img"
+                aria-label={`${item.category}: ${item.count} photos`}
+              >
                 <div
                   class={cn(
-                    "h-full rounded-full transition-all",
+                    "h-full rounded-full",
                     photoBarColor(item.count, maxCount()),
                   )}
                   style={{ width: `${(item.count / maxCount()) * 100}%` }}
                 />
               </div>
-            </div>
+            </li>
           )}
         </For>
-      </div>
+      </ul>
 
-      <div class="mt-5 border-t border-slate-100 pt-4">
-        <p class="text-xs text-slate-500">
+      <div class="mt-4 border-t border-border pt-3">
+        <p class="text-xs text-muted-foreground" aria-live="polite">
           Last added:{" "}
-          <span class="font-medium text-slate-700">
+          <time
+            dateTime={props.status.lastAdded}
+            class="tnum font-medium text-foreground"
+          >
             {props.status.lastAdded}
-          </span>
+          </time>
         </p>
       </div>
 
-      <div class="mt-4 flex items-start gap-2 rounded-xl bg-blue-50 p-3">
-        <Sparkles size={14} class="mt-0.5 shrink-0 text-blue-500" />
-        <p class="text-xs leading-relaxed text-blue-700">
+      <div class="mt-3 flex items-start gap-2 rounded-card bg-positive-muted p-3">
+        <Sparkles
+          size={14}
+          class="mt-0.5 shrink-0 text-primary"
+          aria-hidden="true"
+        />
+        <p class="text-xs leading-relaxed text-primary">
           {props.status.recommendation}
         </p>
       </div>

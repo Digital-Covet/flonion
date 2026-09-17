@@ -1,9 +1,12 @@
-import { type Component, For } from "solid-js";
+import { type Component, For, Show } from "solid-js";
 
-const steps = ["Basics", "Platforms", "Review", "Team"] as const;
+// Spec §6 labels: Basics → Platforms → Review settings → Invite.
+const steps = ["Basics", "Platforms", "Review settings", "Invite"] as const;
 
 interface ProgressStepperProps {
   currentStep: number;
+  /** Back-navigation to an already-visited step; forward jumps disallowed. */
+  onStep?: (step: number) => void;
 }
 
 export const ProgressStepper: Component<ProgressStepperProps> = (props) => {
@@ -31,25 +34,44 @@ export const ProgressStepper: Component<ProgressStepperProps> = (props) => {
             const step = index() + 1;
             const reached = () => props.currentStep >= step;
             const active = () => props.currentStep === step;
+            // Only visited steps are clickable — no skipping ahead past
+            // unsaved work; the current node stays a status indicator.
+            const clickable = () =>
+              Boolean(props.onStep) && step < props.currentStep;
 
             return (
               <li
                 class="flex min-w-16 flex-col items-center gap-2"
                 aria-current={active() ? "step" : undefined}
               >
-                <span
-                  class="flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-semibold transition-colors duration-300"
-                  classList={{
-                    "border-primary bg-primary text-primary-foreground":
-                      reached(),
-                    "border-border bg-muted text-muted-foreground": !reached(),
-                    "ring-4 ring-primary/20": active(),
-                  }}
+                <Show
+                  when={clickable()}
+                  fallback={
+                    <span
+                      class="flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-medium transition-colors duration-300"
+                      classList={{
+                        "border-primary bg-primary text-primary-foreground":
+                          reached(),
+                        "border-border bg-muted text-muted-foreground":
+                          !reached(),
+                        "ring-4 ring-primary/20": active(),
+                      }}
+                    >
+                      {step}
+                    </span>
+                  }
                 >
-                  {step}
-                </span>
+                  <button
+                    type="button"
+                    onClick={() => props.onStep!(step)}
+                    aria-label={`Go back to step ${step}: ${label}`}
+                    class="flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-primary text-sm font-medium text-primary-foreground transition-opacity duration-[180ms] hover:opacity-80 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  >
+                    {step}
+                  </button>
+                </Show>
                 <span
-                  class="font-heading text-xs font-semibold transition-colors duration-300"
+                  class="max-w-20 text-center text-xs font-medium transition-colors duration-300"
                   classList={{
                     "text-primary": active(),
                     "text-muted-foreground": !active(),

@@ -10,16 +10,23 @@ interface NavbarProps {
 
 export default function Navbar(props: NavbarProps) {
   return (
-    <nav class="fixed top-0 z-50 w-full border-b border-border bg-card/80 shadow-sm backdrop-blur-md">
-      <div class="w-full flex items-center justify-between px-4 py-4 md:px-16">
-        <A class="flex items-center" href="/" aria-label="Flonion home">
-          <InlineCombinationMark class="h-4" />
+    <nav
+      class="fixed top-0 z-50 w-full border-b border-border bg-background/95 shadow-sm"
+      aria-label="Primary"
+    >
+      <div class="mx-auto flex w-full max-w-[1120px] items-center justify-between px-4 py-3 md:px-8">
+        <A
+          class="flex min-h-11 items-center"
+          href="/"
+          aria-label="Flonion home"
+        >
+          <InlineCombinationMark class="h-5" />
         </A>
 
         <div class="hidden items-center gap-6 md:flex">
           {navLinks.map((link) => (
             <a
-              class="text-sm font-semibold tracking-wide text-muted-foreground transition-colors duration-200 hover:text-primary"
+              class="inline-flex min-h-11 items-center text-sm font-medium text-muted-foreground transition-opacity duration-[180ms] hover:text-primary motion-reduce:transition-none"
               href={link.href}
             >
               {link.label}
@@ -29,26 +36,27 @@ export default function Navbar(props: NavbarProps) {
 
         <div class="flex items-center gap-2">
           <button
-            class="p-2 text-primary md:hidden"
+            class="grid size-11 place-items-center rounded-lg text-primary md:hidden"
             type="button"
-            aria-label="Open menu"
+            aria-label={props.mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={props.mobileMenuOpen}
             onClick={props.onToggleMenu}
           >
-            <Menu size={32} aria-hidden="true" />
+            <Menu size={24} aria-hidden="true" />
           </button>
 
           <A
-            class="hidden px-4 py-2 text-sm font-semibold text-primary transition-colors duration-200 hover:text-primary-hover md:inline-block"
-            href="https://app.flonion.com/login"
+            class="hidden min-h-11 items-center px-4 py-2 text-sm font-medium text-primary transition-opacity duration-[180ms] hover:text-primary-hover md:inline-flex motion-reduce:transition-none"
+            href="/login"
           >
-            Login
+            Log in
           </A>
 
           <A
-            class="hidden rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors duration-200 hover:bg-primary-hover hover:scale-[1.02] hover:-translate-y-0.5 active:scale-[0.98] md:inline-block"
-            href="https://app.flonion.com/signup"
+            class="hidden min-h-11 items-center rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-opacity duration-[180ms] hover:bg-primary-hover md:inline-flex motion-reduce:transition-none"
+            href="/signup"
           >
-            Get Started
+            Get started
           </A>
         </div>
       </div>

@@ -13,17 +13,18 @@ export default function PricingPage() {
   const closeMenu = () => setMobileMenuOpen(false);
 
   return (
-    <div class="bg-bg text-fg antialiased overflow-x-hidden">
-      <div
-        id="scroll-bg-overlay"
-        class="scroll-color-wash pointer-events-none fixed inset-0 z-0 opacity-0"
-        aria-hidden="true"
-      />
+    <div class="overflow-x-hidden bg-background text-foreground antialiased">
+      <a
+        href="#main-content"
+        class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:min-h-11 focus:rounded-control focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
+      >
+        Skip to content
+      </a>
 
       <Navbar mobileMenuOpen={mobileMenuOpen()} onToggleMenu={toggleMenu} />
       <MobileMenu open={mobileMenuOpen()} onClose={closeMenu} />
 
-      <main class="relative z-10 pt-18">
+      <main id="main-content" class="relative z-10 pt-[68px]">
         <PricingSection />
         <ComparisonTable />
         <PricingFAQ />

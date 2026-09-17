@@ -1,6 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
+import { writeLedger } from "~/lib/agents/ledger";
 import { runReviewPipeline } from "~/lib/agents/pipeline";
-import { checkRateLimit } from "~/lib/rate-limit";
+import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 
 // Each call runs a two-stage LLM pipeline, so it costs real money per request.
@@ -69,14 +70,47 @@ export async function POST(event: APIEvent) {
     const selectedTone = validTones.includes(tone) ? tone : "professional";
 
     const apiKey = getApiKey();
+    const start = Date.now();
 
-    const result = await runReviewPipeline({
-      comment,
-      starRating,
-      reviewerName: reviewerName || "valued customer",
-      tone: selectedTone,
-      apiKey,
-    });
+    let result: Awaited<ReturnType<typeof runReviewPipeline>>;
+    try {
+      result = await runReviewPipeline({
+        comment,
+        starRating,
+        reviewerName: reviewerName || "valued customer",
+        tone: selectedTone,
+        apiKey,
+      });
+    } catch (err) {
+      // Write a failed ledger row off the critical path
+      const latencyMs = Date.now() - start;
+      void writeLedger({
+        endpoint: "draft-reply",
+        stage: "pipeline",
+        usage: { promptTokens: 0, completionTokens: 0, model: "unknown" },
+        latencyMs,
+        ok: false,
+        errorKind: err instanceof Error ? err.constructor.name : "unknown",
+        userId: session.user.id,
+        ip: getClientIp(event.request),
+      });
+      throw err;
+    }
+
+    // Write ledger rows off the critical path (fire-and-forget)
+    const latencyMs = Date.now() - start;
+    const ip = getClientIp(event.request);
+    for (const u of result.usage) {
+      void writeLedger({
+        endpoint: "draft-reply",
+        stage: u.model === "none" ? "sentiment" : "draft",
+        usage: u,
+        latencyMs: Math.round(latencyMs / result.usage.length),
+        ok: true,
+        userId: session.user.id,
+        ip,
+      });
+    }
 
     return Response.json({
       sentiment: result.sentiment,

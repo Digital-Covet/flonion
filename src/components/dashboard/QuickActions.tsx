@@ -5,7 +5,7 @@ export function QuickActions() {
   return (
     <section
       aria-labelledby="quick-actions-heading"
-      class="rounded-lg border border-border bg-card p-5 shadow-sm"
+      class="rounded-card border border-border bg-card p-5 shadow-sm"
     >
       <h2
         id="quick-actions-heading"
@@ -19,7 +19,7 @@ export function QuickActions() {
           {(action) => (
             <a
               href={action.href}
-              class="flex flex-col gap-2 rounded-lg border border-border bg-background p-4 text-left transition-colors hover:bg-muted"
+              class="flex flex-col gap-2 rounded-card border border-border bg-background p-4 text-left transition-colors hover:bg-muted"
             >
               <action.icon size={18} class="text-primary" />
               <span class="text-sm font-medium text-foreground">

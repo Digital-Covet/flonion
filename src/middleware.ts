@@ -23,6 +23,9 @@ const PUBLIC_PREFIXES = [
   "/api/ai/suggest-review",
   "/api/company/",
   "/api/marketplace/partner",
+  // The operator arrives without a tenant session; the route authenticates
+  // the desk's signed, single-use handoff token itself.
+  "/api/operator/impersonate",
   "/company/",
   "/qr/",
   "/review/",
@@ -47,6 +50,11 @@ function isPublicPath(pathname: string): boolean {
     /^\/company\/[^/]+\/review(?:\/.*)?$/,
   );
   if (companyReviewMatch) return true;
+
+  // Emailed accept/reject links must work for a logged-out owner. The handler
+  // authorizes every method itself: a signed, expiring link or the owner's
+  // session. Only the single-meeting path is public, not the listing.
+  if (/^\/api\/marketplace\/meetings\/[^/]+$/.test(pathname)) return true;
 
   const companyBookingsMatch = pathname.match(
     /^\/company\/[^/]+\/bookings(?:\/.*)?$/,

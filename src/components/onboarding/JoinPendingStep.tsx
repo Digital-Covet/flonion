@@ -62,7 +62,7 @@ export const JoinPendingStep: Component<JoinPendingStepProps> = (props) => {
           type="button"
           onClick={props.onCancel}
           disabled={props.cancelling}
-          class="rounded-lg bg-muted px-6 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/80 disabled:opacity-50"
+          class="rounded-control bg-muted px-6 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/80 disabled:opacity-50"
         >
           {props.cancelling ? "Cancelling..." : "Cancel request"}
         </button>
@@ -70,7 +70,7 @@ export const JoinPendingStep: Component<JoinPendingStepProps> = (props) => {
           type="button"
           onClick={props.onCreateInstead}
           disabled={props.cancelling}
-          class="rounded-lg bg-card px-6 py-2.5 text-sm font-medium text-foreground ring-1 ring-border transition-colors hover:bg-muted disabled:opacity-50"
+          class="rounded-control bg-card px-6 py-2.5 text-sm font-medium text-foreground ring-1 ring-border transition-colors hover:bg-muted disabled:opacity-50"
         >
           Set up my own business instead
         </button>

@@ -1,5 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { admin } from "better-auth/plugins";
+import { adminAc, userAc } from "better-auth/plugins/admin/access";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { twoFactor } from "better-auth/plugins/two-factor";
 
@@ -16,6 +18,7 @@ import {
 } from "@/services/email-templates";
 
 import { COMPANY_NAME } from "./constants";
+import { PLATFORM_ADMIN_ROLE } from "./roles";
 import { getTrustedOrigins } from "./trusted-origins";
 
 export const auth = betterAuth({
@@ -99,6 +102,15 @@ export const auth = betterAuth({
   },
 
   plugins: [
+    // Team roles ("admin", "member", ...) live in the same User.role column the
+    // admin plugin reads. Left at its defaults, the plugin treats a team "admin"
+    // as a platform admin, which any signup can become by inviting a second
+    // account. Only `platform_admin` carries plugin permissions, and no tenant
+    // route can write that value (see isValidRole in roles.ts).
+    admin({
+      adminRoles: [PLATFORM_ADMIN_ROLE],
+      roles: { [PLATFORM_ADMIN_ROLE]: adminAc, user: userAc },
+    }),
     emailOTP({
       async sendVerificationOTP({ email, otp, type }) {
         let html: string;

@@ -1,26 +1,49 @@
 import Sparkles from "lucide-solid/icons/sparkles";
 import Square from "lucide-solid/icons/square";
-import SquareCheck from "lucide-solid/icons/square-check";
-import { type Component, createMemo, createSignal, For, Show } from "solid-js";
-import { VOLUME_COLORS } from "~/features/seo/seo-data";
+import SquareCheckBig from "lucide-solid/icons/square-check-big";
+import TrendingDown from "lucide-solid/icons/trending-down";
+import TrendingUp from "lucide-solid/icons/trending-up";
+import { type Component, createMemo, createSignal, Show } from "solid-js";
+import { Dynamic } from "solid-js/web";
+import { DataTable } from "~/components/ui/table";
 import type { KeywordSuggestion, SearchVolume } from "~/features/seo/seo-types";
-import { cn } from "~/lib/cn";
 
 interface KeywordRecommendationsProps {
   keywords: KeywordSuggestion[];
 }
 
+/* DS §2: volume is icon + words + colour, never colour alone. */
+const VOLUME_META: Record<
+  SearchVolume,
+  { pill: string; label: string; Icon: typeof TrendingUp }
+> = {
+  high: {
+    pill: "bg-success-muted text-success",
+    label: "High volume",
+    Icon: TrendingUp,
+  },
+  medium: {
+    pill: "bg-warning-muted text-warning",
+    label: "Medium volume",
+    Icon: TrendingUp,
+  },
+  low: {
+    pill: "bg-muted text-muted-foreground",
+    label: "Low volume",
+    Icon: TrendingDown,
+  },
+};
+
 const VolumeBadge: Component<{ volume: SearchVolume }> = (props) => {
-  const colors = VOLUME_COLORS[props.volume];
+  const meta = () => VOLUME_META[props.volume];
+  const Icon = () => meta().Icon;
   return (
     <span
-      class={cn(
-        "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-        colors.bg,
-        colors.text,
-      )}
+      class={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium uppercase tracking-wide ${meta().pill}`}
     >
+      <Dynamic component={Icon()} size={12} aria-hidden="true" />
       {props.volume}
+      <span class="sr-only"> search volume</span>
     </span>
   );
 };
@@ -56,69 +79,84 @@ const KeywordRecommendations: Component<KeywordRecommendationsProps> = (
   const usedCount = createMemo(() => usedIds().size);
 
   return (
-    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm h-full">
-      <div class="mb-5 flex items-center justify-between">
+    <div class="rounded-card border border-border bg-card p-5 shadow-sm">
+      <div class="mb-4 flex items-center justify-between gap-3">
         <div class="flex items-center gap-3">
-          <div class="flex size-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-            <Sparkles size={20} />
+          <div class="grid size-10 place-items-center rounded-control bg-positive-muted text-primary">
+            <Sparkles size={20} aria-hidden="true" />
           </div>
           <div>
-            <h3 class="text-lg font-bold text-slate-900">
-              Keyword Recommendations
+            <h3 class="font-heading text-lg font-medium text-foreground">
+              Keyword recommendations
             </h3>
-            <p class="text-xs text-slate-500">
+            <p class="text-xs text-muted-foreground">
               AI-analyzed search terms for your area
             </p>
           </div>
         </div>
-        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+        <span class="tnum rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
           {usedCount()}/{props.keywords.length} active
         </span>
       </div>
 
-      <div class="flex flex-wrap gap-2">
-        <For each={sortedKeywords()}>
-          {(kw) => {
-            const isActive = () => usedIds().has(kw.id);
-            return (
-              <button
-                type="button"
-                onClick={() => toggleKeyword(kw.id)}
-                class={cn(
-                  "group flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium transition-all",
-                  isActive()
-                    ? "border-blue-200 bg-blue-50 text-blue-700"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
-                )}
-              >
-                <span
-                  class={cn(
-                    "flex size-5 shrink-0 items-center justify-center rounded transition-all",
+      <DataTable
+        caption="Keyword recommendations with search volume and relevance"
+        columns={[
+          {
+            header: "Keyword",
+            render: (kw) => (
+              <span class="font-medium text-foreground">{kw.keyword}</span>
+            ),
+          },
+          {
+            header: "Volume",
+            render: (kw) => <VolumeBadge volume={kw.searchVolume} />,
+          },
+          {
+            header: "Relevance",
+            numeric: true,
+            render: (kw) => (
+              <span class="tnum text-right text-foreground">
+                {kw.relevance}%
+              </span>
+            ),
+          },
+          {
+            header: "Status",
+            render: (kw) => {
+              const isActive = () => usedIds().has(kw.id);
+              return (
+                <button
+                  type="button"
+                  onClick={() => toggleKeyword(kw.id)}
+                  aria-pressed={isActive()}
+                  aria-label={`${isActive() ? "Deactivate" : "Activate"} keyword ${kw.keyword}`}
+                  class={`inline-flex h-11 items-center gap-1.5 rounded-control border px-3 text-xs font-medium transition-opacity duration-180 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                     isActive()
-                      ? "text-blue-500"
-                      : "text-slate-300 group-hover:text-slate-400",
-                  )}
+                      ? "border-primary bg-positive-muted text-primary"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted"
+                  }`}
                 >
-                  <Show when={isActive()} fallback={<Square size={14} />}>
-                    <SquareCheck size={14} />
+                  <Show
+                    when={isActive()}
+                    fallback={<Square size={14} aria-hidden="true" />}
+                  >
+                    <SquareCheckBig size={14} aria-hidden="true" />
                   </Show>
-                </span>
-                <span>{kw.keyword}</span>
-                <VolumeBadge volume={kw.searchVolume} />
-                <span class="ml-1 text-[10px] text-slate-400">
-                  {kw.relevance}%
-                </span>
-              </button>
-            );
-          }}
-        </For>
-      </div>
+                  {isActive() ? "Active" : "Use"}
+                </button>
+              );
+            },
+          },
+        ]}
+        rows={sortedKeywords()}
+        rowKey={(kw) => kw.id}
+      />
 
-      <div class="mt-5 border-t border-slate-100 pt-4">
-        <p class="text-xs text-slate-500">
-          Click to toggle keywords. High-volume keywords in your area are shown
-          first. Relevance scores indicate how well each term matches your
-          business profile.
+      <div class="mt-4 border-t border-border pt-3">
+        <p class="text-xs text-muted-foreground">
+          Toggle keywords to track them. High-volume terms for your area are
+          shown first. Relevance is how well each term matches your profile.
         </p>
       </div>
     </div>

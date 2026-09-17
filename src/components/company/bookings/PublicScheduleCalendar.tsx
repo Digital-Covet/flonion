@@ -1,5 +1,6 @@
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-solid";
 import { createMemo, createSignal, For, Show } from "solid-js";
+import { tzLabel } from "~/lib/timezone-label";
 
 interface ScheduleEvent {
   id: string;
@@ -15,6 +16,7 @@ interface PublicScheduleCalendarProps {
   bookingStartTime: string;
   bookingEndTime: string;
   slotDuration: number;
+  timezone?: string | null;
   onSlotSelect?: (event: ScheduleEvent) => void;
 }
 
@@ -181,7 +183,7 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
   });
 
   return (
-    <div class="rounded-xl border border-border/60 bg-card/80 shadow-sm backdrop-blur-sm animate-[fade-in-up_0.4s_ease-out_0.1s_both]">
+    <div class="rounded-soft border border-border/60 bg-card/80 shadow-sm backdrop-blur-sm animate-[fade-in-up_0.4s_ease-out_0.1s_both]">
       {/* View Switcher & Navigation */}
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-6 py-4">
         <div class="flex items-center gap-2">
@@ -193,11 +195,11 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
 
         <div class="flex items-center gap-3">
           {/* View Toggle */}
-          <div class="flex rounded-lg bg-muted p-1">
+          <div class="flex rounded-card bg-muted p-1">
             <button
               type="button"
               onClick={() => setViewMode("week")}
-              class={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+              class={`rounded-control px-3 py-1 text-sm font-medium transition-colors ${
                 viewMode() === "week"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -208,7 +210,7 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
             <button
               type="button"
               onClick={() => setViewMode("month")}
-              class={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+              class={`rounded-control px-3 py-1 text-sm font-medium transition-colors ${
                 viewMode() === "month"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -232,11 +234,11 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
                   });
                 }
               }}
-              class="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              class="rounded-control border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               Today
             </button>
-            <div class="flex overflow-hidden rounded-md border border-border">
+            <div class="flex overflow-hidden rounded-control border border-border">
               <button
                 type="button"
                 onClick={() => {
@@ -269,7 +271,9 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
             {/* Week header */}
             <div class="mb-2 flex items-center justify-between">
               <p class="text-sm font-medium text-foreground">{weekRange()}</p>
-              <p class="text-xs text-muted-foreground">IST (UTC+5:30)</p>
+              <p class="tnum text-xs text-muted-foreground">
+                {tzLabel(props.timezone)}
+              </p>
             </div>
 
             {/* Day headers */}
@@ -304,14 +308,14 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
               <For each={hours()}>
                 {(hour) => (
                   <>
-                    <div class="pr-2 text-right text-[11px] tabular-nums text-muted-foreground">
+                    <div class="pr-2 text-right text-xs tabular-nums text-muted-foreground">
                       {formatHour(hour)}
                     </div>
                     <For each={weekDates()}>
                       {(date) => {
                         const dayEvents = eventsForHour(date, hour);
                         return (
-                          <div class="min-h-[2.5rem] rounded-md border border-border/40 px-1 py-0.5">
+                          <div class="min-h-[2.5rem] rounded-control border border-border/40 px-1 py-0.5">
                             <For each={dayEvents}>
                               {(event) => (
                                 <button
@@ -321,10 +325,10 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
                                       ? () => props.onSlotSelect?.(event)
                                       : undefined
                                   }
-                                  class={`rounded px-1.5 py-0.5 text-[10px] font-medium text-left w-full ${
+                                  class={`rounded-control px-1.5 py-0.5 text-xs font-medium text-left w-full ${
                                     event.status === "available"
-                                      ? "bg-green-50 text-green-700 border border-green-200 cursor-pointer hover:bg-green-100 transition-colors"
-                                      : "bg-slate-100 text-slate-600 border border-slate-200 cursor-default"
+                                      ? "bg-success-muted text-success border border-success/25 cursor-pointer hover:bg-success-muted/70 transition-colors"
+                                      : "bg-muted text-muted-foreground border border-border cursor-default"
                                   }`}
                                 >
                                   <span class="block truncate">
@@ -381,11 +385,11 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
                   <button
                     type="button"
                     onClick={() => setSelectedDay(dateKey)}
-                    class={`relative flex flex-col items-center rounded-lg p-2 text-sm transition-colors ${
+                    class={`relative flex flex-col items-center rounded-control p-2 text-sm transition-colors ${
                       !inMonth
                         ? "text-muted-foreground/30"
                         : today
-                          ? "bg-primary/10 text-primary font-semibold"
+                          ? "bg-primary/10 text-primary font-medium"
                           : "text-foreground hover:bg-muted"
                     } ${selectedDay() === dateKey ? "ring-2 ring-primary" : ""}`}
                   >
@@ -393,13 +397,13 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
                     <Show when={inMonth && dayEvents.length > 0}>
                       <div class="mt-1 flex gap-0.5">
                         <Show when={availableCount > 0}>
-                          <span class="size-1.5 rounded-full bg-green-500" />
+                          <span class="size-1.5 rounded-full bg-success" />
                         </Show>
                         <Show when={bookedCount > 0}>
-                          <span class="size-1.5 rounded-full bg-slate-400" />
+                          <span class="size-1.5 rounded-full bg-muted-foreground/40" />
                         </Show>
                       </div>
-                      <span class="text-[9px] text-muted-foreground">
+                      <span class="text-xs text-muted-foreground">
                         {availableCount} open
                       </span>
                     </Show>
@@ -439,10 +443,10 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
                         ? () => props.onSlotSelect?.(event)
                         : undefined
                     }
-                    class={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                    class={`rounded-control border px-3 py-2 text-left text-sm transition-colors ${
                       event.status === "available"
-                        ? "border-green-200 bg-green-50 text-green-800 cursor-pointer hover:bg-green-100"
-                        : "border-slate-200 bg-slate-50 text-slate-600 cursor-default"
+                        ? "border-success/25 bg-success-muted text-success cursor-pointer hover:bg-success-muted/70"
+                        : "border-border bg-muted text-muted-foreground cursor-default"
                     }`}
                   >
                     <p class="font-medium">
@@ -464,11 +468,11 @@ function PublicScheduleCalendar(props: PublicScheduleCalendarProps) {
       {/* Legend */}
       <div class="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/60 px-6 py-3">
         <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span class="size-2 rounded-full bg-green-500" />
+          <span class="size-2 rounded-full bg-success" />
           Available
         </span>
         <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span class="size-2 rounded-full bg-slate-400" />
+          <span class="size-2 rounded-full bg-muted-foreground/40" />
           Booked / Busy
         </span>
       </div>

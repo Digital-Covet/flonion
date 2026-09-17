@@ -1,5 +1,6 @@
 import ArrowLeft from "lucide-solid/icons/arrow-left";
 import MapPin from "lucide-solid/icons/map-pin";
+import Pencil from "lucide-solid/icons/pencil";
 import Star from "lucide-solid/icons/star";
 import Tag from "lucide-solid/icons/tag";
 import { type Component, For, Show } from "solid-js";
@@ -9,6 +10,8 @@ interface ReviewStepProps {
   data: BasicsData;
   onComplete: () => void;
   onBack: () => void;
+  /** Jump back to step 1 to edit details. */
+  onEdit?: () => void;
   saving: boolean;
 }
 
@@ -39,12 +42,27 @@ export const ReviewStep: Component<ReviewStepProps> = (props) => {
         This is how customers will see your business on Flonion.
       </p>
 
-      <div class="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <div class="flex items-start gap-4">
+      <div class="rounded-card border border-border bg-card p-6 shadow-sm">
+        <div class="flex items-start justify-between gap-3">
+          <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Profile preview
+          </p>
+          <Show when={props.onEdit}>
+            <button
+              type="button"
+              onClick={props.onEdit}
+              class="inline-flex h-9 items-center gap-1.5 rounded-control px-2.5 text-xs font-medium text-primary transition-opacity duration-[180ms] hover:bg-positive-muted motion-reduce:transition-none"
+            >
+              <Pencil size={14} strokeWidth={2} aria-hidden="true" />
+              Edit details
+            </button>
+          </Show>
+        </div>
+        <div class="mt-2 flex items-start gap-4">
           <Show
             when={props.data.logo}
             fallback={
-              <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">
+              <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary/10 font-heading text-xl font-semibold text-primary">
                 {props.data.businessName.charAt(0).toUpperCase()}
               </div>
             }
@@ -57,7 +75,7 @@ export const ReviewStep: Component<ReviewStepProps> = (props) => {
           </Show>
 
           <div class="flex-1 min-w-0">
-            <h3 class="text-lg font-semibold text-foreground truncate">
+            <h3 class="text-lg font-medium text-foreground truncate">
               {props.data.businessName || "Your Business"}
             </h3>
 
@@ -125,7 +143,7 @@ export const ReviewStep: Component<ReviewStepProps> = (props) => {
       <div class="flex items-center justify-between">
         <button
           type="button"
-          class="flex items-center gap-2 rounded-lg border border-border px-6 py-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted"
+          class="flex items-center gap-2 rounded-control border border-border px-6 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
           onClick={props.onBack}
         >
           <ArrowLeft size={20} strokeWidth={2} aria-hidden="true" />
@@ -133,7 +151,7 @@ export const ReviewStep: Component<ReviewStepProps> = (props) => {
         </button>
         <button
           type="button"
-          class="flex items-center gap-2 rounded-lg bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover disabled:opacity-50"
+          class="flex items-center gap-2 rounded-control bg-primary px-8 py-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover disabled:opacity-50"
           onClick={props.onComplete}
           disabled={props.saving || !props.data.businessName.trim()}
         >

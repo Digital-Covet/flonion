@@ -1,5 +1,6 @@
-import { ChatDeepSeek } from "@langchain/deepseek";
 import { z } from "zod";
+import { extractUsage, type UsageMeta } from "./ledger";
+import { getModel } from "./model";
 import type { SentimentAnalysis } from "./sentiment-analyzer";
 
 const draftReplySchema = z.object({
@@ -8,12 +9,12 @@ const draftReplySchema = z.object({
 
 export type DraftReplyResult = z.infer<typeof draftReplySchema>;
 
-function getModel(apiKey: string): ChatDeepSeek {
-  return new ChatDeepSeek({
-    model: "deepseek-v4-flash",
-    temperature: 0.7,
-    apiKey,
-  });
+export interface DraftReplyWithUsage extends DraftReplyResult {
+  usage: UsageMeta;
+}
+
+function getModelInstance(apiKey: string) {
+  return getModel(apiKey, 0.7);
 }
 
 const suggestReviewSchema = z.object({
@@ -25,6 +26,10 @@ const suggestReviewSchema = z.object({
 
 export type SuggestReviewResult = z.infer<typeof suggestReviewSchema>;
 
+export interface SuggestReviewWithUsage extends SuggestReviewResult {
+  usage: UsageMeta;
+}
+
 export async function suggestImprovedReview(params: {
   draftText: string;
   starRating: number;
@@ -32,8 +37,8 @@ export async function suggestImprovedReview(params: {
   keywords?: string;
   businessName?: string;
   apiKey: string;
-}): Promise<SuggestReviewResult> {
-  const model = getModel(params.apiKey);
+}): Promise<SuggestReviewWithUsage> {
+  const model = getModelInstance(params.apiKey);
 
   const hasDraft = params.draftText.trim().length > 0;
 
@@ -102,7 +107,8 @@ No markdown. No explanation.`,
         ? response.content
         : response.content.map((c) => ("text" in c ? c.text : "")).join("");
 
-    return suggestReviewSchema.parse(JSON.parse(content));
+    const usage = extractUsage(response);
+    return { ...suggestReviewSchema.parse(JSON.parse(content)), usage };
   }
 
   const response = await model.invoke([
@@ -206,7 +212,8 @@ Return JSON matching the following structure:
       ? response.content
       : response.content.map((c) => ("text" in c ? c.text : "")).join("");
 
-  return suggestReviewSchema.parse(JSON.parse(content));
+  const usage = extractUsage(response);
+  return { ...suggestReviewSchema.parse(JSON.parse(content)), usage };
 }
 
 export async function draftReviewReply(params: {
@@ -216,8 +223,8 @@ export async function draftReviewReply(params: {
   sentiment: SentimentAnalysis;
   apiKey: string;
   tone?: "professional" | "friendly" | "formal";
-}): Promise<DraftReplyResult> {
-  const model = getModel(params.apiKey);
+}): Promise<DraftReplyWithUsage> {
+  const model = getModelInstance(params.apiKey);
 
   const toneInstructions: Record<string, string> = {
     professional:
@@ -291,5 +298,6 @@ Rating: ${params.starRating}/5
       ? response.content
       : response.content.map((c) => ("text" in c ? c.text : "")).join("");
 
-  return draftReplySchema.parse(JSON.parse(content));
+  const draftUsage = extractUsage(response);
+  return { ...draftReplySchema.parse(JSON.parse(content)), usage: draftUsage };
 }

@@ -23,10 +23,10 @@ export function IntegrationCard(props: IntegrationCardProps) {
   const [showDetails, setShowDetails] = createSignal(false);
 
   return (
-    <div class="rounded-xl border border-border bg-background p-4">
+    <div class="rounded-card border border-border bg-background p-4">
       <div class="mb-4 flex items-center gap-4">
         <div
-          class="flex h-10 w-10 items-center justify-center rounded-lg"
+          class="flex h-10 w-10 items-center justify-center rounded-control"
           style={{
             "background-color": props.integration.iconColor ?? "#4285F4",
           }}
@@ -34,7 +34,7 @@ export function IntegrationCard(props: IntegrationCardProps) {
           <props.integration.icon size={20} class="text-white" />
         </div>
         <div class="flex-1">
-          <p class="text-sm leading-5 font-bold">{props.integration.name}</p>
+          <p class="text-sm leading-5 font-medium">{props.integration.name}</p>
           <p class="text-xs leading-4 text-muted-foreground">
             {props.connected
               ? `Connected since ${props.integration.connectedSince}`
@@ -42,12 +42,12 @@ export function IntegrationCard(props: IntegrationCardProps) {
           </p>
         </div>
         <Show when={props.connected}>
-          <CheckCircle size={18} class="text-green-500" />
+          <CheckCircle size={18} class="text-success" />
         </Show>
       </div>
 
       <Show when={props.error}>
-        <div class="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs leading-4 text-red-700">
+        <div class="mb-3 rounded-card border border-destructive/20 bg-destructive-muted p-3 text-xs leading-4 text-destructive">
           <p class="font-medium">{props.error}</p>
           <Show when={props.errorHint}>
             <p class="mt-1">{props.errorHint}</p>
@@ -62,7 +62,7 @@ export function IntegrationCard(props: IntegrationCardProps) {
             type="button"
             onClick={props.onConnect}
             disabled={props.connecting}
-            class="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-medium leading-5 text-foreground transition-all hover:bg-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+            class="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-border bg-card px-4 text-sm font-medium leading-5 text-foreground transition-all hover:bg-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
           >
             {props.connecting && <Loader2 size={16} class="animate-spin" />}
             {props.connecting
@@ -92,7 +92,7 @@ export function IntegrationCard(props: IntegrationCardProps) {
                     props.onLocationSelect?.(idx);
                   }
                 }}
-                class="h-10 w-full rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                class="min-h-11 w-full rounded-control border border-border bg-card px-4 text-base leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="" disabled>
                   Choose a location...
@@ -119,7 +119,7 @@ export function IntegrationCard(props: IntegrationCardProps) {
                 value={props.placeId}
                 placeholder="ChIJaV_Z..."
                 onInput={props.onPlaceIdInput}
-                class="h-10 w-full rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                class="min-h-11 w-full rounded-control border border-border bg-card px-4 text-base leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
               <Field.HelperText class="text-xs leading-4 italic text-muted-foreground">
                 Auto-filled from Google Business Profile. Edit to override.
@@ -136,7 +136,7 @@ export function IntegrationCard(props: IntegrationCardProps) {
           </button>
 
           <Show when={showDetails()}>
-            <div class="rounded-lg border border-border bg-muted/50 p-3 text-xs leading-4 text-muted-foreground space-y-1">
+            <div class="rounded-card border border-border bg-muted/50 p-3 text-xs leading-4 text-muted-foreground space-y-1">
               <p>Account: {props.integration.name}</p>
               <p>Locations found: {props.locations?.length ?? 0}</p>
               <p>Place ID: {props.placeId || "Not set"}</p>

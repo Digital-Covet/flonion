@@ -2,6 +2,8 @@ import { Field } from "@ark-ui/solid/field";
 import type { LucideIcon } from "lucide-solid";
 import ArrowRight from "lucide-solid/icons/arrow-right";
 import { createSignal, Show } from "solid-js";
+import { Button } from "~/components/ui/button";
+import { notify } from "~/components/ui/toast";
 import { SectionCard } from "~/features/settings/components/SectionCard";
 import { authClient } from "~/lib/auth-client";
 
@@ -13,7 +15,6 @@ export function ChangeEmailCard(props: ChangeEmailCardProps) {
   const session = authClient.useSession();
 
   const [newEmail, setNewEmail] = createSignal("");
-  const [password, setPassword] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [success, setSuccess] = createSignal(false);
   const [error, setError] = createSignal("");
@@ -26,7 +27,6 @@ export function ChangeEmailCard(props: ChangeEmailCardProps) {
     setSuccess(false);
 
     const email = newEmail().trim();
-    const pwd = password();
 
     if (!email) {
       setError("Please enter a new email address.");
@@ -38,30 +38,29 @@ export function ChangeEmailCard(props: ChangeEmailCardProps) {
       return;
     }
 
-    if (!pwd) {
-      setError("Please enter your current password.");
-      return;
-    }
-
     setLoading(true);
     try {
+      // NOTE: /change-email accepts only {newEmail, callbackURL} — the
+      // session itself is the re-auth. No password is collected or sent.
       const { error: changeError } = await authClient.changeEmail({
         newEmail: email,
         callbackURL: "/account",
       });
 
       if (changeError) {
-        setError(
-          changeError.message || "Failed to change email. Please try again.",
-        );
+        const msg =
+          changeError.message || "Failed to change email. Please try again.";
+        setError(msg);
+        notify("error", msg);
         return;
       }
 
       setSuccess(true);
       setNewEmail("");
-      setPassword("");
+      notify("success", "Verification email sent");
     } catch {
       setError("An unexpected error occurred. Please try again.");
+      notify("error", "An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -88,7 +87,7 @@ export function ChangeEmailCard(props: ChangeEmailCardProps) {
               type="email"
               value={user()?.email ?? ""}
               disabled
-              class="h-10 w-full rounded-lg border border-border bg-muted px-4 text-sm leading-5 text-muted-foreground"
+              class="min-h-11 w-full rounded-control border border-border bg-muted px-4 text-base leading-6 text-muted-foreground"
             />
           </Field.Root>
 
@@ -105,7 +104,7 @@ export function ChangeEmailCard(props: ChangeEmailCardProps) {
               value={newEmail()}
               onInput={(e) => setNewEmail((e.target as HTMLInputElement).value)}
               placeholder="new@example.com"
-              class="h-10 w-full rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              class="min-h-11 w-full rounded-control border border-border bg-card px-4 text-base leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
             <Show when={error()}>
               <Field.ErrorText class="mt-1.5 block text-sm text-destructive">
@@ -115,41 +114,20 @@ export function ChangeEmailCard(props: ChangeEmailCardProps) {
           </Field.Root>
         </div>
 
-        <Field.Root>
-          <Field.Label
-            for="email-password"
-            class="mb-1.5 block text-sm leading-5 font-medium text-muted-foreground"
-          >
-            Current Password
-          </Field.Label>
-          <Field.Input
-            id="email-password"
-            type="password"
-            value={password()}
-            onInput={(e) => setPassword((e.target as HTMLInputElement).value)}
-            placeholder="Enter your current password"
-            class="h-10 w-full max-w-md rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-        </Field.Root>
-
         <Show when={success()}>
-          <p class="text-sm text-green-600">
+          <p role="status" class="text-sm text-success">
             Verification email sent! Please check your new email address to
             confirm the change.
           </p>
         </Show>
 
         <div class="flex justify-end pt-2">
-          <button
-            type="submit"
-            disabled={loading()}
-            class="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-medium leading-normal text-primary-foreground shadow-md transition-all hover:bg-primary/90 disabled:scale-95 disabled:opacity-70"
-          >
-            {loading() ? "Sending..." : "Update Email"}
+          <Button type="submit" loading={loading()} loadingLabel="Sending…">
+            Update Email
             <Show when={!loading()}>
-              <ArrowRight size={16} />
+              <ArrowRight size={16} aria-hidden="true" />
             </Show>
-          </button>
+          </Button>
         </div>
       </form>
     </SectionCard>

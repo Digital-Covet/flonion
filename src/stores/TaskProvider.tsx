@@ -1,4 +1,5 @@
 import { createSignal, onMount, type ParentProps } from "solid-js";
+import { notify } from "~/components/ui/toast";
 import {
   type CreateMeetingData,
   type CreateTaskData,
@@ -17,8 +18,20 @@ export function TaskProvider(props: ParentProps) {
   const [filter, setFilter] = createSignal<string>("whole-team");
   const [currentUserId, setCurrentUserId] = createSignal<string | null>(null);
   const [canManageTasks, setCanManageTasks] = createSignal(false);
+  const [tasksLoading, setTasksLoading] = createSignal(true);
+  const [tasksError, setTasksError] = createSignal<string | null>(null);
+
+  const clearTasksError = () => setTasksError(null);
+
+  const failTaskOp = (op: string, message?: string) => {
+    const msg = message ?? `Couldn't ${op}. Please try again.`;
+    setTasksError(msg);
+    notify("error", msg);
+  };
 
   const fetchTasks = async () => {
+    setTasksLoading(true);
+    setTasksError(null);
     try {
       const params = new URLSearchParams();
       const currentFilter = filter();
@@ -30,9 +43,14 @@ export function TaskProvider(props: ParentProps) {
       if (res.ok) {
         const data = await res.json();
         setTasks(data);
+      } else {
+        setTasksError("Couldn't load tasks.");
       }
     } catch (err) {
       console.error("Failed to fetch tasks:", err);
+      setTasksError("Couldn't load tasks. Check your connection.");
+    } finally {
+      setTasksLoading(false);
     }
   };
 
@@ -80,16 +98,23 @@ export function TaskProvider(props: ParentProps) {
       if (res.ok) {
         const task = await res.json();
         setTasks((prev) => [...prev, task]);
+        notify("success", "Task created");
         return task;
       }
+      const err = await res.json().catch(() => null);
+      failTaskOp("create task", err?.error);
       return null;
     } catch (err) {
       console.error("Failed to add task:", err);
+      failTaskOp("create task");
       return null;
     }
   };
 
-  const updateTask = async (taskId: string, data: UpdateTaskData) => {
+  const updateTask = async (
+    taskId: string,
+    data: UpdateTaskData,
+  ): Promise<boolean> => {
     try {
       const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
@@ -99,22 +124,42 @@ export function TaskProvider(props: ParentProps) {
       if (res.ok) {
         const updated = await res.json();
         setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
+        return true;
       }
+      const err = await res.json().catch(() => null);
+      // 403 = permission notice from the server; surface the reason.
+      failTaskOp(
+        "save task",
+        err?.error ??
+          (res.status === 403
+            ? "You can only edit tasks assigned to you."
+            : undefined),
+      );
+      return false;
     } catch (err) {
       console.error("Failed to update task:", err);
+      failTaskOp("save task");
+      return false;
     }
   };
 
-  const deleteTask = async (taskId: string) => {
+  const deleteTask = async (taskId: string): Promise<boolean> => {
     try {
       const res = await fetch(`/api/tasks/${taskId}`, {
         method: "DELETE",
       });
       if (res.ok) {
         setTasks((prev) => prev.filter((t) => t.id !== taskId));
+        notify("success", "Task deleted");
+        return true;
       }
+      const err = await res.json().catch(() => null);
+      failTaskOp("delete task", err?.error);
+      return false;
     } catch (err) {
       console.error("Failed to delete task:", err);
+      failTaskOp("delete task");
+      return false;
     }
   };
 
@@ -122,7 +167,7 @@ export function TaskProvider(props: ParentProps) {
     taskId: string,
     targetColumn: string,
     newPosition: number,
-  ) => {
+  ): Promise<boolean> => {
     try {
       const res = await fetch("/api/tasks/reorder", {
         method: "PATCH",
@@ -152,9 +197,15 @@ export function TaskProvider(props: ParentProps) {
 
           return [...otherTasks, ...columnTasks];
         });
+        return true;
       }
+      const err = await res.json().catch(() => null);
+      failTaskOp("move task", err?.error);
+      return false;
     } catch (err) {
       console.error("Failed to move task:", err);
+      failTaskOp("move task");
+      return false;
     }
   };
 
@@ -205,6 +256,9 @@ export function TaskProvider(props: ParentProps) {
     currentUserId,
     canManageTasks,
     canEditTask,
+    tasksLoading,
+    tasksError,
+    clearTasksError,
     fetchTasks,
     fetchMeetings,
     fetchTeamMembers,

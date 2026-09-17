@@ -1,11 +1,19 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "@/db/prisma";
+import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
 import { issueReviewClaim, verifyReviewClaim } from "~/lib/review-claim";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 
 const MAX_TEXT_LENGTH = 5000;
 const MAX_NAME_LENGTH = 100;
 const MAX_KEYWORDS_LENGTH = 500;
+
+// Anonymous review rows feed a business's analytics and public review page,
+// so creation is capped per caller and per business.
+const ANON_CREATE_IP_LIMIT = 30; // customers at one venue often share an IP
+const ANON_CREATE_IP_WINDOW_MS = 60 * 60 * 1000;
+const ANON_CREATE_BUSINESS_LIMIT = 1000;
+const ANON_CREATE_BUSINESS_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function POST(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -112,7 +120,7 @@ export async function POST(event: APIEvent) {
         : { id: businessId! };
       const business = await prisma.business.findUnique({
         where: businessWhere,
-        select: { userId: true, keywords: true },
+        select: { id: true, userId: true, keywords: true },
       });
 
       if (!business) {
@@ -126,6 +134,24 @@ export async function POST(event: APIEvent) {
         );
       }
 
+      if (
+        !checkRateLimit(
+          `share-create-ip:${getClientIp(event.request)}`,
+          ANON_CREATE_IP_LIMIT,
+          ANON_CREATE_IP_WINDOW_MS,
+        ).allowed ||
+        !checkRateLimit(
+          `share-create-business:${business.id}`,
+          ANON_CREATE_BUSINESS_LIMIT,
+          ANON_CREATE_BUSINESS_WINDOW_MS,
+        ).allowed
+      ) {
+        return Response.json(
+          { error: "Too many reviews submitted. Please try again later." },
+          { status: 429 },
+        );
+      }
+
       const created = await prisma.sharedReview.create({
         data: {
           text: typeof text === "string" ? text.trim() : "",
@@ -136,6 +162,7 @@ export async function POST(event: APIEvent) {
               : "Anonymous",
           keywords: business.keywords || null,
           userId: business.userId,
+          businessId: business.id,
         },
         select: { id: true },
       });
@@ -183,6 +210,14 @@ export async function POST(event: APIEvent) {
       );
     }
 
+    // Resolve the businessId from the session user's owned business or team membership.
+    const sessionUser = await prisma.user.findUnique({
+      where: { id: session.session.userId },
+      select: { businessId: true, business: { select: { id: true } } },
+    });
+    const reviewBusinessId =
+      sessionUser?.business?.id ?? sessionUser?.businessId ?? null;
+
     const review = await prisma.sharedReview.create({
       data: {
         text: typeof text === "string" ? text.trim() : "",
@@ -190,6 +225,7 @@ export async function POST(event: APIEvent) {
         reviewerName: session.user.name,
         keywords: typeof keywords === "string" ? keywords : null,
         userId: session.session.userId,
+        businessId: reviewBusinessId,
       },
     });
 

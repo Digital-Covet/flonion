@@ -82,13 +82,7 @@ async function fetchFromClient(
 ): Promise<PartnersApiResponse> {
   const res = await fetch(path, { signal });
   if (!res.ok) {
-    return {
-      partners: [],
-      totalCount: 0,
-      page: 1,
-      pageSize: MAX_PAGE_SIZE,
-      categories: [],
-    };
+    throw new Error(`Partners request failed (${res.status})`);
   }
   const data = await res.json();
   return {
@@ -151,7 +145,8 @@ export async function fetchPartners(
     if (err instanceof DOMException && err.name === "AbortError") {
       return { partners: [], totalCount: 0, page: 1, pageSize, categories: [] };
     }
-    console.error("[marketplace/partners] query failed:", err);
-    return { partners: [], totalCount: 0, page: 1, pageSize, categories: [] };
+    // Real failures reject so the UI can show WidgetError + Retry instead of
+    // misreporting an empty directory.
+    throw err;
   }
 }

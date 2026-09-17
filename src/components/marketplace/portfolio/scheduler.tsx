@@ -192,13 +192,13 @@ export const Scheduler = (props: SchedulerProps) => {
       </Show>
 
       <Show when={booked()}>
-        <div class="mb-3 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-800">
+        <div class="mb-3 p-3 rounded-card bg-success-muted border border-success/25 text-sm text-success">
           Meeting request sent! The owner will be notified.
         </div>
       </Show>
 
       <Show when={error()}>
-        <div class="mb-3 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
+        <div class="mb-3 p-3 rounded-card bg-destructive-muted border border-destructive/25 text-sm text-destructive">
           {error()}
         </div>
       </Show>

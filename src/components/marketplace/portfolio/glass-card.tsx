@@ -10,7 +10,7 @@ interface GlassCardProps {
 export const GlassCard = (props: GlassCardProps) => (
   <div
     class={cn(
-      "glass-card rounded-xl p-6",
+      "glass-card rounded-card p-6",
       props.hover && "hover:bg-positive-muted transition-colors",
       props.class,
     )}

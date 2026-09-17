@@ -1,13 +1,12 @@
 import type { Component } from "solid-js";
 import type { PageHeaderData } from "../../types";
 
+/** DS §6 Local SEO header: Jost H1 (via base) + muted subtitle. */
 const PageHeader: Component<PageHeaderData> = (props) => {
   return (
-    <header class="mb-8">
-      <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight">
-        {props.title}
-      </h1>
-      <p class="text-slate-500 mt-1 text-lg">{props.subtitle}</p>
+    <header class="mb-6">
+      <h1 class="text-foreground">{props.title}</h1>
+      <p class="mt-1 text-base text-muted-foreground">{props.subtitle}</p>
     </header>
   );
 };

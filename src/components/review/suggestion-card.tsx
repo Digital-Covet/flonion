@@ -49,13 +49,13 @@ export function SuggestionCard(props: SuggestionCardProps) {
 
   return (
     <article
-      class="rounded-xl border border-border bg-card p-4 shadow-md animate-[fade-in-up_0.3s_ease-out_both]"
+      class="e4-card-enter rounded-card border border-border bg-card p-4 shadow-md"
       style={props.style}
     >
       <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-2">
           <span
-            class={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold uppercase tracking-wider ${config().colorClass} ${config().bgClass}`}
+            class={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium uppercase tracking-wider ${config().colorClass} ${config().bgClass}`}
           >
             {(() => {
               const Icon = ToneIcon();
@@ -65,7 +65,7 @@ export function SuggestionCard(props: SuggestionCardProps) {
           </span>
 
           <Show when={props.suggestion.recommended}>
-            <span class="inline-flex items-center gap-1 rounded-full bg-positive-muted px-2 py-0.5 text-xs font-semibold text-positive">
+            <span class="inline-flex items-center gap-1 rounded-full bg-positive-muted px-2 py-0.5 text-xs font-medium text-positive">
               <Star class="size-3" aria-hidden="true" fill="currentColor" />
               Recommended
             </span>
@@ -76,7 +76,7 @@ export function SuggestionCard(props: SuggestionCardProps) {
           type="button"
           aria-label={`Dismiss ${props.suggestion.tone} suggestion`}
           onClick={() => props.onDismiss(props.suggestion.id)}
-          class="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          class="inline-flex size-7 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <X class="size-4" aria-hidden="true" />
         </button>
@@ -89,7 +89,7 @@ export function SuggestionCard(props: SuggestionCardProps) {
       <button
         type="button"
         onClick={() => props.onApply(props.suggestion)}
-        class="mt-4 inline-flex h-8 items-center gap-1.5 rounded-md bg-primary/10 px-2.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/15"
+        class="mt-4 inline-flex h-8 items-center gap-1.5 rounded-control bg-primary/10 px-2.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
       >
         <Check class="size-3.5" aria-hidden="true" />
         Use this version

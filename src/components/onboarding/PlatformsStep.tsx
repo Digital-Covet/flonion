@@ -32,22 +32,30 @@ export const PlatformsStep: Component<PlatformsStepProps> = (props) => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("connected") === "true") {
       setConnected(true);
-      window.history.replaceState({}, "", window.location.pathname);
+      // Preserve the wizard position (?step=2) — stripping the query drops
+      // the user back to step 1 (getInitialStep only parses 1–4).
+      params.delete("connected");
+      params.set("step", "2");
+      window.history.replaceState(
+        {},
+        "",
+        `${window.location.pathname}?${params.toString()}`,
+      );
     }
     checkConnection();
   });
 
   const handleConnect = () => {
     setConnecting(true);
-    const returnTo = encodeURIComponent("/onboarding?step=platforms");
+    const returnTo = encodeURIComponent("/onboarding?step=2");
     window.location.href = `/api/google/auth?returnTo=${returnTo}`;
   };
 
   return (
     <div class="flex flex-col gap-6">
-      <div class="rounded-lg border border-border bg-muted/50 p-6">
+      <div class="rounded-card border border-border bg-muted/50 p-6">
         <div class="flex items-start gap-4">
-          <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#4285F4]/10">
+          <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-control bg-[#4285F4]/10">
             <Store
               size={24}
               class="text-[#4285F4]"
@@ -56,7 +64,7 @@ export const PlatformsStep: Component<PlatformsStepProps> = (props) => {
             />
           </div>
           <div class="flex-1">
-            <h3 class="text-base font-semibold text-foreground">
+            <h3 class="text-lg font-medium text-foreground">
               Google Business Profile
             </h3>
             <p class="mt-1 text-sm text-muted-foreground">
@@ -72,7 +80,7 @@ export const PlatformsStep: Component<PlatformsStepProps> = (props) => {
             ) : (
               <button
                 type="button"
-                class="mt-3 flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
+                class="mt-3 flex items-center gap-2 rounded-control border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
                 onClick={handleConnect}
                 disabled={connecting()}
               >
@@ -90,7 +98,7 @@ export const PlatformsStep: Component<PlatformsStepProps> = (props) => {
       <div class="flex items-center justify-between">
         <button
           type="button"
-          class="flex items-center gap-2 rounded-lg border border-border px-6 py-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted"
+          class="flex items-center gap-2 rounded-control border border-border px-6 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
           onClick={props.onBack}
         >
           <ArrowLeft size={20} strokeWidth={2} aria-hidden="true" />
@@ -98,7 +106,7 @@ export const PlatformsStep: Component<PlatformsStepProps> = (props) => {
         </button>
         <button
           type="button"
-          class="flex items-center gap-2 rounded-lg bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
+          class="flex items-center gap-2 rounded-control bg-primary px-8 py-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
           onClick={props.onContinue}
         >
           {connected() ? "Continue" : "Skip for now"}

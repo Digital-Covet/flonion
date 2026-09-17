@@ -84,72 +84,81 @@ function MeetingDetailModal(props: MeetingDetailModalProps) {
       }}
     >
       <Portal>
-        <Dialog.Backdrop class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
-        <Dialog.Positioner class="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <Dialog.Content class="bg-card border border-border rounded-xl shadow-lg w-full max-w-md overflow-hidden">
+        <Dialog.Backdrop class="fixed inset-0 z-50 bg-black/40" />
+        <Dialog.Positioner class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+          <Dialog.Content class="e2-enter w-full max-w-md overflow-hidden rounded-t-soft border border-border bg-card shadow-lg sm:rounded-card">
             <Show when={meeting()}>
               {(m) => (
                 <>
-                  <header class="flex items-center justify-between border-b border-border px-6 py-4">
-                    <div class="flex items-center gap-3 min-w-0">
+                  <header class="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+                    <div class="flex min-w-0 items-center gap-3">
                       <Show
                         when={m().business?.logo}
                         fallback={
-                          <div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                            <Building2 class="size-5" />
+                          <div class="grid size-10 shrink-0 place-items-center rounded-card bg-primary/10 text-primary">
+                            <Building2 class="size-5" aria-hidden="true" />
                           </div>
                         }
                       >
                         <img
                           src={m().business.logo!}
                           alt={m().business.name}
-                          class="size-10 shrink-0 rounded-lg object-cover"
+                          class="size-10 shrink-0 rounded-card object-cover"
                         />
                       </Show>
                       <div class="min-w-0">
-                        <Dialog.Title class="font-heading text-lg font-semibold text-foreground truncate">
+                        <Dialog.Title class="truncate font-heading text-lg font-semibold text-foreground">
                           {m().business?.name
                             ? counterpartyName(m())
                             : "Meeting Details"}
                         </Dialog.Title>
-                        <p class="text-xs text-muted-foreground truncate">
+                        <p class="tnum truncate text-xs text-muted-foreground">
                           {formatDate(m().slot.date)}
                         </p>
                       </div>
                     </div>
-                    <Dialog.CloseTrigger class="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-                      <X class="size-4" />
+                    <Dialog.CloseTrigger
+                      aria-label="Close meeting details"
+                      class="grid min-h-11 min-w-11 shrink-0 place-items-center rounded-control text-muted-foreground transition-colors duration-150 motion-reduce:transition-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    >
+                      <X class="size-5" aria-hidden="true" />
                     </Dialog.CloseTrigger>
                   </header>
 
-                  <div class="px-6 py-5 space-y-4">
-                    <div class="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span class="flex items-center gap-1.5">
-                        <Clock class="size-3.5" />
-                        {m().slot.startTime} - {m().slot.endTime}
+                  <div class="grid gap-4 px-5 py-5">
+                    <div class="tnum flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                      <span class="inline-flex items-center gap-1.5">
+                        <Clock class="size-3.5" aria-hidden="true" />
+                        {m().slot.startTime} – {m().slot.endTime}
                       </span>
-                      <span class="flex items-center gap-1.5">
-                        <MapPin class="size-3.5" />
+                      <span class="inline-flex items-center gap-1.5">
+                        <MapPin class="size-3.5" aria-hidden="true" />
                         Online
                       </span>
                     </div>
 
                     <Show when={requesterName()}>
-                      <div class="rounded-lg bg-muted/50 p-3">
+                      <div class="rounded-card bg-muted/60 p-3.5">
                         <p class="mb-2 text-xs font-medium text-muted-foreground">
                           Meeting with
                         </p>
                         <div class="flex items-center gap-2.5">
-                          <div class="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+                          <div
+                            aria-hidden="true"
+                            class="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-xs font-medium text-primary-foreground"
+                          >
                             {initial()}
                           </div>
                           <div class="min-w-0">
-                            <p class="text-sm font-medium text-foreground truncate">
+                            <p class="truncate text-sm font-medium text-foreground">
                               {requesterName()}
                             </p>
                             <Show when={requesterEmail()}>
-                              <p class="text-xs text-muted-foreground truncate flex items-center gap-1">
-                                <Mail class="size-3" />
+                              <p class="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                                <Mail
+                                  class="size-3 shrink-0"
+                                  aria-hidden="true"
+                                />
                                 {requesterEmail()}
                               </p>
                             </Show>
@@ -159,26 +168,35 @@ function MeetingDetailModal(props: MeetingDetailModalProps) {
                     </Show>
 
                     <Show when={hasGuestInfo()}>
-                      <div class="rounded-lg bg-muted/50 p-3">
+                      <div class="rounded-card bg-muted/60 p-3.5">
                         <p class="mb-2 text-xs font-medium text-muted-foreground">
                           Guest Information
                         </p>
-                        <div class="space-y-1.5">
+                        <div class="grid gap-1.5">
                           <Show when={m().guestName}>
-                            <p class="text-sm text-foreground flex items-center gap-1.5">
-                              <User class="size-3.5 text-muted-foreground" />
+                            <p class="flex items-center gap-1.5 text-sm text-foreground">
+                              <User
+                                class="size-3.5 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                              />
                               {m().guestName}
                             </p>
                           </Show>
                           <Show when={m().guestEmail}>
-                            <p class="text-sm text-foreground flex items-center gap-1.5">
-                              <Mail class="size-3.5 text-muted-foreground" />
+                            <p class="flex items-center gap-1.5 truncate text-sm text-foreground">
+                              <Mail
+                                class="size-3.5 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                              />
                               {m().guestEmail}
                             </p>
                           </Show>
                           <Show when={m().guestPhone}>
-                            <p class="text-sm text-foreground flex items-center gap-1.5">
-                              <Phone class="size-3.5 text-muted-foreground" />
+                            <p class="tnum flex items-center gap-1.5 text-sm text-foreground">
+                              <Phone
+                                class="size-3.5 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                              />
                               {m().guestPhone}
                             </p>
                           </Show>
@@ -194,20 +212,20 @@ function MeetingDetailModal(props: MeetingDetailModalProps) {
                     </div>
 
                     <Show when={m().message}>
-                      <div class="rounded-lg bg-muted/50 p-3">
-                        <p class="mb-1 text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                          <MessageSquare class="size-3.5" />
+                      <div class="rounded-card bg-muted/60 p-3.5">
+                        <p class="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                          <MessageSquare class="size-3.5" aria-hidden="true" />
                           Message
                         </p>
-                        <p class="text-sm text-foreground whitespace-pre-wrap">
+                        <p class="text-sm leading-6 whitespace-pre-wrap text-foreground">
                           {m().message}
                         </p>
                       </div>
                     </Show>
                   </div>
 
-                  <footer class="flex justify-end border-t border-border px-6 py-4">
-                    <Dialog.CloseTrigger class="rounded-lg px-4 py-2 text-sm font-medium text-foreground bg-muted transition-colors hover:bg-border">
+                  <footer class="flex justify-end border-t border-border px-5 py-4">
+                    <Dialog.CloseTrigger class="inline-flex min-h-11 items-center rounded-control bg-muted px-4 py-2.5 text-sm font-medium text-foreground transition-colors duration-150 motion-reduce:transition-none hover:bg-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                       Close
                     </Dialog.CloseTrigger>
                   </footer>

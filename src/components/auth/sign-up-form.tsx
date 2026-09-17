@@ -1,6 +1,7 @@
 import { Field } from "@ark-ui/solid/field";
 import { PasswordInput } from "@ark-ui/solid/password-input";
 import Check from "lucide-solid/icons/check";
+import CircleAlert from "lucide-solid/icons/circle-alert";
 import EyeIcon from "lucide-solid/icons/eye";
 import EyeOffIcon from "lucide-solid/icons/eye-off";
 import LoaderCircleIcon from "lucide-solid/icons/loader-circle";
@@ -10,6 +11,7 @@ import {
   createSignal,
   Match,
   onCleanup,
+  Show,
   Switch,
 } from "solid-js";
 import { authErrorMessage } from "@/lib/auth-errors";
@@ -21,13 +23,13 @@ type PasswordStrength = 0 | 1 | 2 | 3 | 4;
 
 const STRENGTH_CONFIG: Record<
   PasswordStrength,
-  { label: string; color: string; bg: string }
+  { label: string; bar: string; text: string }
 > = {
-  0: { label: "", color: "bg-border", bg: "bg-border" },
-  1: { label: "Weak", color: "bg-red-500", bg: "bg-red-500" },
-  2: { label: "Fair", color: "bg-orange-500", bg: "bg-orange-500" },
-  3: { label: "Good", color: "bg-yellow-500", bg: "bg-yellow-500" },
-  4: { label: "Strong", color: "bg-green-500", bg: "bg-green-500" },
+  0: { label: "", bar: "bg-border", text: "text-muted-foreground" },
+  1: { label: "Weak", bar: "bg-destructive", text: "text-destructive" },
+  2: { label: "Fair", bar: "bg-warning", text: "text-warning" },
+  3: { label: "Good", bar: "bg-warning", text: "text-warning" },
+  4: { label: "Strong", bar: "bg-success", text: "text-success" },
 };
 
 function evaluatePasswordStrength(pw: string): PasswordStrength {
@@ -40,33 +42,38 @@ function evaluatePasswordStrength(pw: string): PasswordStrength {
   return Math.min(score, 4) as PasswordStrength;
 }
 
-function hasMinLength(pw: string): boolean {
-  return pw.length >= PASSWORD_MIN_LENGTH;
-}
-
-function hasUpperCase(pw: string): boolean {
-  return /[A-Z]/.test(pw);
-}
-
-function hasNumber(pw: string): boolean {
-  return /\d/.test(pw);
-}
-
-function hasSymbol(pw: string): boolean {
-  return /[^A-Za-z0-9]/.test(pw);
-}
+const hasMinLength = (pw: string) => pw.length >= PASSWORD_MIN_LENGTH;
+const hasUpperCase = (pw: string) => /[A-Z]/.test(pw);
+const hasNumber = (pw: string) => /\d/.test(pw);
+const hasSymbol = (pw: string) => /[^A-Za-z0-9]/.test(pw);
 
 const Requirement: Component<{ met: boolean; label: string }> = (props) => (
   <li
-    class={`flex items-center gap-1.5 text-xs transition-colors ${
-      props.met ? "text-green-600" : "text-muted-foreground"
+    class={`flex min-h-11 items-center gap-1.5 text-xs transition-colors sm:min-h-0 ${
+      props.met ? "text-success" : "text-muted-foreground"
     }`}
   >
-    <Check class={`h-3 w-3 ${props.met ? "opacity-100" : "opacity-30"}`} />
+    <span
+      aria-hidden="true"
+      class={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+        props.met ? "border-success bg-success/10" : "border-input"
+      }`}
+    >
+      <Check
+        class={`h-3 w-3 ${props.met ? "opacity-100" : "opacity-30"}`}
+        aria-hidden="true"
+      />
+    </span>
     <span>{props.label}</span>
+    <span class="sr-only">{props.met ? " (met)" : " (not met)"}</span>
   </li>
 );
 
+/**
+ * Flonion DS §6 "Auth set" sign-up form. 8px control radius,
+ * 44px touch targets, visible labels, icon + text validation
+ * (never colour-only), strength shown as label + bar.
+ */
 export const SignUpForm: Component<SignUpFormProps> = (props) => {
   const [status, setStatus] = createSignal<FormStatus>("idle");
   const [name, setName] = createSignal("");
@@ -90,8 +97,7 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
 
   const nameError = (): string | null => {
     if (!isTouched("name")) return null;
-    const trimmed = name().trim();
-    if (!trimmed) return "Name is required";
+    if (!name().trim()) return "Name is required";
     return null;
   };
 
@@ -100,7 +106,7 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
     const trimmed = email().trim();
     if (!trimmed) return "Email is required";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed))
-      return "Invalid email address";
+      return "Enter a valid email address";
     return null;
   };
 
@@ -110,31 +116,17 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
     return null;
   };
 
-  const fieldState = (field: string, hasError: boolean | null): string => {
-    if (hasError === null) return "";
-    if (hasError) return "border-red-500 focus:ring-red-500/20";
-    if (isTouched(field)) return "border-green-500 focus:ring-green-500/20";
-    return "";
-  };
-
   const validate = (): string | null => {
-    const trimmedName = name().trim();
-    if (!trimmedName) return "Name is required";
-
+    if (!name().trim()) return "Name is required";
     if (!email().trim()) return "Email is required";
-
     if (password().length < PASSWORD_MIN_LENGTH)
       return `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
-
     if (!hasUpperCase(password()))
       return "Password must contain at least one uppercase letter";
-
     if (!hasNumber(password()))
       return "Password must contain at least one number";
-
     if (!hasSymbol(password()))
       return "Password must contain at least one symbol (@#&!)";
-
     return null;
   };
 
@@ -161,14 +153,28 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
     }
   };
 
+  const inputClass = (invalid: boolean) =>
+    `min-h-11 w-full rounded-sm border bg-card px-4 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground/70 focus:border-primary disabled:opacity-60 ${
+      invalid ? "border-destructive" : "border-input"
+    }`;
+
   return (
     <div class="w-full">
-      <form class="w-full space-y-4" onSubmit={handleSubmit}>
+      <form
+        class="w-full space-y-4"
+        onSubmit={handleSubmit}
+        aria-busy={status() === "loading"}
+      >
         <Field.Root invalid={!!nameError()}>
-          <Field.Label class="mb-1.5 block text-sm font-medium text-foreground">
-            Name <span class="text-muted-foreground">*</span>
+          <Field.Label
+            for="signup-name"
+            class="mb-1.5 block text-sm font-medium text-foreground"
+          >
+            Full name
           </Field.Label>
           <Field.Input
+            id="signup-name"
+            name="name"
             type="text"
             required
             placeholder="e.g. Jane Cooper"
@@ -177,77 +183,100 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
             disabled={!isInteractive()}
             onInput={(event) => setName(event.currentTarget.value)}
             onBlur={() => markTouched("name")}
-            class={`w-full rounded-full border border-input bg-card px-6 py-4 text-base text-foreground outline-none transition-colors focus:ring-2 focus:ring-primary/20 disabled:opacity-60 ${fieldState(
-              "name",
-              !!nameError(),
-            )}`}
+            aria-invalid={!!nameError()}
+            aria-describedby={nameError() ? "signup-name-error" : undefined}
+            class={inputClass(!!nameError())}
           />
-          {nameError() && (
-            <Field.ErrorText class="mt-1.5 text-sm text-red-600">
+          <Show when={nameError()}>
+            <Field.ErrorText
+              id="signup-name-error"
+              class="mt-1.5 flex items-center gap-1.5 text-sm text-destructive"
+            >
+              <CircleAlert class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               {nameError()}
             </Field.ErrorText>
-          )}
+          </Show>
         </Field.Root>
 
         <Field.Root invalid={!!emailError()}>
-          <Field.Label class="mb-1.5 block text-sm font-medium text-foreground">
-            Email address <span class="text-muted-foreground">*</span>
+          <Field.Label
+            for="signup-email"
+            class="mb-1.5 block text-sm font-medium text-foreground"
+          >
+            Work email
           </Field.Label>
           <Field.Input
+            id="signup-email"
+            name="email"
             type="email"
             required
-            placeholder="e.g. jane@example.com"
+            placeholder="e.g. jane@myshop.com"
             value={email()}
             autocomplete="email"
+            inputmode="email"
             disabled={!isInteractive()}
             onInput={(event) => setEmail(event.currentTarget.value)}
             onBlur={() => markTouched("email")}
-            class={`w-full rounded-full border border-input bg-card px-6 py-4 text-base text-foreground outline-none transition-colors focus:ring-2 focus:ring-primary/20 disabled:opacity-60 ${fieldState(
-              "email",
-              !!emailError(),
-            )}`}
+            aria-invalid={!!emailError()}
+            aria-describedby={emailError() ? "signup-email-error" : undefined}
+            class={inputClass(!!emailError())}
           />
-          {emailError() && (
-            <Field.ErrorText class="mt-1.5 text-sm text-red-600">
+          <Show when={emailError()}>
+            <Field.ErrorText
+              id="signup-email-error"
+              class="mt-1.5 flex items-center gap-1.5 text-sm text-destructive"
+            >
+              <CircleAlert class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               {emailError()}
             </Field.ErrorText>
-          )}
+          </Show>
         </Field.Root>
 
         <Field.Root invalid={!!passwordError()}>
           <PasswordInput.Root>
-            <Field.Label class="mb-1.5 block text-sm font-medium text-foreground">
-              Password <span class="text-muted-foreground">*</span>
+            <Field.Label
+              for="signup-password"
+              class="mb-1.5 block text-sm font-medium text-foreground"
+            >
+              Password
             </Field.Label>
             <PasswordInput.Control
-              class={`flex w-full items-center rounded-full border border-input bg-card px-6 py-4 transition-colors focus-within:ring-2 focus-within:ring-primary/20 disabled:opacity-60 ${fieldState(
-                "password",
-                !!passwordError(),
-              )}`}
+              class={`flex min-h-11 w-full items-center rounded-sm border bg-card px-4 transition-colors focus-within:border-primary ${
+                passwordError() ? "border-destructive" : "border-input"
+              }`}
             >
               <PasswordInput.Input
+                id="signup-password"
+                name="password"
                 required
+                minLength={PASSWORD_MIN_LENGTH}
                 placeholder="Create a password"
                 autocomplete="new-password"
                 disabled={!isInteractive()}
                 onInput={(event) => setPassword(event.currentTarget.value)}
                 onBlur={() => markTouched("password")}
-                class="w-full bg-transparent text-base text-foreground outline-none disabled:opacity-60"
+                aria-describedby="signup-password-hints"
+                class="w-full bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground/70 disabled:opacity-60"
               />
               <PasswordInput.VisibilityTrigger
                 disabled={!isInteractive()}
-                class="ml-2 shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+                aria-label="Show password"
+                class="ml-2 flex min-h-11 min-w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
               >
                 <PasswordInput.Indicator
-                  fallback={<EyeOffIcon class="h-4 w-4" />}
+                  fallback={<EyeOffIcon class="h-4 w-4" aria-hidden="true" />}
                 >
-                  <EyeIcon class="h-4 w-4" />
+                  <EyeIcon class="h-4 w-4" aria-hidden="true" />
                 </PasswordInput.Indicator>
               </PasswordInput.VisibilityTrigger>
             </PasswordInput.Control>
           </PasswordInput.Root>
 
-          <ul class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
+          <ul
+            id="signup-password-hints"
+            class="mt-2 grid grid-cols-1 gap-x-4 sm:grid-cols-2"
+            aria-label="Password requirements"
+          >
             <Requirement met={hasMinLength(password())} label="8+ characters" />
             <Requirement met={hasUpperCase(password())} label="One uppercase" />
             <Requirement met={hasNumber(password())} label="One number" />
@@ -257,71 +286,100 @@ export const SignUpForm: Component<SignUpFormProps> = (props) => {
             />
           </ul>
 
-          {password().length > 0 && (
-            <div class="mt-2">
+          <Show when={password().length > 0}>
+            <div class="mt-2" aria-live="polite">
               <div class="mb-1 flex items-center justify-between">
-                <span class="text-xs text-muted-foreground">Strength</span>
+                <span class="text-xs text-muted-foreground">
+                  Password strength
+                </span>
                 <span
-                  class={`text-xs font-medium ${
-                    strength() <= 1
-                      ? "text-red-600"
-                      : strength() === 2
-                        ? "text-orange-600"
-                        : strength() === 3
-                          ? "text-yellow-600"
-                          : "text-green-600"
-                  }`}
+                  class={`text-xs font-medium ${STRENGTH_CONFIG[strength()].text}`}
                 >
                   {STRENGTH_CONFIG[strength()].label}
                 </span>
               </div>
-              <div class="h-1 w-full overflow-hidden rounded-full bg-border">
+              <div
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={4}
+                aria-valuenow={strength()}
+                aria-label={`Password strength: ${STRENGTH_CONFIG[strength()].label || "empty"}`}
+                class="h-1 w-full overflow-hidden rounded-full bg-border"
+              >
                 <div
-                  class={`h-full transition-all duration-300 ${STRENGTH_CONFIG[strength()].bg}`}
+                  class={`h-full transition-[width] duration-200 ${STRENGTH_CONFIG[strength()].bar}`}
                   style={{ width: `${(strength() / 4) * 100}%` }}
                 />
               </div>
             </div>
-          )}
+          </Show>
 
-          {passwordError() && (
-            <Field.ErrorText class="mt-1.5 text-sm text-red-600">
+          <Show when={passwordError()}>
+            <Field.ErrorText class="mt-1.5 flex items-center gap-1.5 text-sm text-destructive">
+              <CircleAlert class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               {passwordError()}
             </Field.ErrorText>
-          )}
+          </Show>
         </Field.Root>
 
-        {error() && (
-          <p class="text-center text-sm font-medium text-red-600">{error()}</p>
-        )}
+        <Show when={error()}>
+          <p
+            role="alert"
+            class="flex items-start gap-2 rounded-sm border border-destructive/25 bg-destructive-muted p-3 text-sm font-medium text-destructive"
+          >
+            <CircleAlert class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            {error()}
+          </p>
+        </Show>
 
         <button
           type="submit"
           disabled={!isInteractive()}
           aria-busy={status() === "loading"}
           aria-live="polite"
-          class="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary py-4 font-semibold text-primary-foreground transition-all hover:bg-primary-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:active:scale-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-sm bg-primary px-4 text-base font-medium text-primary-foreground transition-colors hover:bg-primary-hover active:opacity-95 disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <Switch
             fallback={<span>{props.submitLabel ?? "Create account"}</span>}
           >
             <Match when={status() === "loading"}>
-              <LoaderCircleIcon class="h-5 w-5 animate-spin" />
-              <span>Creating account...</span>
+              <LoaderCircleIcon
+                class="h-5 w-5 animate-spin"
+                aria-hidden="true"
+              />
+              <span>Creating account…</span>
             </Match>
             <Match when={status() === "idle"}>
-              <Sparkles class="h-4 w-4" />
+              <Sparkles class="h-4 w-4" aria-hidden="true" />
               <span>{props.submitLabel ?? "Create account"}</span>
             </Match>
           </Switch>
         </button>
+
+        <p class="text-center text-xs leading-relaxed text-muted-foreground">
+          By creating an account you agree to our{" "}
+          <a
+            href="/terms"
+            class="font-medium text-foreground underline-offset-4 hover:text-primary hover:underline"
+          >
+            Terms
+          </a>{" "}
+          and{" "}
+          <a
+            href="/privacy"
+            class="font-medium text-foreground underline-offset-4 hover:text-primary hover:underline"
+          >
+            Privacy Policy
+          </a>
+          .
+        </p>
       </form>
 
-      <p class="mt-6 text-center text-base text-muted-foreground">
+      <p class="mt-6 text-center text-sm text-muted-foreground">
         {props.redirectText ?? "Already have an account?"}{" "}
         <a
-          href={props.redirectTo ?? "#"}
-          class="font-semibold text-foreground transition-colors hover:text-primary"
+          href={props.redirectTo ?? "/login"}
+          class="font-medium text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           {props.redirectLabel ?? "Sign in"}
         </a>

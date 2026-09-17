@@ -19,7 +19,7 @@ export const TimeSlot = (props: TimeSlotProps) => (
     onClick={props.state === "disabled" ? undefined : props.onClick}
     disabled={props.state === "disabled"}
     class={cn(
-      "py-2 rounded-md border text-sm font-medium transition-colors",
+      "py-2 rounded-control border text-sm font-medium transition-colors",
       styles[props.state ?? "available"],
     )}
   >

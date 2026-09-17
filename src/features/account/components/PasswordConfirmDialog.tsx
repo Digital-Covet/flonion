@@ -34,11 +34,11 @@ export function PasswordConfirmDialog(props: PasswordConfirmDialogProps) {
         class="fixed inset-0 bg-black/50 backdrop-blur-sm"
         onClick={props.onClose}
       />
-      <div class="relative z-10 mx-4 w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
+      <div class="relative z-10 mx-4 w-full max-w-md rounded-card border border-border bg-card p-6 shadow-xl">
         <button
           type="button"
           onClick={props.onClose}
-          class="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          class="absolute right-4 top-4 rounded-control p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           aria-label="Close"
         >
           <X size={18} />
@@ -49,7 +49,7 @@ export function PasswordConfirmDialog(props: PasswordConfirmDialogProps) {
             <Lock size={20} class="text-primary" />
           </div>
           <div>
-            <h3 class="text-lg font-semibold">{props.title}</h3>
+            <h3 class="text-lg font-medium">{props.title}</h3>
             <p class="text-sm text-muted-foreground">{props.description}</p>
           </div>
         </div>
@@ -69,7 +69,7 @@ export function PasswordConfirmDialog(props: PasswordConfirmDialogProps) {
               onInput={(e) => setPassword((e.target as HTMLInputElement).value)}
               placeholder="Enter your password"
               autofocus
-              class="h-10 w-full rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              class="min-h-11 w-full rounded-control border border-border bg-card px-4 text-base leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </Field.Root>
 
@@ -81,14 +81,14 @@ export function PasswordConfirmDialog(props: PasswordConfirmDialogProps) {
             <button
               type="button"
               onClick={props.onClose}
-              class="h-9 rounded-lg border border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+              class="h-9 rounded-control border border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={props.loading || !password()}
-              class="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              class="inline-flex h-9 items-center gap-2 rounded-control bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {props.loading ? "Confirming..." : "Confirm"}
             </button>

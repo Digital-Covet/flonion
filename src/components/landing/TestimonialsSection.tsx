@@ -1,74 +1,52 @@
 import User from "lucide-solid/icons/user";
-import { createSignal, onCleanup, onMount } from "solid-js";
 import AnimatedStarRating from "~/components/landing/AnimatedStarRating";
 import { testimonialItems } from "~/constants/landing";
 
 export default function TestimonialsSection() {
-  const [visible, setVisible] = createSignal(false);
-  let sectionRef: HTMLDivElement | undefined;
-
-  onMount(() => {
-    if (!sectionRef) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.15 },
-    );
-    observer.observe(sectionRef);
-    onCleanup(() => observer.disconnect());
-  });
-
-  const accentColor = (color: string) => {
+  const avatarBg = (color: string) => {
     const map: Record<string, string> = {
-      primary: "text-primary",
-      secondary: "text-purple",
-      tertiary: "text-orange",
+      primary: "bg-primary/10 text-primary",
+      secondary: "bg-secondary/10 text-secondary",
+      tertiary: "bg-warning-muted text-star-text",
     };
-    return map[color] || "text-primary";
+    return map[color] ?? "bg-primary/10 text-primary";
   };
 
   return (
-    <section class="bg-muted px-4 py-32 md:px-16" id="reviews" ref={sectionRef}>
-      <div class="mx-auto max-w-[1280px]">
-        <h2 class="mb-20 text-center text-3xl font-bold text-foreground">
-          What local businesses say
-        </h2>
-        <div class="grid gap-8 md:grid-cols-3">
-          {testimonialItems.map((item, index) => (
-            <div
-              class={`rounded-xl bg-card p-8 shadow-md transition-all duration-300 hover:-translate-y-2 ${
-                visible()
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 translate-y-7"
-              }`}
-              style={{ "transition-delay": `${index * 100}ms` }}
-            >
-              <div class="mb-6">
-                <AnimatedStarRating count={item.rating} inView={visible()} />
-              </div>
-              <p class="mb-8 text-base italic leading-relaxed text-card-foreground">
+    <section class="bg-background px-4 py-20 md:px-8 md:py-28" id="reviews">
+      <div class="mx-auto max-w-[1120px]">
+        <div class="mx-auto mb-12 max-w-2xl text-center">
+          <p class="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-secondary">
+            Owner stories
+          </p>
+          <h2 class="font-heading text-2xl font-semibold text-foreground md:text-3xl">
+            What local businesses say
+          </h2>
+        </div>
+        <div class="grid gap-6 md:grid-cols-3">
+          {testimonialItems.map((item) => (
+            <figure class="flex flex-col rounded-xl border border-border bg-card p-8 shadow-sm">
+              <AnimatedStarRating count={item.rating} />
+              <blockquote class="mb-8 mt-4 flex-1 text-base leading-[1.6] text-card-foreground">
                 &ldquo;{item.quote}&rdquo;
-              </p>
-              <div class="flex items-center gap-4">
-                <div
-                  class={`flex h-12 w-12 items-center justify-center rounded-full border border-border bg-muted ${accentColor(item.avatarColor)}`}
+              </blockquote>
+              <figcaption class="flex items-center gap-4">
+                <span
+                  class={`grid size-11 shrink-0 place-items-center rounded-full ${avatarBg(item.avatarColor)}`}
+                  aria-hidden="true"
                 >
-                  <User size={20} aria-hidden="true" />
-                </div>
-                <div>
-                  <div class="text-sm font-bold text-card-foreground">
+                  <User size={20} />
+                </span>
+                <span>
+                  <span class="block text-sm font-medium text-card-foreground">
                     {item.name}
-                  </div>
-                  <div class="text-xs text-muted-foreground">
+                  </span>
+                  <span class="block text-xs text-muted-foreground">
                     {item.business}
-                  </div>
-                </div>
-              </div>
-            </div>
+                  </span>
+                </span>
+              </figcaption>
+            </figure>
           ))}
         </div>
       </div>

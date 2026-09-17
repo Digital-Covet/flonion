@@ -1,86 +1,45 @@
-import { createSignal, onCleanup, onMount } from "solid-js";
 import { featureItems } from "~/constants/landing";
+import { cn } from "~/lib/cn";
 
 export default function FeaturesSection() {
-  const [visible, setVisible] = createSignal(false);
-  let sectionRef: HTMLDivElement | undefined;
-
-  onMount(() => {
-    if (!sectionRef) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.15 },
-    );
-    observer.observe(sectionRef);
-    onCleanup(() => observer.disconnect());
-  });
-
   return (
-    <section class="bg-card px-4 py-32 md:px-16" id="features" ref={sectionRef}>
-      <div class="mx-auto max-w-[1280px]">
-        <div class="mx-auto mb-20 max-w-2xl text-center">
-          <h2 class="mb-4 text-3xl font-bold text-foreground">
+    <section class="bg-background px-4 py-20 md:px-8 md:py-28" id="features">
+      <div class="mx-auto max-w-[1120px]">
+        <div class="mx-auto mb-12 max-w-2xl text-center">
+          <p class="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-secondary">
+            Everything in one workspace
+          </p>
+          <h2 class="font-heading text-2xl font-semibold text-foreground md:text-3xl">
             Everything you need to grow locally
           </h2>
-          <p class="text-lg text-muted-foreground">
-            Simple tools built specifically for Indian businesses to manage
-            reputation effortlessly.
+          <p class="mt-3 text-base leading-[1.6] text-muted-foreground">
+            Reviews, replies, SEO, bookings, partners, and tasks — simple tools
+            built for owners, not analysts.
           </p>
         </div>
 
-        <div class="grid gap-8 md:grid-cols-2">
-          {featureItems.map((feature, index) => (
-            // biome-ignore lint/a11y/noStaticElementInteractions: the tilt is a pointer-only flourish on a static card; there is no behaviour here to expose to assistive tech
-            <div
-              class={`tilt-card relative overflow-hidden rounded-xl border border-border bg-card p-8 shadow-md transition-all duration-300 will-change-transform ${
-                visible()
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 translate-y-7"
-              }`}
-              style={{ "transition-delay": `${index * 90}ms` }}
-              onMouseMove={(e) => {
-                const el = e.currentTarget;
-                if (window.innerWidth < 768) return;
-                const rect = el.getBoundingClientRect();
-                const x = (e.clientX - rect.left) / rect.width;
-                const y = (e.clientY - rect.top) / rect.height;
-                const rotateX = (0.5 - y) * 8;
-                const rotateY = (x - 0.5) * 10;
-                el.style.setProperty("--mx", `${x * 100}%`);
-                el.style.setProperty("--my", `${y * 100}%`);
-                el.style.transform = `perspective(900px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translate3d(0, -3px, 0)`;
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget;
-                el.style.transform = "";
-                el.style.setProperty("--mx", "50%");
-                el.style.setProperty("--my", "50%");
-              }}
+        {/* Bento grid (DS §1): two lead tiles span 2 cols on lg; the rest
+            are single tiles. Opaque cards, 12px radius, static reveal. */}
+        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {featureItems.map((feature) => (
+            <article
+              class={cn(
+                "rounded-xl border border-border bg-card p-8 shadow-sm",
+                feature.span && "md:col-span-2",
+              )}
             >
-              <div class="relative z-10 flex h-full flex-col gap-6 md:flex-row md:items-center">
-                <div class="flex-1">
-                  <div class="mb-6 flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-                    {feature.icon}
-                  </div>
-                  <h3 class="mb-3 text-2xl font-bold text-card-foreground">
-                    {feature.title}
-                  </h3>
-                  <p class="text-base text-muted-foreground">
-                    {feature.description}
-                  </p>
-                </div>
-                {feature.mockup && (
-                  <div class="relative z-10 w-full shrink-0 md:w-48">
-                    {feature.mockup}
-                  </div>
-                )}
+              <div class="mb-5 flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                <span class="grid size-11 place-items-center">
+                  {feature.icon}
+                </span>
               </div>
-            </div>
+              <h3 class="font-heading text-xl font-medium text-card-foreground">
+                {feature.title}
+              </h3>
+              <p class="mt-2 text-base leading-[1.6] text-muted-foreground">
+                {feature.description}
+              </p>
+            </article>
           ))}
         </div>
       </div>

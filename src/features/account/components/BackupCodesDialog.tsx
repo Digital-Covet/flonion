@@ -34,18 +34,18 @@ export function BackupCodesDialog(props: BackupCodesDialogProps) {
         class="fixed inset-0 bg-black/50 backdrop-blur-sm"
         onClick={props.onClose}
       />
-      <div class="relative z-10 mx-4 w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-xl">
+      <div class="relative z-10 mx-4 w-full max-w-lg rounded-card border border-border bg-card p-6 shadow-xl">
         <button
           type="button"
           onClick={props.onClose}
-          class="absolute right-4 top-4 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          class="absolute right-4 top-4 rounded-control p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           aria-label="Close"
         >
           <X size={18} />
         </button>
 
         <div class="mb-4">
-          <h3 class="text-lg font-semibold">Backup Codes</h3>
+          <h3 class="text-lg font-medium">Backup Codes</h3>
           <p class="mt-1 text-sm text-muted-foreground">
             Save these codes in a secure location. Each code can only be used
             once. If you lose access to your authenticator app, you can use
@@ -53,10 +53,10 @@ export function BackupCodesDialog(props: BackupCodesDialogProps) {
           </p>
         </div>
 
-        <div class="mb-4 rounded-lg border border-border bg-muted p-4">
+        <div class="mb-4 rounded-card border border-border bg-muted p-4">
           <div class="grid grid-cols-2 gap-2">
             {props.codes.map((code) => (
-              <code class="rounded bg-card px-2 py-1 text-center text-sm font-mono font-bold">
+              <code class="rounded bg-card px-2 py-1 text-center text-sm font-mono">
                 {code}
               </code>
             ))}
@@ -67,7 +67,7 @@ export function BackupCodesDialog(props: BackupCodesDialogProps) {
           <button
             type="button"
             onClick={props.onCopy}
-            class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-card border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             <Show
               when={props.copied}
@@ -85,7 +85,7 @@ export function BackupCodesDialog(props: BackupCodesDialogProps) {
           <button
             type="button"
             onClick={downloadCodes}
-            class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            class="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-card border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           >
             <Download size={16} />
             Download
@@ -96,7 +96,7 @@ export function BackupCodesDialog(props: BackupCodesDialogProps) {
           <button
             type="button"
             onClick={props.onClose}
-            class="inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            class="inline-flex h-9 items-center gap-2 rounded-card bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             I've saved my codes
           </button>

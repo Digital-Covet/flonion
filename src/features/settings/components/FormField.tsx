@@ -31,7 +31,7 @@ export function FormField(props: FormFieldProps) {
             placeholder={props.placeholder}
             maxlength={props.maxLength}
             onInput={props.onInput}
-            class="h-10 w-full rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            class="min-h-11 w-full rounded-control border border-border bg-card px-4 text-base leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         }
       >
@@ -42,7 +42,7 @@ export function FormField(props: FormFieldProps) {
           rows={props.rows ?? 3}
           maxlength={props.maxLength}
           onInput={props.onInput}
-          class="w-full resize-y rounded-lg border border-border bg-card px-4 py-2 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          class="w-full resize-y rounded-control border border-border bg-card px-4 py-2 text-base leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
       </Show>
       <Show when={props.hint}>

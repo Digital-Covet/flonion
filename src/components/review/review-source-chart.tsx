@@ -4,13 +4,14 @@ import { reviewSources } from "@/features/reviews/review-data";
 const sourceColorClasses = {
   primary: "bg-primary",
   info: "bg-info",
-  purple: "bg-purple",
+  secondary: "bg-secondary",
 } as const;
 
+/* DS §2 hexes — must match the legend swatches above. */
 const sourceStrokeColors = {
-  primary: "#0060ff",
-  info: "#2563eb",
-  purple: "#7c3aed",
+  primary: "#5b21b6",
+  info: "#1d4ed8",
+  secondary: "#0f766e",
 } as const;
 
 export function ReviewSourceChart() {
@@ -33,7 +34,7 @@ export function ReviewSourceChart() {
   return (
     <section
       aria-labelledby="review-sources-heading"
-      class="rounded-lg border border-border bg-card p-5 shadow-sm"
+      class="rounded-card border border-border bg-card p-5 shadow-sm"
     >
       <h2
         id="review-sources-heading"
@@ -55,7 +56,7 @@ export function ReviewSourceChart() {
               cy="50"
               r="40"
               fill="none"
-              stroke="#e2e8f0"
+              stroke="#e7e5e4"
               stroke-width="16"
             />
             <For each={chartSegments}>
@@ -76,7 +77,7 @@ export function ReviewSourceChart() {
           </svg>
 
           <div class="absolute inset-0 flex flex-col items-center justify-center">
-            <span class="text-2xl font-semibold tracking-tight text-foreground">
+            <span class="tnum font-heading text-2xl font-semibold text-foreground">
               1.2K
             </span>
             <span class="text-xs text-muted-foreground">Total</span>
@@ -94,7 +95,7 @@ export function ReviewSourceChart() {
                   />
                   {source.name}
                 </span>
-                <strong class="text-foreground">{source.percentage}%</strong>
+                <strong class="font-medium text-foreground">{source.percentage}%</strong>
               </li>
             )}
           </For>

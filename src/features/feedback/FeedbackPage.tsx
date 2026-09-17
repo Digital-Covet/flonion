@@ -1,15 +1,17 @@
 import { Field } from "@ark-ui/solid/field";
 import { createListCollection, Select } from "@ark-ui/solid/select";
 import { Title } from "@solidjs/meta";
-import AlertTriangle from "lucide-solid/icons/alert-triangle";
 import Check from "lucide-solid/icons/check";
-import CheckCircle from "lucide-solid/icons/check-circle";
 import ChevronDown from "lucide-solid/icons/chevron-down";
 import MessageSquare from "lucide-solid/icons/message-square";
 import Send from "lucide-solid/icons/send";
 import Star from "lucide-solid/icons/star";
-import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, For, Show } from "solid-js";
 import { Portal } from "solid-js/web";
+import { Button, ButtonLink } from "~/components/ui/button";
+import { CopyButton } from "~/components/ui/copy-button";
+import { SubmittedCheck } from "~/components/ui/redirect-countdown";
+import { notify } from "~/components/ui/toast";
 import { SectionCard } from "~/features/settings/components/SectionCard";
 import { authClient } from "~/lib/auth-client";
 import { FEEDBACK_CATEGORIES } from "./types";
@@ -30,10 +32,14 @@ export function FeedbackPage() {
   const [rating, setRating] = createSignal(0);
   const [message, setMessage] = createSignal("");
   const [submitting, setSubmitting] = createSignal(false);
-  const [success, setSuccess] = createSignal(false);
+  // Persistent success receipt (reference ID + summary) — never auto-dismissed.
+  const [receipt, setReceipt] = createSignal<{
+    id: string;
+    category: string;
+    rating: number;
+  } | null>(null);
   const [error, setError] = createSignal("");
-
-  let dismissTimer: ReturnType<typeof setTimeout> | undefined;
+  const [needsLogin, setNeedsLogin] = createSignal(false);
 
   createEffect(() => {
     const user = session()?.data?.user;
@@ -42,15 +48,6 @@ export function FeedbackPage() {
       if (user.email && !email()) setEmail(user.email);
     }
   });
-
-  createEffect(() => {
-    if (success()) {
-      clearTimeout(dismissTimer);
-      dismissTimer = setTimeout(() => setSuccess(false), 4000);
-    }
-  });
-
-  onCleanup(() => clearTimeout(dismissTimer));
 
   const isFormValid = () =>
     name().trim().length > 0 &&
@@ -73,6 +70,7 @@ export function FeedbackPage() {
 
     setSubmitting(true);
     setError("");
+    setNeedsLogin(false);
 
     try {
       const res = await fetch("/api/feedback", {
@@ -87,18 +85,31 @@ export function FeedbackPage() {
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to submit feedback");
+      if (res.status === 401) {
+        // Signed-out submit: input preserved, explicit path back in.
+        setNeedsLogin(true);
+        setError("Please sign in to send feedback.");
+        return;
       }
 
-      setSuccess(true);
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to submit feedback");
+      }
+
+      setReceipt({
+        id: data?.id ?? "received",
+        category: category(),
+        rating: rating(),
+      });
+      notify("success", "Feedback submitted");
       resetForm();
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "An unexpected error occurred",
       );
+      notify("error", "Couldn't submit feedback", "Your input is preserved.");
     } finally {
       setSubmitting(false);
     }
@@ -109,10 +120,10 @@ export function FeedbackPage() {
       <Title>Feedback — Flonion</Title>
       <div class="mx-auto max-w-4xl space-y-8">
         <div class="mb-8">
-          <h2 class="text-2xl font-semibold leading-10 tracking-tight text-foreground">
+          <h1 class="font-heading text-3xl font-semibold text-foreground">
             Send Feedback
-          </h2>
-          <p class="mt-1 text-lg leading-6 text-muted-foreground">
+          </h1>
+          <p class="mt-1 text-base text-muted-foreground">
             Help us improve Flonion. Your feedback is reviewed by our team.
           </p>
         </div>
@@ -132,7 +143,7 @@ export function FeedbackPage() {
                 value={name()}
                 onInput={(e) => setName((e.target as HTMLInputElement).value)}
                 placeholder="Your name"
-                class="h-10 w-full rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                class="min-h-11 w-full rounded-control border border-border bg-card px-4 text-base leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </Field.Root>
 
@@ -149,7 +160,7 @@ export function FeedbackPage() {
                 value={email()}
                 onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
                 placeholder="your@email.com"
-                class="h-10 w-full rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                class="min-h-11 w-full rounded-control border border-border bg-card px-4 text-base leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </Field.Root>
           </div>
@@ -167,7 +178,7 @@ export function FeedbackPage() {
                 Category
               </Select.Label>
               <Select.Control>
-                <Select.Trigger class="flex h-10 w-full items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
+                <Select.Trigger class="flex min-h-11 w-full items-center justify-between gap-3 rounded-control border border-border bg-card px-4 text-base leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
                   <Select.ValueText
                     placeholder="Select a category"
                     class={
@@ -182,12 +193,12 @@ export function FeedbackPage() {
               </Select.Control>
               <Portal>
                 <Select.Positioner>
-                  <Select.Content class="z-50 mt-1 max-h-64 min-w-52 overflow-y-auto rounded-md border border-border bg-card p-1 shadow-sm">
+                  <Select.Content class="z-50 mt-1 max-h-64 min-w-52 overflow-y-auto rounded-card border border-border bg-card p-1 shadow-sm">
                     <For each={categoryItems}>
                       {(item) => (
                         <Select.Item
                           item={item}
-                          class="flex cursor-pointer items-center justify-between rounded-sm px-3 py-2 text-sm text-foreground outline-none data-highlighted:bg-muted"
+                          class="flex cursor-pointer items-center justify-between rounded-control px-3 py-2 text-sm text-foreground outline-none data-highlighted:bg-muted"
                         >
                           <Select.ItemText>{item.label}</Select.ItemText>
                           <Select.ItemIndicator>
@@ -225,22 +236,22 @@ export function FeedbackPage() {
                         aria-checked={selected()}
                         aria-label={`${star} out of 5 stars`}
                         onClick={() => setRating(star)}
-                        class={`inline-flex size-9 items-center justify-center rounded-md transition-colors ${
+                        class={`inline-flex size-9 items-center justify-center rounded-control transition-colors ${
                           selected()
                             ? "text-primary"
-                            : "text-slate-300 hover:bg-muted hover:text-primary"
+                            : "text-border hover:bg-muted hover:text-primary"
                         }`}
                       >
                         <Star
-                          class="size-6 text-yellow-400"
-                          fill={selected() ? "#fcc800" : "none"}
+                          class="size-6 text-star"
+                          fill={selected() ? "currentColor" : "none"}
                           aria-hidden="true"
                         />
                       </button>
                     );
                   }}
                 </For>
-                <span class="ml-1.5 text-sm font-medium text-muted-foreground">
+                <span class="tnum ml-1.5 text-sm font-medium text-muted-foreground">
                   {rating() > 0 ? `${rating()}/5` : "Select a rating"}
                 </span>
               </div>
@@ -260,69 +271,92 @@ export function FeedbackPage() {
                   setMessage((e.target as HTMLTextAreaElement).value)
                 }
                 placeholder="Tell us what you think, what's broken, or what you'd like to see..."
+                maxlength={2000}
                 autoresize
-                class="w-full resize-none overflow-hidden rounded-lg border border-border bg-card px-4 py-3 text-sm leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                class="w-full resize-none overflow-hidden rounded-control border border-border bg-card px-4 py-3 text-base leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
-              <span class="mt-1 block text-right text-xs text-muted-foreground">
+              <span class="tnum mt-1 block text-right text-xs text-muted-foreground">
                 {message().length}/2000
               </span>
             </Field.Root>
           </div>
         </SectionCard>
 
-        <div class="flex justify-end gap-4 pt-6">
-          <button
-            type="button"
-            onClick={resetForm}
-            class="h-10 rounded-lg border border-border px-6 text-sm font-medium leading-normal text-muted-foreground transition-colors hover:bg-muted"
+        <Show when={!receipt()}>
+          <div class="flex justify-end gap-4 pt-6">
+            <button
+              type="button"
+              onClick={resetForm}
+              class="h-11 rounded-control border border-border px-6 text-sm font-medium leading-normal text-muted-foreground transition-opacity duration-[180ms] hover:bg-muted motion-reduce:transition-none"
+            >
+              Reset
+            </button>
+            <Button
+              onClick={handleSubmit}
+              disabled={!isFormValid()}
+              loading={submitting()}
+              loadingLabel="Submitting…"
+            >
+              <Send size={16} aria-hidden="true" />
+              Submit Feedback
+            </Button>
+          </div>
+        </Show>
+
+        {/* Persistent success receipt — reference ID + summary, no auto-dismiss. */}
+        <Show when={receipt()}>
+          <div class="e1-enter grid place-items-center gap-3 rounded-card border border-border bg-card px-6 py-10 text-center shadow-sm">
+            <SubmittedCheck />
+            <h3 class="text-lg font-medium text-foreground">
+              Feedback received — thank you
+            </h3>
+            <p class="max-w-md text-sm text-muted-foreground">
+              {receipt()!.category} ·{" "}
+              <span class="tnum">{receipt()!.rating}/5</span>. Our team reviews
+              every submission. Keep this reference for follow-ups:
+            </p>
+            <p class="tnum rounded-control bg-muted px-3 py-1.5 font-mono text-sm text-foreground">
+              {receipt()!.id}
+            </p>
+            <div class="flex flex-wrap justify-center gap-2">
+              <CopyButton value={() => receipt()?.id ?? ""} size="sm" />
+              <button
+                type="button"
+                onClick={() => setReceipt(null)}
+                class="inline-flex h-8 items-center rounded-control border border-border px-3 text-xs font-medium text-foreground transition-opacity duration-[180ms] hover:bg-muted motion-reduce:transition-none"
+              >
+                Submit another
+              </button>
+            </div>
+          </div>
+        </Show>
+
+        <Show when={error()}>
+          <div
+            role="alert"
+            class="grid gap-3 rounded-card border border-destructive/25 bg-destructive-muted p-4"
           >
-            Reset
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!isFormValid() || submitting()}
-            class="flex h-10 items-center gap-2 rounded-lg bg-primary px-6 text-sm font-medium leading-normal text-primary-foreground shadow-md transition-all hover:bg-primary-hover disabled:cursor-not-allowed disabled:scale-95 disabled:opacity-70"
-          >
-            <Send size={16} />
-            {submitting() ? "Submitting..." : "Submit Feedback"}
-          </button>
-        </div>
+            <p class="text-sm text-destructive">{error()}</p>
+            <Show when={needsLogin()}>
+              <ButtonLink
+                href={`/login?callbackURL=${encodeURIComponent("/feedback")}`}
+                size="sm"
+                class="w-fit"
+              >
+                Sign in to continue
+              </ButtonLink>
+            </Show>
+          </div>
+        </Show>
       </div>
 
       <div aria-live="polite" aria-atomic="true" class="sr-only">
-        {success()
-          ? "Feedback submitted successfully"
+        {receipt()
+          ? `Feedback submitted successfully, reference ${receipt()!.id}`
           : error()
             ? `Error: ${error()}`
             : ""}
       </div>
-
-      <Show when={success()}>
-        <div class="fixed top-4 right-4 z-30 max-w-sm animate-[fade-in-up_0.2s_ease-out]">
-          <div class="flex items-start gap-3 rounded-xl border border-positive/20 bg-positive-muted px-4 py-3 text-sm text-foreground shadow-md">
-            <CheckCircle
-              class="mt-0.5 size-4 shrink-0 text-positive"
-              aria-hidden="true"
-            />
-            <p class="flex-1">
-              Thank you! Your feedback has been submitted successfully.
-            </p>
-          </div>
-        </div>
-      </Show>
-
-      <Show when={error()}>
-        <div class="fixed top-4 right-4 z-30 max-w-sm animate-[fade-in-up_0.2s_ease-out]">
-          <div class="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive-muted px-4 py-3 text-sm text-foreground shadow-md">
-            <AlertTriangle
-              class="mt-0.5 size-4 shrink-0 text-destructive"
-              aria-hidden="true"
-            />
-            <p class="flex-1">{error()}</p>
-          </div>
-        </div>
-      </Show>
     </main>
   );
 }

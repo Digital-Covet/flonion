@@ -41,7 +41,7 @@ export const metrics: Metric[] = [
 export const reviewSources: ReviewSource[] = [
   { name: "Google", percentage: 55, color: "primary" },
   { name: "Yelp", percentage: 30, color: "info" },
-  { name: "Facebook", percentage: 15, color: "purple" },
+  { name: "Facebook", percentage: 15, color: "secondary" },
 ];
 
 export const initialSuggestions: ReviewSuggestion[] = [

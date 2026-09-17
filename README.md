@@ -1,6 +1,17 @@
 # Flonion
 
+[![Last commit](https://img.shields.io/github/last-commit/Digital-Covet/flonion)](https://github.com/Digital-Covet/flonion/commits/main)
+[![Issues](https://img.shields.io/github/issues/Digital-Covet/flonion)](https://github.com/Digital-Covet/flonion/issues)
+[![Node](https://img.shields.io/badge/node-%3E%3D24-brightgreen)](https://nodejs.org/en/download)
+[![SolidStart](https://img.shields.io/badge/SolidStart-2.0-blue)](https://start.solidjs.com)
+[![PostgreSQL + Prisma](https://img.shields.io/badge/PostgreSQL-Prisma-336791)](https://www.prisma.io)
+[![Biome](https://img.shields.io/badge/lint-Biome-60a5fa)](https://biomejs.dev)
+
 AI-powered review collection and local SEO optimization platform for businesses. Collect customer reviews via shareable QR-coded links, draft AI-enhanced replies, and optimize your online presence -- all from one dashboard.
+
+## Overview
+
+Flonion is a full-stack business reputation workspace: a SolidStart tenant app where each business gets public review/booking pages (`/company/:username/...`), a QR pipeline for in-store review capture, DeepSeek-powered review drafting and reply assistance with per-call usage metering, Google Business Profile sync, a partner marketplace with meeting scheduling, and team/task management. A separate operator console in `app/` (React Router, same Postgres database) handles moderation, audit logging, and user impersonation. See [`app/README.md`](app/README.md) for the console setup.
 
 ## Features
 
@@ -107,12 +118,13 @@ AI-powered review collection and local SEO optimization platform for businesses.
 | Image Optimization | sharp + vite-plugin-image-optimizer |
 | Fonts | Jost, Rubik |
 | Package Manager | pnpm |
+| Operator Console (`app/`) | React 19 + React Router v7 (same Postgres database) |
 
 ## Prerequisites
 
-- Node.js >= 24
+- Node.js >= 24 (per `engines` in the root `package.json`; the `app/` desk console lists >= 20)
 - pnpm
-- PostgreSQL database
+- PostgreSQL database (both apps share one database; migrations run from the repo root)
 - A [DeepSeek](https://platform.deepseek.com/) API key
 - A [Google Cloud](https://console.cloud.google.com/) project with the **Google Business Profile API** enabled (optional -- for Google Business integration)
 - The **Google Meet API** enabled on the same project, with the `meetings.space.created` scope (optional -- for Meet links on meetings)
@@ -120,18 +132,21 @@ AI-powered review collection and local SEO optimization platform for businesses.
 
 ## Environment Setup
 
-1. Copy the example env file:
+There is no `.env.example` at the repo root (only `app/.env.example` for the
+operator console), so create `.env` manually:
 
 ```bash
-cp .env.example .env
+touch .env
 ```
 
-2. Fill in the required variables:
+Fill in the required variables:
 
 | Variable | Description | Where to get it |
 |---|---|---|
-| `DATABASE_URL` | PostgreSQL connection string | Your PostgreSQL host (e.g. `postgresql://user:pass@localhost:5432/flonion`) |
+| `DATABASE_URL` | Pooled PostgreSQL connection string used by the app at runtime | Your PostgreSQL host (e.g. `postgresql://user:pass@localhost:5432/flonion`) |
+| `DATABASE_URL_UNPOOLED` | Direct (non-pooled) connection string used by `prisma.config.ts` for migrations | Same host, without the pooler |
 | `DEEPSEEK_API_KEY` | API key for DeepSeek LLM access | [DeepSeek Platform](https://platform.deepseek.com/) |
+| `AI_MODEL_ID` | Override for the DeepSeek model id (default: `deepseek-v4-flash`) | Optional -- see pricing in `src/lib/agents/model.ts` |
 | `BETTER_AUTH_SECRET` | Secret key for session signing | Generate a random string (e.g. `openssl rand -hex 32`) |
 | `TOKEN_ENCRYPTION_KEY` | AES-256-GCM key for encrypting Google tokens at rest | Generate a random 64-char hex string |
 | `GOOGLE_CLIENT_ID` | Google OAuth 2.0 client ID | [Google Cloud Console > Credentials](https://console.cloud.google.com/apis/credentials) |
@@ -145,13 +160,19 @@ cp .env.example .env
 | `VITE_APP_URL` | Client-visible app URL used for copied links and trusted origins | Defaults to `http://localhost:3000` |
 | `COOKIE_SECRET` | Legacy fallback for `TOKEN_ENCRYPTION_KEY` | Optional -- only for deployments predating `TOKEN_ENCRYPTION_KEY` |
 | `EMAIL_LOGO_URL` | Publicly reachable PNG used as the logo in transactional emails | Optional -- any public asset URL |
+| `OPERATOR_HANDOFF_SECRET` | HMAC secret the desk console uses to sign impersonation tokens (>= 32 chars) | Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`; required only if you run the `app/` console |
+| `DESK_APP_URL` | Where `GET /api/operator/stop-impersonation` redirects (default: `http://localhost:5174`) | URL of your running desk console |
 | `NODE_ENV` | `development` or `production` | Controls cookie security and image optimization |
 
 ## Installation
 
 ```bash
 pnpm install
+pnpm exec prisma migrate dev
 ```
+
+`prisma.config.ts` reads `DATABASE_URL_UNPOOLED` for migrations; the runtime
+client in `src/db/prisma.ts` uses `DATABASE_URL`.
 
 ## Development
 
@@ -160,6 +181,13 @@ pnpm dev
 ```
 
 The app will be available at `http://localhost:3000`.
+
+```bash
+pnpm typecheck   # tsc --noEmit
+pnpm lint        # biome lint --write
+pnpm format      # biome format --write
+pnpm check       # biome check --write
+```
 
 New users are redirected to `/onboarding` before accessing the dashboard. There they either run the four-step setup wizard, accept a pending team invitation, or request to join an existing business.
 
@@ -173,6 +201,28 @@ pnpm build
 pnpm start
 ```
 
+## Operator Console (`app/`)
+
+`app/` is a separate React Router v7 app (`flonion-desk`) that shares the same
+Postgres database. It provides user/business/review moderation, AI-usage and
+audit-log inspection, the support inbox, and HMAC-signed user impersonation.
+Full setup lives in [`app/README.md`](app/README.md); the short version:
+
+```bash
+cd app
+cp .env.example .env   # set DATABASE_URL, DESK_OPERATOR_TOKENS, TENANT_APP_URL, OPERATOR_HANDOFF_SECRET
+pnpm install
+pnpm dev               # serves on http://localhost:5174 per app/package.json
+```
+
+Impersonation flow: the desk mints a one-time HMAC-signed token, redirects to
+`GET /api/operator/impersonate?token=...&sig=...` on the tenant app (verified
+against `OPERATOR_HANDOFF_SECRET`, single-use nonce stored in `Verification`),
+and the tenant creates an impersonated session (`Session.impersonatedBy`).
+`GET /api/operator/stop-impersonation` destroys it and redirects to
+`DESK_APP_URL`. The tenant-side API is documented below; every console write
+lands in `AuditLog` and AI spend in `AiUsage`.
+
 ## Project Structure
 
 ```
@@ -185,174 +235,49 @@ src/
 │
 ├── assets/                              # Logo components (logomark, wordmark, combination marks)
 │
-├── components/
-│   ├── auth/                            # Auth UI: sign-in, sign-up, forgot/reset password, 2FA, verification
-│   ├── company/bookings/                # BookingForm, PublicScheduleCalendar, PublicScheduleHeader
-│   ├── dashboard/                       # QuickActions, RecentActivity
-│   ├── landing/                         # Hero, Features, Testimonials, FAQ, CTA, Navbar, Footer, MobileMenu
-│   ├── layout/                          # AppSidebar, MobileNavigation
-│   ├── marketplace/                     # PartnerCard
-│   │   ├── collaborations/
-│   │   │   ├── meeting-schedular/       # Weekly calendar, bookable windows, load overview, meeting modals
-│   │   │   └── task-workload/           # Task board, columns, cards, dialog, daily workload, meeting cards
-│   │   └── portfolio/                   # Company profile primitives: hero, service/project tiles, scheduler, stats
-│   ├── onboarding/                      # BasicsStep, PlatformsStep, ReviewStep, InviteTeamStep, ChooseStartStep, JoinTeamStep, JoinPendingStep, ProgressStepper, LogoUpload
-│   ├── review/                          # Review composer, QR display, metrics, charts, suggestion cards
-│   ├── seo/                             # ActionItems, KeywordRecommendations, CompetitorCard, PhotoStatus, ProgressTracker
-│   └── ui/                              # Shared primitives: IconButton, UserAvatar, Progress
+├── components/                        # auth, bookings, dashboard, landing, layout, marketplace
+│                                       # (incl. meeting-schedular, task-workload, portfolio),
+│                                       # onboarding, review, seo, ui primitives
 │
 ├── constants/                           # Navigation items, branding, landing page data, marketplace categories
 │
 ├── db/
 │   └── prisma.ts                        # Prisma client singleton
 │
-├── features/
-│   ├── account/                         # AccountPage + components (2FA, change email/password, backup codes)
-│   ├── dashboard/                       # DashboardPage with metrics, charts, quick actions
-│   ├── feedback/                        # FeedbackPage for user feedback submission
-│   ├── marketing/                       # AnalyticsPage for campaign tracking
-│   ├── onboarding/                      # OnboardingPage (create wizard plus invite and join branches)
-│   ├── reviews/                         # Mock data and type definitions for reviews
-│   ├── seo/                             # SeoOptimizerPage with business info, keywords, competitors
-│   ├── settings/                        # SettingsPage + components (form fields, toggles, Google Business/Meet cards)
-│   └── team/                            # TeamPage (members, invitations, join-request review)
+├── features/                            # Page-level features: account, dashboard, feedback, marketing,
+│                                       # onboarding, reviews, seo, settings, team
 │
-├── hooks/
-│   └── useReducedMotion.ts              # Respects prefers-reduced-motion
+├── hooks/                               # useReducedMotion (prefers-reduced-motion)
 │
 ├── lib/
-│   ├── agents/
-│   │   ├── pipeline.ts                  # Orchestrates sentiment + reply/suggestion pipelines
-│   │   ├── sentiment-analyzer.ts        # LLM-based sentiment analysis agent
-│   │   └── review-drafter.ts            # LLM-based reply drafting and review suggestion agents
-│   ├── auth.ts                          # better-auth server config (email+password, 2FA, OTP, verification)
-│   ├── auth-client.ts                   # better-auth client config
-│   ├── auth-errors.ts                   # better-auth error codes and message extraction
-│   ├── business-context.ts              # Resolves a user's active business, role, and ownership
-│   ├── cn.ts                            # ClassName utility
-│   ├── company-profile.ts               # Public company profile reads (SSR-safe)
-│   ├── company-schedule.ts              # Public booking schedule reads (SSR-safe)
-│   ├── constants.ts                     # App domain, company name, support email
-│   ├── cookies.ts                       # Cookie parsing and serialization
-│   ├── crypto.ts                        # HMAC signing, AES-256-GCM encrypt/decrypt, random tokens
-│   ├── empty-business.ts                # Inspects whether an owned business can be discarded
-│   ├── google-business-rating.ts        # Fetches cached rating and review count from the Business Profile API
-│   ├── google-meet.ts                   # Creates Google Meet spaces via the Meet REST API
-│   ├── google-tokens.ts                 # Google OAuth token storage/refresh (encrypted at rest)
-│   ├── ics.ts                           # RFC 5545 iCalendar invite generator
-│   ├── invite-redirect.ts               # Carries an invite token across the sign-up funnel
-│   ├── oauth-state.ts                   # Google OAuth CSRF state cookie management
-│   ├── partners-query.ts                # Marketplace partner search, filtering, and paging
-│   ├── rate-limit.ts                    # In-memory rate limiter
-│   ├── review-claim.ts                  # Signed capability tokens for anonymous review submission
-│   ├── roles.ts                         # Team role definitions and validation
-│   ├── server-auth.ts                   # Server-side session extraction from headers
-│   ├── slug.ts                          # URL slug generator
-│   └── trusted-origins.ts               # Trusted origins for CSRF protection
+│   ├── agents/                          # sentiment-analyzer, review-drafter, pipeline, model (DeepSeek)
+│   ├── auth.ts / auth-client.ts         # better-auth server + client config
+│   ├── crypto.ts / google-tokens.ts     # HMAC/AES helpers, encrypted Google token storage
+│   ├── ics.ts / google-meet.ts          # iCalendar invites, Meet space creation
+│   └── ...                              # business-context, rate-limit, review-claim, roles,
+│                                       # trusted-origins, oauth-state, partners-query, etc.
 │
 ├── routes/
-│   ├── index.tsx                        # Landing page (/)
-│   ├── pricing.tsx                      # /pricing (plans, comparison table, FAQ)
-│   ├── accept-invite.tsx                # /accept-invite (team invitation landing)
-│   ├── (app).tsx                        # App layout (sidebar + header)
-│   ├── (app)/
-│   │   ├── dashboard.tsx                # /dashboard
-│   │   ├── account.tsx                  # /account
-│   │   ├── feedback.tsx                 # /feedback
-│   │   ├── settings/
-│   │   │   ├── index.tsx                # /settings
-│   │   │   └── team.tsx                 # /settings/team
-│   │   ├── reviews/
-│   │   │   ├── new.tsx                  # /reviews/new (ask for review)
-│   │   │   └── inbox.tsx               # /reviews/inbox
-│   │   ├── marketing/
-│   │   │   ├── seo.tsx                  # /marketing/seo
-│   │   │   └── analytics.tsx            # /marketing/analytics
-│   │   ├── marketplace/
-│   │   │   ├── index.tsx                # /marketplace (partner directory)
-│   │   │   └── projects/index.tsx       # /marketplace/projects (task board)
-│   │   ├── collaborations/
-│   │   │   └── meeting-schedular.tsx    # /collaborations/meeting-schedular
-│   │   └── company/[companyname]/       # /company/:companyname (partner profile)
-│   ├── (auth).tsx                       # Auth layout
-│   ├── (auth)/
-│   │   ├── login.tsx                    # /login
-│   │   ├── signup.tsx                   # /signup
-│   │   ├── verify-email.tsx             # /verify-email
-│   │   ├── forgot-password.tsx          # /forgot-password
-│   │   ├── reset-password.tsx           # /reset-password
-│   │   └── 2fa.tsx                      # /2fa
-│   ├── (onboarding).tsx                 # Onboarding layout
-│   ├── (onboarding)/
-│   │   └── onboarding.tsx               # /onboarding
-│   ├── review/[id].tsx                  # /review/:id (redirect to canonical URL)
-│   ├── qr/[id].ts                       # /qr/:id (business QR redirect, counts scans)
-│   ├── company/[username]/review/       # Public review page
-│   ├── company/[username]/bookings/     # Public booking page
-│   └── api/
-│       ├── [...auth].ts                 # /api/auth/* (better-auth catch-all)
-│       ├── business.ts                  # /api/business (GET/POST business profile)
-│       ├── feedback.ts                  # /api/feedback (POST feedback)
-│       ├── google/
-│       │   ├── auth.ts                  # /api/google/auth (initiate Google OAuth)
-│       │   ├── callback.ts              # /api/google/callback (OAuth callback)
-│       │   ├── locations.ts             # /api/google/locations (fetch GBP locations)
-│       │   ├── reviews.ts              # /api/google/reviews (fetch Google reviews)
-│       │   ├── status.ts                # /api/google/status (connection state)
-│       │   └── disconnect.ts            # /api/google/disconnect (revoke stored grant)
-│       ├── company/[username]/
-│       │   ├── schedule.ts              # /api/company/:username/schedule (public availability)
-│       │   └── bookings.ts              # /api/company/:username/bookings (public booking submit)
-│       ├── marketplace/
-│       │   ├── partners.ts              # /api/marketplace/partners (directory search)
-│       │   ├── partner.ts               # /api/marketplace/partner (single profile)
-│       │   ├── favorites.ts             # /api/marketplace/favorites (saved partners)
-│       │   ├── services.ts              # /api/marketplace/services (portfolio services)
-│       │   ├── projects.ts              # /api/marketplace/projects (portfolio projects)
-│       │   ├── contacts.ts              # /api/marketplace/contacts (portfolio contacts)
-│       │   ├── load.ts                  # /api/marketplace/load (weekly workload overview)
-│       │   ├── meetings/                # /api/marketplace/meetings (list, create, decide)
-│       │   ├── schedule-settings/       # /api/marketplace/schedule-settings (working hours)
-│       │   └── slots/                   # /api/marketplace/slots (list, generate, mine)
-│       ├── team/
-│       │   ├── invite.ts                # /api/team/invite (send invitation)
-│       │   ├── invitations.ts           # /api/team/invitations (list, cancel)
-│       │   ├── check-invite.ts          # /api/team/check-invite (inspect a token)
-│       │   ├── accept-invite.ts         # /api/team/accept-invite
-│       │   ├── decline-invite.ts        # /api/team/decline-invite
-│       │   ├── find-business.ts         # /api/team/find-business (join lookup)
-│       │   ├── join-request.ts          # /api/team/join-request (submit, read, withdraw)
-│       │   ├── join-requests.ts         # /api/team/join-requests (admin queue, review)
-│       │   └── members.ts               # /api/team/members (list, re-role, remove)
-│       ├── tasks/                       # /api/tasks (list, create, update, delete, reorder)
-│       ├── team-meetings/               # /api/team-meetings (list, create, update, delete)
-│       ├── meet/
-│       │   └── create.ts                # /api/meet/create (Google Meet link)
-│       ├── reviews/
-│       │   ├── share.ts                 # /api/reviews/share (GET/POST shared reviews)
-│       │   ├── track.ts                 # /api/reviews/track (POST analytics events)
-│       │   └── analytics.ts             # /api/reviews/analytics (GET aggregated analytics)
-│       └── ai/
-│           ├── suggest-review.ts        # /api/ai/suggest-review (POST AI review suggestions)
-│           └── draft-reply.ts           # /api/ai/draft-reply (POST AI reply drafting)
+│   ├── index.tsx / pricing.tsx / accept-invite.tsx   # Landing, pricing, invite landing
+│   ├── (app)/                       # Authed layout: dashboard, account, feedback, settings (+team),
+│   │                               # reviews/new, reviews/inbox, marketing/seo, marketing/analytics,
+│   │                               # marketplace, marketplace/projects, collaborations/meeting-schedular,
+│   │                               # company/[companyname] profile
+│   ├── (auth)/                      # login, signup, verify-email, forgot/reset-password, 2fa
+│   ├── (onboarding)/onboarding.tsx  # /onboarding wizard + invite/join branches
+│   ├── review/[id].ts / qr/[id].ts  # Canonical review redirect / QR scan-count redirect
+│   ├── company/[username]/review/ + /bookings/      # Public review + booking pages
+│   └── api/                         # [...auth], business, feedback, google/*, company/*,
+│                                   # marketplace/*, team/*, tasks, team-meetings, meet/create,
+│                                   # reviews/*, ai/*, operator/* (see API Routes below)
 │
-├── services/
-│   ├── email.ts                         # ZeptoMail email sender
-│   └── email-templates.ts              # HTML/text email templates (verification, reset, OTP, 2FA,
-│                                        #   team invites, join requests, meeting requests/decisions)
+├── services/                        # ZeptoMail sender + HTML/text email templates
+├── stores/                          # Settings + task/team-meeting context providers
+├── types/                           # App-wide, Google, landing, marketplace, auth-ui types
 │
-├── stores/
-│   ├── settings-store.ts                # Settings context definition and hook
-│   ├── SettingsProvider.tsx             # Settings context provider
-│   ├── task-store.ts                    # Task and team-meeting context definition
-│   └── TaskProvider.tsx                 # Task context provider (tasks, meetings, members)
-│
-└── types/
-    ├── index.ts                         # App-wide TypeScript types
-    ├── google.ts                        # Google API response types
-    ├── landing.ts                       # Landing page types
-    ├── marketplace.ts                   # Partner, filter, and sort types
-    └── auth-ui.ts                       # Auth UI form types
+├── app/                             # Operator console (flonion-desk, React Router) -- see app/README.md
+├── prisma/                          # schema.prisma + migrations
+└── scripts/                         # backfill-review-business-id.sql, cleanup-shared-reviews.ts
 ```
 
 ## API Routes
@@ -510,6 +435,13 @@ Returns: `{ sentiment, suggestedReviews: [simple, professional, casual] }`
 |---|---|---|---|
 | `POST` | `/api/feedback` | Yes | Submit user feedback (name, email, category, rating, message) |
 
+### Operator (desk console handoff)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/operator/impersonate?token=...&sig=...` | HMAC (`OPERATOR_HANDOFF_SECRET`) | Validate the one-time desk token and create an impersonated session, then redirect to `/dashboard` |
+| `GET` | `/api/operator/stop-impersonation` | Yes (impersonated session) | Destroy the impersonated session and redirect to `DESK_APP_URL` |
+
 ## Authentication
 
 Flonion uses [better-auth](https://www.better-auth.com/) for authentication with the following features:
@@ -527,7 +459,7 @@ Emails (verification, password reset, OTP, 2FA codes) are delivered via ZeptoMai
 PostgreSQL via Prisma ORM. Run migrations with:
 
 ```bash
-npx prisma migrate dev
+pnpm exec prisma migrate dev
 ```
 
 ### Schema Overview
@@ -541,9 +473,9 @@ npx prisma migrate dev
 | `TwoFactor` | 2FA secrets, backup codes, lockout tracking |
 | `Business` | Business profiles (name, username, phone, address, sector, keywords, logo, description, review links, cached Google rating, QR scan count, schedule settings) |
 | `GoogleToken` | Encrypted Google OAuth tokens per user (AES-256-GCM) |
-| `SharedReview` | Shared review requests with text, rating, keywords |
+| `SharedReview` | Shared review requests with text, rating, keywords (`status`: visible/hidden/flagged for console moderation) |
 | `ReviewAnalytics` | Analytics per shared review (visits, reviews, QR scans, redirects, AI copies) |
-| `Feedback` | User feedback submissions |
+| `Feedback` | User feedback submissions (triage `status`, assignee, operator note for the console inbox) |
 | `AvailabilitySlot` | Bookable time slots per business, with booked state and optional label |
 | `MeetingRequest` | Meeting bookings against a slot, from a member or a guest, with status and Meet link |
 | `Task` | Kanban tasks with column, priority, due date, position, and assignee |
@@ -554,6 +486,8 @@ npx prisma migrate dev
 | `Project` | Ordered portfolio project images shown on a company profile |
 | `BusinessContact` | Ordered contact rows shown on a company profile |
 | `FavoritePartner` | Marketplace partners a user has saved |
+| `AiUsage` | One row per LLM call (endpoint, stage, model, token counts, cost, latency) -- no user FK so deleting a user keeps the spend ledger |
+| `AuditLog` | Operator-console audit trail (operator id, action, entity, before/after diff, IP) |
 
 ## Security
 
@@ -571,3 +505,4 @@ npx prisma migrate dev
 - **Role-Based Access** -- Team, invitation, join-request, and task reordering writes require the business owner or an admin
 - **Email Verification Required** -- Users must verify email before accessing the app
 - **Onboarding Gate** -- Unauthenticated users and incomplete profiles are redirected appropriately
+- **Impersonation Handoff** -- Desk tokens are HMAC-signed, single-use (nonce in `Verification`, 60s TTL), and create sessions flagged with `Session.impersonatedBy`

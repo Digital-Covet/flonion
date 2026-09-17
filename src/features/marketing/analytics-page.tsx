@@ -1,13 +1,37 @@
 import { Title } from "@solidjs/meta";
 import BarChart3 from "lucide-solid/icons/bar-chart-3";
 import ClipboardCheck from "lucide-solid/icons/clipboard-check";
+import Download from "lucide-solid/icons/download";
 import ExternalLink from "lucide-solid/icons/external-link";
 import Eye from "lucide-solid/icons/eye";
-import Link2 from "lucide-solid/icons/link-2";
 import MessageSquare from "lucide-solid/icons/message-square";
 import MousePointerClick from "lucide-solid/icons/mouse-pointer-click";
+import QrCode from "lucide-solid/icons/qr-code";
+import RefreshCw from "lucide-solid/icons/refresh-cw";
 import Star from "lucide-solid/icons/star";
-import { createSignal, For, onMount, Show } from "solid-js";
+import {
+  createMemo,
+  createResource,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  type Resource,
+  Show,
+} from "solid-js";
+import { isServer } from "solid-js/web";
+import { ChartAdapter } from "~/components/charts/ChartAdapter";
+import { Button } from "~/components/ui/button";
+import { Card, CardHeader, KpiCard } from "~/components/ui/card";
+import { EmptyState } from "~/components/ui/empty-state";
+import {
+  SkeletonChart,
+  SkeletonKpiRow,
+  SkeletonRows,
+  WidgetError,
+} from "~/components/ui/skeleton";
+import { DataTable } from "~/components/ui/table";
+import { notify } from "~/components/ui/toast";
 import { REVIEW_PLATFORMS } from "~/features/settings/review-platforms";
 
 interface ReviewAnalyticsRow {
@@ -35,330 +59,513 @@ interface AnalyticsData {
   reviews: ReviewAnalyticsRow[];
 }
 
-function StatCard(props: {
-  label: string;
-  value: number;
-  icon: typeof BarChart3;
-  accent: string;
-}) {
-  return (
-    <div class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div
-        class={`flex size-12 items-center justify-center rounded-xl ${props.accent}`}
-      >
-        <props.icon size={22} />
-      </div>
-      <div>
-        <p class="text-2xl font-bold text-slate-900">
-          {props.value.toLocaleString()}
-        </p>
-        <p class="text-xs text-slate-500">{props.label}</p>
-      </div>
-    </div>
-  );
+// Read a resource without registering with <Suspense> — same guard as the
+// dashboard: a suspending read flips the route Suspense to its fallback while
+// hydrating, which crashes the next lucide icon render.
+function peek<T>(resource: Resource<T>): T | undefined {
+  return resource.state === "ready" || resource.state === "refreshing"
+    ? resource.latest
+    : undefined;
 }
 
-function PlatformStatCard(props: {
-  label: string;
-  value: number;
-  color: string;
-}) {
-  return (
-    <div class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div
-        class="flex size-12 items-center justify-center rounded-xl"
-        style={{ "background-color": `${props.color}15`, color: props.color }}
-      >
-        <MousePointerClick size={22} />
-      </div>
-      <div>
-        <p class="text-2xl font-bold text-slate-900">
-          {props.value.toLocaleString()}
-        </p>
-        <p class="text-xs text-slate-500">{props.label} Clicks</p>
-      </div>
-    </div>
-  );
+async function fetchAnalytics(): Promise<AnalyticsData> {
+  if (isServer) {
+    return {
+      totalVisits: 0,
+      totalReviews: 0,
+      totalQrScans: 0,
+      totalRedirects: 0,
+      totalAiCopies: 0,
+      totalPlatformRedirects: {},
+      totalLinks: 0,
+      reviews: [],
+    };
+  }
+  const res = await fetch("/api/reviews/analytics");
+  if (!res.ok) throw new Error(`Analytics failed (${res.status})`);
+  return (await res.json()) as AnalyticsData;
 }
 
+// DS §2 semantic rule: ratings always show the number next to the stars.
 function StarRating(props: { rating: number }) {
   return (
-    <div class="flex items-center gap-0.5">
-      <For each={Array.from({ length: 5 })}>
-        {(_, i) => (
-          <Star
-            size={14}
-            class={
-              i() < props.rating
-                ? "fill-amber-400 text-amber-400"
-                : "fill-slate-200 text-slate-200"
-            }
-          />
-        )}
-      </For>
-    </div>
+    <span class="inline-flex items-center gap-1.5">
+      <span
+        class="inline-flex items-center gap-0.5"
+        role="img"
+        aria-label={`${props.rating} out of 5 stars`}
+      >
+        <For each={Array.from({ length: 5 })}>
+          {(_, i) => (
+            <Star
+              size={14}
+              aria-hidden="true"
+              class={
+                i() < props.rating
+                  ? "fill-star text-star"
+                  : "fill-border text-border"
+              }
+            />
+          )}
+        </For>
+      </span>
+      <span class="tnum text-xs text-muted-foreground">
+        {props.rating.toFixed(1)}/5
+      </span>
+    </span>
   );
 }
 
-function EmptyState() {
-  return (
-    <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-12 text-center">
-      <div class="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-slate-100">
-        <BarChart3 class="size-8 text-slate-400" />
-      </div>
-      <h3 class="text-lg font-semibold text-slate-900">No analytics yet</h3>
-      <p class="mt-2 max-w-sm mx-auto text-sm text-slate-500">
-        Share a review link or QR code to start tracking visitor activity.
-        Analytics will appear here once people interact with your links.
-      </p>
-    </div>
+function toCsv(data: AnalyticsData): string {
+  const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+  const platformSlugs = REVIEW_PLATFORMS.map((p) => p.slug);
+  const header = [
+    "id",
+    "text",
+    "rating",
+    "reviewer",
+    "visits",
+    "submissions",
+    "qrScans",
+    "redirects",
+    "aiCopies",
+    ...platformSlugs.map((s) => `redirect_${s}`),
+    "createdAt",
+  ].join(",");
+  const lines = data.reviews.map((r) =>
+    [
+      esc(r.id),
+      esc(r.text),
+      r.rating,
+      esc(r.reviewerName ?? ""),
+      r.visits,
+      r.reviews,
+      r.qrScans,
+      r.redirects,
+      r.aiCopies,
+      ...platformSlugs.map((s) => r.platformRedirects[s] ?? 0),
+      esc(r.createdAt),
+    ].join(","),
   );
+  return [header, ...lines].join("\n");
 }
 
-function LoadingSkeleton() {
-  return (
-    <div class="space-y-6">
-      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <For each={[1, 2, 3, 4, 5, 6]}>
-          {() => (
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div class="flex items-center gap-4">
-                <div class="size-12 animate-pulse rounded-xl bg-slate-100" />
-                <div class="space-y-2">
-                  <div class="h-7 w-16 animate-pulse rounded bg-slate-100" />
-                  <div class="h-3 w-24 animate-pulse rounded bg-slate-100" />
-                </div>
-              </div>
-            </div>
-          )}
-        </For>
-      </div>
-      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <For each={[1, 2, 3, 4, 5, 6]}>
-          {() => (
-            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div class="flex items-center gap-4">
-                <div class="size-12 animate-pulse rounded-xl bg-slate-100" />
-                <div class="space-y-2">
-                  <div class="h-7 w-16 animate-pulse rounded bg-slate-100" />
-                  <div class="h-3 w-24 animate-pulse rounded bg-slate-100" />
-                </div>
-              </div>
-            </div>
-          )}
-        </For>
-      </div>
-      <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div class="space-y-3">
-          <For each={[1, 2, 3, 4, 5]}>
-            {() => (
-              <div class="flex items-center gap-4 py-2">
-                <div class="h-4 flex-1 animate-pulse rounded bg-slate-100" />
-                <div class="h-4 w-12 animate-pulse rounded bg-slate-100" />
-                <div class="h-4 w-12 animate-pulse rounded bg-slate-100" />
-                <div class="h-4 w-12 animate-pulse rounded bg-slate-100" />
-                <div class="h-4 w-20 animate-pulse rounded bg-slate-100" />
-              </div>
-            )}
-          </For>
-        </div>
-      </div>
-    </div>
-  );
-}
+const STALE_MS = 5 * 60 * 1000;
 
 export function AnalyticsPage() {
-  const [data, setData] = createSignal<AnalyticsData | null>(null);
-  const [loading, setLoading] = createSignal(true);
+  const [analytics, { refetch }] = createResource(fetchAnalytics);
+  const [tick, setTick] = createSignal(Date.now());
+  const [lastFetch, setLastFetch] = createSignal(0);
+  const [announcement, setAnnouncement] = createSignal("");
 
-  onMount(async () => {
-    try {
-      const res = await fetch("/api/reviews/analytics");
-      if (res.ok) {
-        setData(await res.json());
-      }
-    } finally {
-      setLoading(false);
+  const refresh = (announce = false) => {
+    refetch();
+    const now = Date.now();
+    setTick(now);
+    setLastFetch(now);
+    if (announce) {
+      const a = peek(analytics);
+      setAnnouncement(
+        `Analytics refreshed. ${a?.totalVisits ?? 0} visits, ${a?.totalReviews ?? 0} submissions, ${a?.totalRedirects ?? 0} redirects.`,
+      );
+      notify("success", "Analytics refreshed");
     }
+  };
+
+  // DS §6: no polling — refresh on focus only when data is older than 5 min.
+  onMount(() => {
+    refresh();
+    const onVisible = () => {
+      if (!document.hidden && Date.now() - lastFetch() > STALE_MS) {
+        refresh();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    onCleanup(() =>
+      document.removeEventListener("visibilitychange", onVisible),
+    );
   });
+
+  const updatedAgo = () => {
+    const mins = Math.floor((Date.now() - tick()) / 60000);
+    if (mins < 1) return "just now";
+    if (mins === 1) return "1m ago";
+    if (mins < 60) return `${mins}m ago`;
+    return `${Math.floor(mins / 60)}h ago`;
+  };
+
+  const isEmpty = () =>
+    !analytics.loading &&
+    !analytics.error &&
+    (peek(analytics)?.totalLinks ?? 0) === 0;
+
+  // Funnel helpers — the core job is turning visits into public reviews.
+  const submitRate = () => {
+    const a = peek(analytics);
+    if (!a || a.totalVisits === 0) return null;
+    return `${Math.round((a.totalReviews / a.totalVisits) * 100)}% submit rate`;
+  };
+  const redirectRate = () => {
+    const a = peek(analytics);
+    if (!a || a.totalReviews === 0) return null;
+    return `${Math.round((a.totalRedirects / a.totalReviews) * 100)}% redirect`;
+  };
+
+  // The ONE chart (DS §6): conversion funnel. Built from totals so it always
+  // has shape when there is any activity; per-link detail lives in the table.
+  const funnelPoints = createMemo(() => {
+    const a = peek(analytics);
+    return [
+      { label: "Scans", value: a?.totalQrScans ?? 0 },
+      { label: "Visits", value: a?.totalVisits ?? 0 },
+      { label: "Submissions", value: a?.totalReviews ?? 0 },
+      { label: "Redirects", value: a?.totalRedirects ?? 0 },
+    ];
+  });
+
+  const platformTotals = createMemo(() => {
+    const totals = peek(analytics)?.totalPlatformRedirects ?? {};
+    return REVIEW_PLATFORMS.map((p) => ({
+      slug: p.slug,
+      label: p.label,
+      count: totals[p.slug] ?? 0,
+    }));
+  });
+
+  const exportCsv = () => {
+    const current = peek(analytics);
+    if (!current) return;
+    const blob = new Blob([toCsv(current)], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    notify("success", "Analytics exported");
+  };
 
   return (
     <>
       <Title>Analytics — Flonion</Title>
-      <div class="mx-auto max-w-7xl space-y-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+      <div class="mx-auto max-w-[1280px] space-y-6 px-4 pt-6 pb-10 sm:px-6">
+        {/* Header: H1 + description + per-DS actions. */}
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="min-w-0">
+            <h1 class="font-heading text-3xl font-semibold text-foreground">
               Analytics
             </h1>
             <p class="mt-1 text-sm text-muted-foreground">
-              Track how many people interact with your review links and QR
-              codes.
+              Track how many people scan, visit, submit, and redirect from your
+              review links.
+            </p>
+            <p class="tnum mt-1 text-xs text-muted-foreground">
+              Updated {updatedAgo()}
+              <Show when={(peek(analytics)?.totalLinks ?? 0) > 0}>
+                {" "}
+                · {peek(analytics)!.totalLinks}{" "}
+                {peek(analytics)!.totalLinks === 1 ? "link" : "links"} ·{" "}
+                {peek(analytics)!.totalAiCopies} AI drafts copied
+              </Show>
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setLoading(true);
-              fetch("/api/reviews/analytics")
-                .then((r) => r.json())
-                .then(setData)
-                .finally(() => setLoading(false));
-            }}
-            class="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-          >
-            Refresh
-          </button>
+          <div class="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportCsv}
+              disabled={analytics.loading || !peek(analytics)}
+            >
+              <Download size={16} aria-hidden="true" />
+              Export CSV
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => refresh(true)}
+              loading={analytics.loading}
+              loadingLabel="Refreshing…"
+            >
+              <RefreshCw size={16} aria-hidden="true" />
+              Refresh
+            </Button>
+          </div>
         </div>
 
-        <Show when={!loading()} fallback={<LoadingSkeleton />}>
-          <Show when={data()} fallback={<EmptyState />}>
-            {(analytics) => (
-              <div class="space-y-6">
-                <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-                  <StatCard
-                    label="QR Code Scans"
-                    value={analytics().totalQrScans}
-                    icon={BarChart3}
-                    accent="bg-amber-50 text-amber-600"
-                  />
-                  <StatCard
-                    label="Total Visits"
-                    value={analytics().totalVisits}
-                    icon={Eye}
-                    accent="bg-blue-50 text-blue-600"
-                  />
-                  <StatCard
-                    label="Text Copied"
-                    value={analytics().totalReviews}
-                    icon={MessageSquare}
-                    accent="bg-emerald-50 text-emerald-600"
-                  />
-                  <StatCard
-                    label="AI Copies"
-                    value={analytics().totalAiCopies}
-                    icon={ClipboardCheck}
-                    accent="bg-cyan-50 text-cyan-600"
-                  />
-                  <StatCard
-                    label="Redirects"
-                    value={analytics().totalRedirects}
-                    icon={ExternalLink}
-                    accent="bg-orange-50 text-orange-600"
-                  />
-                  <StatCard
-                    label="Review Links"
-                    value={analytics().totalLinks}
-                    icon={Link2}
-                    accent="bg-violet-50 text-violet-600"
-                  />
-                </div>
-
-                <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-                  <For each={REVIEW_PLATFORMS}>
-                    {(platform) => (
-                      <PlatformStatCard
-                        label={platform.label}
-                        value={
-                          analytics().totalPlatformRedirects[platform.slug] || 0
-                        }
-                        color={platform.color}
-                      />
-                    )}
-                  </For>
-                </div>
-
-                <Show when={analytics().reviews.length > 0}>
-                  <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div class="border-b border-slate-100 px-6 py-4">
-                      <h2 class="text-base font-semibold text-slate-900">
-                        Per-Link Breakdown
-                      </h2>
-                      <p class="text-xs text-slate-500">
-                        QR scans, visits, reviews, and redirects for each shared
-                        link.
-                      </p>
-                    </div>
-                    <div class="overflow-x-auto">
-                      <table class="w-full text-sm">
-                        <thead>
-                          <tr class="border-b border-slate-100 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                            <th class="px-6 py-3">Review</th>
-                            <th class="px-6 py-3">Rating</th>
-                            <th class="px-6 py-3 text-right">QR Scans</th>
-                            <th class="px-6 py-3 text-right">Visits</th>
-                            <th class="px-6 py-3 text-right">Reviews</th>
-                            <th class="px-6 py-3 text-right">AI Copies</th>
-                            <th class="px-6 py-3 text-right">Redirects</th>
-                            <th class="px-6 py-3 text-right">Created</th>
-                          </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                          <For each={analytics().reviews}>
-                            {(row) => (
-                              <tr class="transition-colors hover:bg-slate-50/50">
-                                <td class="px-6 py-3.5">
-                                  <Show
-                                    when={row.reviews > 0}
-                                    fallback={
-                                      <span class="text-slate-400 italic">
-                                        Awaiting submission
-                                      </span>
-                                    }
-                                  >
-                                    <div class="max-w-xs truncate font-medium text-slate-900">
-                                      {row.text || (
-                                        <span class="text-slate-400 italic">
-                                          Empty review
-                                        </span>
-                                      )}
-                                    </div>
-                                  </Show>
-                                  <Show
-                                    when={
-                                      row.reviews > 0 ||
-                                      row.visits > 0 ||
-                                      row.qrScans > 0
-                                    }
-                                  >
-                                    <p class="text-xs text-slate-500">
-                                      by {row.reviewerName || "Anonymous"}
-                                    </p>
-                                  </Show>
-                                </td>
-                                <td class="px-6 py-3.5">
-                                  <StarRating rating={row.rating} />
-                                </td>
-                                <td class="px-6 py-3.5 text-right font-medium text-slate-700">
-                                  {row.qrScans}
-                                </td>
-                                <td class="px-6 py-3.5 text-right font-medium text-slate-700">
-                                  {row.visits}
-                                </td>
-                                <td class="px-6 py-3.5 text-right font-medium text-slate-700">
-                                  {row.reviews}
-                                </td>
-                                <td class="px-6 py-3.5 text-right font-medium text-slate-700">
-                                  {row.aiCopies}
-                                </td>
-                                <td class="px-6 py-3.5 text-right font-medium text-slate-700">
-                                  {row.redirects}
-                                </td>
-                                <td class="px-6 py-3.5 text-right text-slate-500">
-                                  {new Date(row.createdAt).toLocaleDateString()}
-                                </td>
-                              </tr>
-                            )}
-                          </For>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </Show>
-              </div>
-            )}
+        {/* KPI strip: 4 cards, 2×2 below md (DS §6 dashboard pattern). */}
+        <Show
+          when={!analytics.loading || peek(analytics)}
+          fallback={<SkeletonKpiRow count={4} />}
+        >
+          <Show
+            when={!analytics.error}
+            fallback={
+              <WidgetError
+                message="Couldn't load analytics. Check your connection and retry."
+                onRetry={() => refresh()}
+                retryLabel="Retry"
+              />
+            }
+          >
+            <section
+              class="grid grid-cols-2 gap-4 xl:grid-cols-4"
+              aria-label="Key metrics"
+            >
+              <KpiCard
+                label="QR scans"
+                value={`${peek(analytics)?.totalQrScans ?? 0}`}
+                icon={QrCode}
+                loading={analytics.loading}
+                updatedAgo={updatedAgo()}
+              />
+              <KpiCard
+                label="Visits"
+                value={`${peek(analytics)?.totalVisits ?? 0}`}
+                icon={Eye}
+                loading={analytics.loading}
+                updatedAgo={updatedAgo()}
+              />
+              <KpiCard
+                label="Submissions"
+                value={`${peek(analytics)?.totalReviews ?? 0}`}
+                icon={MessageSquare}
+                trend={submitRate() ?? undefined}
+                trendLabel="Share of visits that became submissions"
+                loading={analytics.loading}
+                updatedAgo={updatedAgo()}
+              />
+              <KpiCard
+                label="Redirects"
+                value={`${peek(analytics)?.totalRedirects ?? 0}`}
+                icon={ExternalLink}
+                trend={redirectRate() ?? undefined}
+                trendLabel="Share of submissions that redirected to a platform"
+                loading={analytics.loading}
+                updatedAgo={updatedAgo()}
+              />
+            </section>
           </Show>
         </Show>
+
+        {/* Guided empty state — never a blank chart (DS anti-pattern §1.4). */}
+        <Show when={isEmpty()}>
+          <EmptyState
+            icon={BarChart3}
+            title="No analytics yet"
+            description="Share a review link or print your QR code. Scans, visits, and submissions will appear here as soon as customers interact with your links."
+            primaryLabel="Create a review link"
+            primaryHref="/reviews/new"
+          />
+        </Show>
+
+        {/* Chart (8) + platform breakdown (4) — one chart only (DS §6). */}
+        <Show when={!isEmpty()}>
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            <div class="lg:col-span-8">
+              <CardHeader
+                title="Conversion funnel"
+                description="From QR scan to platform redirect."
+              />
+              <Show
+                when={!analytics.loading || peek(analytics)}
+                fallback={<SkeletonChart />}
+              >
+                <ChartAdapter
+                  title="Conversion funnel"
+                  points={funnelPoints()}
+                  loading={analytics.loading}
+                  error={
+                    analytics.error ? "Couldn't load the trend." : undefined
+                  }
+                  onRetry={() => refresh()}
+                />
+              </Show>
+            </div>
+            <section
+              aria-labelledby="platform-breakdown-heading"
+              class="lg:col-span-4"
+            >
+              <CardHeader
+                title="Redirects by platform"
+                description="Where customers go after submitting."
+              />
+              <h2 id="platform-breakdown-heading" class="sr-only">
+                Redirects by platform
+              </h2>
+              <Show
+                when={!analytics.loading || peek(analytics)}
+                fallback={<SkeletonRows count={3} />}
+              >
+                <Show
+                  when={!analytics.error}
+                  fallback={
+                    <WidgetError
+                      message="Couldn't load platform breakdown."
+                      onRetry={() => refresh()}
+                      retryLabel="Retry"
+                    />
+                  }
+                >
+                  <Card padded={false}>
+                    <ul class="divide-y divide-border">
+                      <For each={platformTotals()}>
+                        {(p) => (
+                          <li class="flex items-center gap-3 px-4 py-3">
+                            <span class="grid size-9 shrink-0 place-items-center rounded-control bg-muted text-muted-foreground">
+                              <MousePointerClick size={16} aria-hidden="true" />
+                            </span>
+                            <span class="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                              {p.label}
+                            </span>
+                            <span class="tnum text-sm font-medium text-foreground">
+                              {p.count}
+                            </span>
+                          </li>
+                        )}
+                      </For>
+                      <li class="flex items-center gap-3 px-4 py-3">
+                        <span class="grid size-9 shrink-0 place-items-center rounded-control bg-muted text-muted-foreground">
+                          <ClipboardCheck size={16} aria-hidden="true" />
+                        </span>
+                        <span class="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+                          AI drafts copied
+                        </span>
+                        <span class="tnum text-sm font-medium text-foreground">
+                          {peek(analytics)?.totalAiCopies ?? 0}
+                        </span>
+                      </li>
+                    </ul>
+                  </Card>
+                </Show>
+              </Show>
+            </section>
+          </div>
+
+          {/* Per-link table — numbers right-aligned + tabular (DS §2). */}
+          <Show
+            when={!analytics.loading || peek(analytics)}
+            fallback={<SkeletonRows count={4} />}
+          >
+            <Show when={!analytics.error} fallback={null}>
+              <Show
+                when={(peek(analytics)?.reviews.length ?? 0) > 0}
+                fallback={null}
+              >
+                <section aria-labelledby="per-link-heading">
+                  <CardHeader
+                    title="Per-link breakdown"
+                    description="QR scans, visits, submissions, and redirects for each shared link."
+                  />
+                  <h2 id="per-link-heading" class="sr-only">
+                    Per-link breakdown
+                  </h2>
+                  <DataTable
+                    caption="Per-link breakdown of visits, scans, submissions and redirects"
+                    columns={[
+                      {
+                        header: "Review",
+                        render: (row) => (
+                          <span>
+                            <Show
+                              when={row.reviews > 0}
+                              fallback={
+                                <span class="italic text-muted-foreground">
+                                  Awaiting submission
+                                </span>
+                              }
+                            >
+                              <span class="block max-w-xs truncate font-medium text-foreground">
+                                {row.text || (
+                                  <span class="italic text-muted-foreground">
+                                    Empty review
+                                  </span>
+                                )}
+                              </span>
+                            </Show>
+                            <Show
+                              when={
+                                row.reviews > 0 ||
+                                row.visits > 0 ||
+                                row.qrScans > 0
+                              }
+                            >
+                              <span class="block text-xs text-muted-foreground">
+                                by {row.reviewerName || "Anonymous"}
+                              </span>
+                            </Show>
+                          </span>
+                        ),
+                      },
+                      {
+                        header: "Rating",
+                        render: (row) => <StarRating rating={row.rating} />,
+                      },
+                      {
+                        header: "QR Scans",
+                        numeric: true,
+                        render: (row) => `${row.qrScans}`,
+                      },
+                      {
+                        header: "Visits",
+                        numeric: true,
+                        render: (row) => `${row.visits}`,
+                      },
+                      {
+                        header: "Submissions",
+                        numeric: true,
+                        render: (row) => `${row.reviews}`,
+                      },
+                      {
+                        header: "AI Copies",
+                        numeric: true,
+                        render: (row) => `${row.aiCopies}`,
+                      },
+                      {
+                        header: "Redirects",
+                        numeric: true,
+                        render: (row) => `${row.redirects}`,
+                      },
+                      {
+                        header: "Created",
+                        numeric: true,
+                        render: (row) => (
+                          <time class="tnum" dateTime={row.createdAt}>
+                            {new Date(row.createdAt).toLocaleDateString()}
+                          </time>
+                        ),
+                      },
+                    ]}
+                    rows={peek(analytics)!.reviews}
+                    rowKey={(row) => row.id}
+                    renderCard={(row) => (
+                      <div class="grid gap-1">
+                        <p class="truncate text-sm font-medium text-foreground">
+                          {row.text || "Awaiting submission"}
+                        </p>
+                        <p class="tnum text-xs text-muted-foreground">
+                          {row.rating.toFixed(1)}/5 · {row.visits} visits ·{" "}
+                          {row.reviews} submissions · {row.redirects} redirects
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                          by {row.reviewerName || "Anonymous"}
+                        </p>
+                      </div>
+                    )}
+                  />
+                </section>
+              </Show>
+            </Show>
+          </Show>
+        </Show>
+
+        {/* Polite live region: announces manual refreshes only (DS §6). */}
+        <p aria-live="polite" aria-atomic="true" class="sr-only">
+          {announcement()}
+        </p>
       </div>
     </>
   );

@@ -114,6 +114,8 @@ export function decrypt(payload: string): string | null {
       "aes-256-gcm",
       key,
       Buffer.from(ivPart, "base64url"),
+      // Pinned so a truncated tag is rejected instead of weakening the check.
+      { authTagLength: 16 },
     );
     decipher.setAuthTag(Buffer.from(authTagPart, "base64url"));
 

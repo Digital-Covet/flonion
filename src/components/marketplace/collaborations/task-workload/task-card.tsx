@@ -1,16 +1,20 @@
+import { Menu } from "@ark-ui/solid/menu";
 import { Progress } from "@ark-ui/solid/progress";
 import { Tooltip } from "@ark-ui/solid/tooltip";
 import {
+  AlertTriangle,
   AlignLeft,
+  ArrowUpDown,
   CheckCircle,
   Clock,
   GripVertical,
   Pencil,
   Trash2,
 } from "lucide-solid";
-import { createSignal, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { type Task, useTaskContext } from "~/stores/task-store";
+import { BOARD_COLUMNS } from "./task-board";
 
 interface TaskCardProps {
   task: Task;
@@ -22,7 +26,7 @@ interface TaskCardProps {
 }
 
 export default function TaskCard(props: TaskCardProps) {
-  const { deleteTask, canEditTask } = useTaskContext();
+  const { deleteTask, moveTask, tasks, canEditTask } = useTaskContext();
   const [isDragging, setIsDragging] = createSignal(false);
   const [isDeleting, setIsDeleting] = createSignal(false);
   // Owner/admins may modify any task; members only tasks assigned to them.
@@ -47,13 +51,9 @@ export default function TaskCard(props: TaskCardProps) {
     }
   };
 
-  const badgeVariant = () => {
-    if (props.task.priority === "high") return "high-priority";
-    return "internal";
-  };
-
   const badgeText = () => {
     if (props.task.priority === "high") return "High Priority";
+    if (props.task.priority === "medium") return "Medium";
     if (props.task.priority === "low") return "Low";
     return null;
   };
@@ -66,6 +66,49 @@ export default function TaskCard(props: TaskCardProps) {
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const dueLabel = () => {
+    if (!props.task.dueDate) return null;
+    const d = new Date(props.task.dueDate);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  const isOverdue = () => {
+    if (!props.task.dueDate || isDone()) return false;
+    const d = new Date(props.task.dueDate);
+    if (Number.isNaN(d.getTime())) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return d < today;
+  };
+
+  // Keyboard alternative to drag-and-drop (spec §6): move up/down within the
+  // column or jump to another column. Positions mirror the board's ordering.
+  const columnTasks = () =>
+    tasks()
+      .filter((t) => t.column === props.task.column)
+      .sort((a, b) => a.position - b.position);
+
+  const indexInColumn = () =>
+    columnTasks().findIndex((t) => t.id === props.task.id);
+
+  const moveUp = () => {
+    const i = indexInColumn();
+    if (i > 0) void moveTask(props.task.id, props.task.column, i - 1);
+  };
+
+  const moveDown = () => {
+    const i = indexInColumn();
+    if (i >= 0 && i < columnTasks().length - 1)
+      void moveTask(props.task.id, props.task.column, i + 1);
+  };
+
+  const moveToColumn = (columnId: string) => {
+    if (columnId === props.task.column) return;
+    const targetCount = tasks().filter((t) => t.column === columnId).length;
+    void moveTask(props.task.id, columnId, targetCount);
   };
 
   const handleDragStart = (e: DragEvent) => {
@@ -83,36 +126,40 @@ export default function TaskCard(props: TaskCardProps) {
   };
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop has no keyboard path yet; a role here would advertise an interaction that does not exist
+    // Drag handle itself is mouse-only; the Move menu below is the keyboard path.
+    // biome-ignore lint/a11y/noStaticElementInteractions: draggable card; keyboard users get the equivalent Move menu
     <div
       draggable={canEdit() ? "true" : "false"}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
-      class={`bg-card rounded p-4 shadow-sm group cursor-grab active:cursor-grabbing border transition-all duration-150 ${
-        isDragging() ? "opacity-40 scale-[0.98] border-primary" : ""
+      class={`group rounded-card border bg-card p-4 shadow-sm transition-all duration-150 motion-reduce:transition-none ${
+        isDragging() ? "scale-[0.98] border-primary opacity-40" : ""
       } ${
         isDone()
           ? "border-border opacity-60"
           : isWaiting()
-            ? "border-border border-dashed opacity-75 hover:opacity-100 transition-opacity"
+            ? "border-dashed border-border opacity-80 hover:opacity-100"
             : hasProgress()
-              ? "border-l-2 border-l-primary border-t border-r border-b border-border hover:shadow-md"
-              : "border-border hover:border-primary"
+              ? "border-border border-l-2 border-l-primary hover:shadow-md"
+              : "border-border hover:border-control hover:shadow-md"
       }`}
     >
-      <div class="flex justify-between items-start mb-2">
+      <div class="mb-2 flex items-start justify-between gap-2">
         <Show when={badgeText()} fallback={<span />}>
           <span
-            class={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${
-              badgeVariant() === "high-priority"
-                ? "bg-orange-muted text-orange"
+            class={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+              props.task.priority === "high"
+                ? "bg-warning-muted text-warning"
                 : "bg-muted text-muted-foreground"
             }`}
           >
+            {props.task.priority === "high" && (
+              <AlertTriangle size={14} aria-hidden="true" />
+            )}
             {badgeText()}
           </span>
         </Show>
-        <div class="flex items-center gap-1">
+        <div class="flex shrink-0 items-center gap-1">
           <Show when={canEdit()}>
             <Tooltip.Root>
               <Tooltip.Trigger
@@ -121,10 +168,10 @@ export default function TaskCard(props: TaskCardProps) {
                   e.stopPropagation();
                   props.onEdit?.(props.task);
                 }}
-                aria-label="Edit task"
-                class="text-muted-foreground hover:text-primary hover:bg-primary/10 p-1 rounded transition-all opacity-60 md:opacity-0 md:group-hover:opacity-100 cursor-pointer"
+                aria-label={`Edit task ${props.task.title}`}
+                class="grid min-h-11 min-w-11 place-items-center rounded-control text-muted-foreground transition-colors duration-150 motion-reduce:transition-none hover:bg-primary/10 hover:text-primary focus-visible:outline-2 focus-visible:outline-primary md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
               >
-                <Pencil size={14} />
+                <Pencil size={16} aria-hidden="true" />
               </Tooltip.Trigger>
               <Portal>
                 <Tooltip.Positioner>
@@ -142,10 +189,10 @@ export default function TaskCard(props: TaskCardProps) {
                 onClick={handleDelete}
                 onMouseDown={(e) => e.stopPropagation()}
                 disabled={isDeleting()}
-                aria-label="Delete task"
-                class="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1 rounded transition-all opacity-60 md:opacity-0 md:group-hover:opacity-100 cursor-pointer disabled:opacity-50"
+                aria-label={`Delete task ${props.task.title}`}
+                class="grid min-h-11 min-w-11 place-items-center rounded-control text-muted-foreground transition-colors duration-150 motion-reduce:transition-none hover:bg-destructive/10 hover:text-destructive focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
               >
-                <Trash2 size={14} />
+                <Trash2 size={16} aria-hidden="true" />
               </Tooltip.Trigger>
               <Portal>
                 <Tooltip.Positioner>
@@ -156,67 +203,149 @@ export default function TaskCard(props: TaskCardProps) {
               </Portal>
             </Tooltip.Root>
           </Show>
-          <GripVertical
-            size={14}
-            class="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-          />
+          <Show when={canEdit()}>
+            <Menu.Root>
+              <Menu.Trigger
+                aria-label={`Move task "${props.task.title}"`}
+                class="grid min-h-11 min-w-11 place-items-center rounded-control text-muted-foreground transition-colors duration-150 motion-reduce:transition-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                <GripVertical size={16} aria-hidden="true" />
+              </Menu.Trigger>
+              <Portal>
+                <Menu.Positioner>
+                  <Menu.Content class="z-50 min-w-48 rounded-card border border-border bg-card p-1.5 shadow-lg">
+                    <Menu.Item
+                      value="up"
+                      disabled={indexInColumn() <= 0}
+                      onSelect={moveUp}
+                      class="flex min-h-11 cursor-pointer items-center gap-2 rounded-control px-3 py-2.5 text-sm outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted disabled:opacity-40"
+                    >
+                      <ArrowUpDown size={14} aria-hidden="true" />
+                      Move up
+                    </Menu.Item>
+                    <Menu.Item
+                      value="down"
+                      disabled={
+                        indexInColumn() < 0 ||
+                        indexInColumn() >= columnTasks().length - 1
+                      }
+                      onSelect={moveDown}
+                      class="flex min-h-11 cursor-pointer items-center gap-2 rounded-control px-3 py-2.5 text-sm outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted disabled:opacity-40"
+                    >
+                      <ArrowUpDown
+                        size={14}
+                        class="rotate-180"
+                        aria-hidden="true"
+                      />
+                      Move down
+                    </Menu.Item>
+                    <div
+                      class="mx-2 my-1 border-t border-border"
+                      aria-hidden="true"
+                    />
+                    <For each={BOARD_COLUMNS}>
+                      {(col) => (
+                        <Menu.Item
+                          value={`col-${col.id}`}
+                          disabled={col.id === props.task.column}
+                          onSelect={() => moveToColumn(col.id)}
+                          class="flex min-h-11 cursor-pointer items-center gap-2 rounded-control px-3 py-2.5 text-sm outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted disabled:opacity-40"
+                        >
+                          Move to {col.title}
+                        </Menu.Item>
+                      )}
+                    </For>
+                  </Menu.Content>
+                </Menu.Positioner>
+              </Portal>
+            </Menu.Root>
+          </Show>
         </div>
       </div>
 
       <p
-        class={`text-sm font-medium mb-2 line-clamp-2 transition-colors ${
-          isDone()
+        class={`mb-2 line-clamp-2 text-sm font-medium transition-colors ${
+          isDone() || isWaiting()
             ? "text-muted-foreground"
-            : isWaiting()
-              ? "text-muted-foreground"
-              : "text-foreground group-hover:text-primary"
+            : "text-foreground group-hover:text-primary"
         }`}
       >
         {props.task.title}
       </p>
 
+      <Show when={dueLabel()}>
+        <p
+          class={`tnum mb-2 flex items-center gap-1.5 text-xs font-medium ${
+            isOverdue() ? "text-destructive" : "text-muted-foreground"
+          }`}
+        >
+          <Show
+            when={isOverdue()}
+            fallback={<Clock size={14} aria-hidden="true" />}
+          >
+            <AlertTriangle size={14} aria-hidden="true" />
+          </Show>
+          {isOverdue() ? `Overdue · ${dueLabel()}` : `Due ${dueLabel()}`}
+        </p>
+      </Show>
+
       <Show when={hasProgress()}>
-        <Progress.Root value={60} class="w-full mb-3">
-          <Progress.Track class="bg-border rounded-full h-1">
-            <Progress.Range class="bg-primary h-1 rounded-full" />
+        <Progress.Root
+          value={60}
+          aria-label="Task progress"
+          class="mb-3 w-full"
+        >
+          <Progress.Track class="h-1 rounded-full bg-border">
+            <Progress.Range class="h-1 rounded-full bg-primary" />
           </Progress.Track>
         </Progress.Root>
       </Show>
 
-      <div class="flex justify-between items-end mt-4">
-        <div class="flex items-center gap-2">
+      <div class="mt-4 flex items-end justify-between gap-2">
+        <div class="flex min-w-0 items-center gap-2">
           <Show
             when={props.task.assignee?.image}
             fallback={
               <Show when={isDone()}>
-                <CheckCircle size={16} class="text-positive" />
+                <CheckCircle
+                  size={16}
+                  class="shrink-0 text-success"
+                  aria-hidden="true"
+                />
               </Show>
             }
           >
             {(image) => (
-              <img alt="Assignee" class="w-6 h-6 rounded-full" src={image()} />
+              <img alt="" class="size-6 shrink-0 rounded-full" src={image()} />
             )}
           </Show>
           <Show when={!isDone()}>
             <Show
               when={props.task.assignee?.image}
               fallback={
-                <span class="w-6 h-6 rounded-full bg-orange-muted text-orange flex items-center justify-center text-xs font-medium">
+                <span
+                  aria-hidden="true"
+                  class="grid size-6 shrink-0 place-items-center rounded-full bg-warning-muted text-xs font-medium text-warning"
+                >
                   {assigneeInitials()}
                 </span>
               }
             >
               <span />
             </Show>
-            <span class="text-xs font-medium text-muted-foreground">
+            <span class="truncate text-xs font-medium text-muted-foreground">
               {props.task.assignee?.name || "Unassigned"}
             </span>
           </Show>
         </div>
         <Show when={props.task.description && !isDone() && !isWaiting()}>
           <Tooltip.Root>
-            <Tooltip.Trigger>
-              <AlignLeft size={16} class="text-muted-foreground" />
+            <Tooltip.Trigger aria-label="Has description">
+              <AlignLeft
+                size={16}
+                class="text-muted-foreground"
+                aria-hidden="true"
+              />
             </Tooltip.Trigger>
             <Portal>
               <Tooltip.Positioner>
@@ -229,8 +358,8 @@ export default function TaskCard(props: TaskCardProps) {
         </Show>
         <Show when={isWaiting()}>
           <Tooltip.Root>
-            <Tooltip.Trigger>
-              <Clock size={16} class="text-orange" />
+            <Tooltip.Trigger aria-label="Pending review">
+              <Clock size={16} class="text-warning" aria-hidden="true" />
             </Tooltip.Trigger>
             <Portal>
               <Tooltip.Positioner>

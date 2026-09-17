@@ -1,13 +1,16 @@
 import {
   CheckCircle2,
-  Loader2,
+  Download,
   Mail,
   MessageSquare,
   Phone,
   User,
+  Video,
   X,
 } from "lucide-solid";
-import { createSignal, Show } from "solid-js";
+import { createMemo, createSignal, Show } from "solid-js";
+import { Button } from "~/components/ui/button";
+import { generateIcsInvite } from "~/lib/ics";
 
 interface ScheduleEvent {
   id: string;
@@ -28,7 +31,7 @@ interface BookingFormProps {
 }
 
 const INPUT_CLASS =
-  "w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30 transition-colors";
+  "w-full rounded-control border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30 transition-colors";
 
 function BookingForm(props: BookingFormProps) {
   const [name, setName] = createSignal("");
@@ -38,6 +41,8 @@ function BookingForm(props: BookingFormProps) {
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [submitted, setSubmitted] = createSignal(false);
+  // Returned by the booking API when the business has Meet connected.
+  const [meetLink, setMeetLink] = createSignal<string | null>(null);
 
   const slotDate = () =>
     new Date(`${props.slot.date}T00:00:00`).toLocaleDateString("en-US", {
@@ -46,6 +51,43 @@ function BookingForm(props: BookingFormProps) {
       day: "numeric",
       year: "numeric",
     });
+
+  /** "HH:MM" or "h:mm AM/PM" → Date; null when the format is unknown. */
+  const parseSlotDateTime = (date: string, time: string): Date | null => {
+    const m = time.trim().match(/^(\d{1,2}):(\d{2})(?:\s*([AP])\.?\s*M\.?)?$/i);
+    if (!m) return null;
+    let h = Number(m[1]);
+    const min = Number(m[2]);
+    const ampm = m[3]?.toUpperCase();
+    if (ampm === "P" && h < 12) h += 12;
+    if (ampm === "A" && h === 12) h = 0;
+    const d = new Date(
+      `${date}T${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}:00`,
+    );
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  /** Client-side ICS (RFC 5545) so guests can save a pending request. */
+  const icsHref = createMemo(() => {
+    const start = parseSlotDateTime(props.slot.date, props.slot.startTime);
+    const end = parseSlotDateTime(props.slot.date, props.slot.endTime);
+    if (!start || !end) return null;
+    try {
+      const { raw } = generateIcsInvite({
+        summary: `Meeting with ${props.businessName}`,
+        description:
+          message().trim() ||
+          `Meeting request with ${props.businessName}. Awaiting confirmation.`,
+        organizer: { name: props.businessName, email: "" },
+        attendees: [{ name: name().trim(), email: email().trim() }],
+        start,
+        end,
+      });
+      return `data:text/calendar;charset=utf-8,${encodeURIComponent(raw)}`;
+    } catch {
+      return null;
+    }
+  });
 
   async function handleSubmit(e: Event) {
     e.preventDefault();
@@ -89,6 +131,13 @@ function BookingForm(props: BookingFormProps) {
         return;
       }
 
+      setMeetLink(
+        typeof data?.meetUri === "string"
+          ? data.meetUri
+          : typeof data?.meetLink === "string"
+            ? data.meetLink
+            : null,
+      );
       setSubmitted(true);
     } catch {
       setError("Network error. Please check your connection and try again.");
@@ -99,39 +148,62 @@ function BookingForm(props: BookingFormProps) {
 
   return (
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-[fade-in_0.2s_ease-out]">
-      <div class="w-full max-w-md rounded-xl border border-border/60 bg-card shadow-xl animate-[fade-in-up_0.3s_ease-out]">
+      <div class="w-full max-w-md rounded-soft border border-border/60 bg-card shadow-xl animate-[fade-in-up_0.3s_ease-out]">
         <Show
           when={!submitted()}
           fallback={
             <div class="p-8 text-center">
-              <div class="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-green-50">
-                <CheckCircle2 class="size-7 text-green-600" />
+              <div class="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-success-muted">
+                <CheckCircle2 class="size-7 text-success" aria-hidden="true" />
               </div>
-              <h3 class="font-heading text-lg font-semibold text-foreground">
+              <h3 class="font-heading text-lg font-medium text-foreground">
                 Request Submitted
               </h3>
               <p class="mt-2 text-sm text-muted-foreground">
-                Your meeting request for <strong>{slotDate()}</strong> at{" "}
-                <strong>
+                Your meeting request for <strong class="font-medium">{slotDate()}</strong> at{" "}
+                <strong class="tnum font-medium">
                   {props.slot.startTime} - {props.slot.endTime}
                 </strong>{" "}
                 has been sent to {props.businessName}. You will receive an email
                 once they respond.
               </p>
-              <button
-                type="button"
-                onClick={props.onClose}
-                class="mt-6 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                Done
-              </button>
+              <div class="mt-6 grid gap-2">
+                <Show when={icsHref()}>
+                  <a
+                    href={icsHref()!}
+                    download={`meeting-${props.slot.date}.ics`}
+                    class="inline-flex h-11 items-center justify-center gap-2 rounded-control border border-border bg-card px-4 text-sm font-medium text-foreground transition-opacity duration-[180ms] hover:bg-muted motion-reduce:transition-none"
+                  >
+                    <Download class="size-4" aria-hidden="true" />
+                    Add to calendar (.ics)
+                  </a>
+                </Show>
+                <Show when={meetLink()}>
+                  <a
+                    href={meetLink()!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex h-11 items-center justify-center gap-2 rounded-control border border-border bg-card px-4 text-sm font-medium text-primary transition-opacity duration-[180ms] hover:bg-muted motion-reduce:transition-none"
+                  >
+                    <Video class="size-4" aria-hidden="true" />
+                    Join Google Meet
+                  </a>
+                </Show>
+                <button
+                  type="button"
+                  onClick={props.onClose}
+                  class="inline-flex h-11 items-center justify-center rounded-control bg-primary px-5 text-sm font-medium text-primary-foreground transition-opacity duration-[180ms] hover:bg-primary-hover motion-reduce:transition-none"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           }
         >
           {/* Header */}
           <div class="flex items-center justify-between border-b border-border/60 px-6 py-4">
             <div>
-              <h3 class="font-heading text-lg font-semibold text-foreground">
+              <h3 class="font-heading text-lg font-medium text-foreground">
                 Book a Meeting
               </h3>
               <p class="mt-0.5 text-sm text-muted-foreground">
@@ -142,7 +214,7 @@ function BookingForm(props: BookingFormProps) {
             <button
               type="button"
               onClick={props.onClose}
-              class="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              class="grid size-8 place-items-center rounded-control text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <X class="size-4" />
             </button>
@@ -226,21 +298,23 @@ function BookingForm(props: BookingFormProps) {
             </div>
 
             <Show when={error()}>
-              <div class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div
+                role="alert"
+                class="mt-4 rounded-card border border-destructive/25 bg-destructive-muted px-4 py-3 text-sm text-destructive"
+              >
                 {error()}
               </div>
             </Show>
 
-            <button
+            <Button
               type="submit"
-              disabled={loading()}
-              class="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              size="lg"
+              loading={loading()}
+              loadingLabel="Submitting…"
+              class="mt-5 w-full"
             >
-              <Show when={loading()} fallback={<>Submit Request</>}>
-                <Loader2 class="size-4 animate-spin" />
-                Submitting...
-              </Show>
-            </button>
+              Submit Request
+            </Button>
           </form>
         </Show>
       </div>

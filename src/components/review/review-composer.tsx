@@ -48,6 +48,11 @@ interface ReviewComposerProps {
   showTrustStatement?: boolean;
   name?: string;
   nameLabel?: string;
+  /**
+   * Roomy (48px) targets for public/booking/auth surfaces (spec §2 touch
+   * targets). Default compact serves the app shell (36px + hit-slop).
+   */
+  roomy?: boolean;
 }
 
 const MAX_CHARS = 500;
@@ -66,10 +71,10 @@ export function ReviewComposer(props: ReviewComposerProps) {
   return (
     <section
       aria-labelledby="draft-review-heading"
-      class="h-full rounded-xl border border-border bg-card p-5 shadow-md"
+      class="h-full rounded-card border border-border bg-card p-5 shadow-md"
     >
       <Show when={!props.hideBusinessInfo}>
-        <div class="mb-4 rounded-md border border-border bg-muted/40 px-4 py-3">
+        <div class="mb-4 rounded-control border border-border bg-muted/40 px-4 py-3">
           <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Business Information
           </p>
@@ -116,7 +121,7 @@ export function ReviewComposer(props: ReviewComposerProps) {
           <button
             type="button"
             onClick={props.actions.shareReview}
-            class="inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+            class="inline-flex h-9 items-center gap-2 rounded-control px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
           >
             <Link2 class="size-4" aria-hidden="true" />
             Copy Review Link
@@ -125,6 +130,7 @@ export function ReviewComposer(props: ReviewComposerProps) {
       </div>
 
       <fieldset class="mt-6">
+        <legend class="sr-only">{props.ratingLabel ?? "Rating"}</legend>
         <RatingGroup.Root
           value={props.draft.rating}
           onValueChange={(details) =>
@@ -142,12 +148,16 @@ export function ReviewComposer(props: ReviewComposerProps) {
                   {(item) => (
                     <RatingGroup.Item
                       index={item}
-                      class="inline-flex size-9 items-center justify-center rounded-md transition-colors"
+                      class={`inline-flex items-center justify-center rounded-control transition-colors ${props.roomy ? "size-12" : "size-9"}`}
                     >
                       <RatingGroup.ItemContext>
                         {(itemState) => (
                           <Star
-                            class="size-6 text-yellow-400"
+                            class={
+                              props.roomy
+                                ? "size-8 text-yellow-400"
+                                : "size-6 text-yellow-400"
+                            }
                             fill={itemState().highlighted ? "#fcc800" : "none"}
                             aria-hidden="true"
                           />
@@ -180,7 +190,7 @@ export function ReviewComposer(props: ReviewComposerProps) {
               props.actions.setName?.((e.target as HTMLInputElement).value)
             }
             placeholder="How should we attribute this review?"
-            class="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            class="mt-2 w-full rounded-control border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
         </Field.Root>
       </Show>
@@ -199,12 +209,12 @@ export function ReviewComposer(props: ReviewComposerProps) {
               props.placeholder ?? "What did you like? What could we improve?"
             }
             autoresize
-            class="w-full resize-none overflow-hidden rounded-md border border-input bg-background px-3 py-3 pr-20 text-sm leading-6 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            class="w-full resize-none overflow-hidden rounded-control border border-input bg-background px-3 py-3 pr-20 text-sm leading-6 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
           <span
             class={`pointer-events-none absolute bottom-3 right-3 text-xs ${
               characterCount() > MAX_CHARS * 0.9
-                ? "text-orange font-semibold"
+                ? "text-orange font-medium"
                 : "text-muted-foreground"
             }`}
           >
@@ -220,10 +230,10 @@ export function ReviewComposer(props: ReviewComposerProps) {
           props.suggestions.length > 0
         }
       >
-        <div class="mt-4 rounded-lg border border-border bg-muted/30 p-4">
+        <div class="mt-4 rounded-card border border-border bg-muted/30 p-4">
           <div class="flex items-center gap-2">
             <Sparkles class="size-4 text-primary" aria-hidden="true" />
-            <h3 class="text-sm font-semibold text-foreground">
+            <h3 class="text-sm font-medium text-foreground">
               AI Suggestions
             </h3>
             <Show when={props.aiLoading}>
@@ -240,7 +250,7 @@ export function ReviewComposer(props: ReviewComposerProps) {
                   suggestion={suggestion}
                   onApply={(s) => props.actions.applySuggestion?.(s)}
                   onDismiss={(id) => props.actions.dismissSuggestion?.(id)}
-                  style={`animation-delay: ${index() * 80}ms`}
+                  style={`animation-delay: ${index() * 60}ms`}
                 />
               )}
             </For>
@@ -256,7 +266,7 @@ export function ReviewComposer(props: ReviewComposerProps) {
           !props.aiLoading
         }
       >
-        <div class="mt-4 rounded-lg border border-dashed border-border/60 bg-muted/30 px-4 py-5 text-center">
+        <div class="mt-4 rounded-card border border-dashed border-border/60 bg-muted/30 px-4 py-5 text-center">
           <Sparkles
             class="mx-auto mb-2 size-4 text-muted-foreground/40"
             aria-hidden="true"
@@ -275,7 +285,7 @@ export function ReviewComposer(props: ReviewComposerProps) {
           disabled={
             props.aiLoading || props.cooldown || props.draft.rating === 0
           }
-          class="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          class={`inline-flex w-full items-center justify-center gap-2 rounded-control border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto ${props.roomy ? "h-12" : "h-10"}`}
         >
           <Sparkles class="size-4" aria-hidden="true" />
           {props.aiLoading
@@ -291,7 +301,7 @@ export function ReviewComposer(props: ReviewComposerProps) {
           type="button"
           onClick={props.actions.submitReview}
           disabled={isSubmitDisabled()}
-          class="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          class={`inline-flex w-full items-center justify-center gap-2 rounded-control bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto ${props.roomy ? "h-12" : "h-10"}`}
         >
           <Send class="size-4" aria-hidden="true" />
           {props.submitLabel ?? "Submit Review"}

@@ -1,215 +1,156 @@
 import { A } from "@solidjs/router";
 import ArrowRight from "lucide-solid/icons/arrow-right";
-import MessageSquareText from "lucide-solid/icons/message-square-text";
-import PlayCircle from "lucide-solid/icons/play-circle";
+import QrCode from "lucide-solid/icons/qr-code";
 import Star from "lucide-solid/icons/star";
-import Store from "lucide-solid/icons/store";
-import TrendingUp from "lucide-solid/icons/trending-up";
-import User from "lucide-solid/icons/user";
+import QRCode from "qrcode";
+import { createSignal, onMount, Show } from "solid-js";
+import { isServer } from "solid-js/web";
 
-interface HeroSectionProps {
-  reducedMotion: boolean;
-}
+export default function HeroSection() {
+  // Decorative QR tile rendered client-side after first paint so it never
+  // blocks LCP (DS §5). Fixed 96px box holds layout → CLS ≤ 0.1.
+  const [qrDataUrl, setQrDataUrl] = createSignal<string | null>(null);
 
-export default function HeroSection(props: HeroSectionProps) {
-  const handleTilt = (e: MouseEvent, el: HTMLDivElement) => {
-    if (props.reducedMotion || window.innerWidth < 768) return;
-    const rect = el.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    const rotateX = (0.5 - y) * 8;
-    const rotateY = (x - 0.5) * 10;
-    el.style.setProperty("--mx", `${x * 100}%`);
-    el.style.setProperty("--my", `${y * 100}%`);
-    el.style.transform = `perspective(900px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translate3d(0, -3px, 0)`;
-  };
-
-  const resetTilt = (el: HTMLDivElement) => {
-    el.style.transform =
-      "perspective(900px) rotateX(0deg) rotateY(0deg) translate3d(0, 0, 0)";
-    el.style.setProperty("--mx", "50%");
-    el.style.setProperty("--my", "50%");
-  };
+  onMount(() => {
+    if (isServer) return;
+    const idle = (
+      window as Window & { requestIdleCallback?: (cb: () => void) => number }
+    ).requestIdleCallback;
+    const render = () => {
+      QRCode.toDataURL(`${window.location.origin}/signup`, {
+        width: 192,
+        margin: 1,
+        errorCorrectionLevel: "M",
+      }).then(setQrDataUrl, () => setQrDataUrl(null));
+    };
+    if (idle) idle(render);
+    else setTimeout(render, 800);
+  });
 
   return (
-    <section class="hero-gradient relative overflow-hidden px-4 pb-32 pt-24 md:px-16">
-      <div
-        class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.62),transparent_50%)]"
-        aria-hidden="true"
-      />
-
-      <div class="relative z-10 mx-auto grid max-w-[1280px] items-center gap-12 md:grid-cols-2">
-        <div class="pr-4 animate-[fade-in-up_0.6s_ease-out_both]">
-          <h1 class="mb-2 font-heading text-[40px] font-extrabold leading-[1.1] tracking-tight text-foreground md:text-[72px] md:leading-[1.05]">
-            Get More 5-Star Reviews for Your Business with{" "}
-            <span class="accent-gradient">AI Precision</span>
-          </h1>
-          <p class="mb-10 mt-6 max-w-lg text-lg text-muted-foreground">
-            Flonion helps local Indian shops, restaurants, and salons collect
-            reviews and grow their reputation automatically.
+    <section class="hero-gradient relative overflow-hidden px-4 pb-16 pt-16 md:px-8 md:pb-24 md:pt-24">
+      <div class="relative z-10 mx-auto grid max-w-[1120px] items-center gap-12 lg:grid-cols-[7fr_5fr]">
+        <div>
+          <p class="mb-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-xs font-medium text-muted-foreground">
+            <span
+              class="inline-block size-2 rounded-full bg-secondary"
+              aria-hidden="true"
+            />
+            QR capture · AI replies · Local SEO
           </p>
-          <div class="flex flex-col gap-2 sm:flex-row">
+          <h1 class="font-heading text-hero font-semibold text-foreground">
+            Turn happy customers into{" "}
+            <span class="accent-gradient">public reviews</span>
+          </h1>
+          <p class="mb-8 mt-5 max-w-xl text-base leading-[1.6] text-muted-foreground">
+            Flonion gives local shops, clinics, and salons a QR link, a fast
+            review inbox with editable AI drafts, and a local-SEO checklist — so
+            reputation work takes minutes, not evenings.
+          </p>
+          <div class="flex flex-col gap-3 sm:flex-row">
             <A
-              class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3.5 text-sm font-semibold text-primary-foreground shadow-md transition-all duration-200 hover:bg-primary-hover hover:scale-[1.02] hover:-translate-y-0.5 active:scale-[0.98]"
-              href="https://app.flonion.com/signup"
+              class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3.5 text-sm font-medium text-primary-foreground shadow-sm transition-opacity duration-[180ms] hover:bg-primary-hover motion-reduce:transition-none"
+              href="/signup"
             >
-              Get Started Free
-              <ArrowRight size={20} aria-hidden="true" />
+              Get started free
+              <ArrowRight size={18} aria-hidden="true" />
             </A>
             <a
-              class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-8 py-3.5 text-sm font-semibold text-card-foreground shadow-sm transition-all duration-200 hover:bg-muted hover:scale-[1.02] hover:-translate-y-0.5 active:scale-[0.98]"
+              class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-input bg-card px-8 py-3.5 text-sm font-medium text-card-foreground transition-opacity duration-[180ms] hover:bg-muted motion-reduce:transition-none"
               href="#how-it-works"
             >
-              See How it Works
-              <PlayCircle size={20} class="text-primary" aria-hidden="true" />
+              See how it works
             </a>
           </div>
+
+          <div class="mt-6 flex items-center gap-2 text-sm">
+            <span
+              class="flex text-star"
+              role="img"
+              aria-label="Rated 4.8 out of 5"
+            >
+              {[0, 1, 2, 3, 4].map(() => (
+                <Star size={16} class="fill-star" aria-hidden="true" />
+              ))}
+            </span>
+            <span class="tnum font-medium text-foreground">4.8</span>
+            <span class="text-muted-foreground">
+              from 800+ local businesses
+            </span>
+          </div>
+          <p class="mt-3 max-w-md text-xs leading-relaxed text-muted-foreground">
+            AI suggestions are always labelled drafts — you edit and approve
+            before anything goes public.
+          </p>
         </div>
 
-        <div class="relative mt-8 hidden h-[550px] w-full md:mt-0 md:block">
-          {/* A mock dashboard with invented data: decorative illustration, and
-              the tilt is a pointer-only flourish with nothing behind it. */}
-          <div
-            aria-hidden="true"
-            role="presentation"
-            class="tilt-card absolute inset-0 z-10 mx-auto flex max-w-[500px] translate-x-4 translate-y-4 flex-col gap-5 rounded-xl border border-border bg-card/94 p-6 shadow-md backdrop-blur-xl will-change-transform"
-            onMouseMove={(e) => handleTilt(e, e.currentTarget)}
-            onMouseLeave={(e) => resetTilt(e.currentTarget)}
-          >
-            <div class="flex items-center justify-between border-b border-border pb-4">
-              <div class="font-heading text-2xl font-bold text-card-foreground">
-                Dashboard
-              </div>
-              <div class="flex items-center gap-2 rounded-full border border-border bg-muted px-3 py-1.5">
-                <Store size={14} class="text-primary" aria-hidden="true" />
-                <span class="text-sm font-semibold text-muted-foreground">
-                  Swaad Restaurant
-                </span>
-              </div>
+        {/* Static hero visual (DS §6: static hero image as LCP). Opaque
+            card, 12px radius, 32px padding — no tilt, float, or glass blur. */}
+        <div class="rounded-xl border border-border bg-card p-8 shadow-md">
+          <div class="flex items-center justify-between gap-4 border-b border-border pb-4">
+            <p class="font-heading text-lg font-semibold text-card-foreground">
+              Swaad Restaurant
+            </p>
+            <p class="inline-flex items-center gap-1.5 rounded-full bg-success-muted px-3 py-1 text-xs font-medium text-success">
+              <span
+                class="inline-block size-1.5 rounded-full bg-success"
+                aria-hidden="true"
+              />
+              Google connected
+            </p>
+          </div>
+          <dl class="grid grid-cols-2 gap-4 py-5">
+            <div class="rounded-xl border border-border bg-background p-4">
+              <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Avg rating
+              </dt>
+              <dd class="tnum mt-1 font-heading text-2xl font-semibold text-card-foreground">
+                4.8 <span class="text-base text-star-text">★</span>
+              </dd>
             </div>
-
-            <div class="grid grid-cols-2 gap-4">
-              <div class="flex flex-col items-center justify-center rounded-lg border border-border bg-slate-50 p-5 shadow-sm">
-                <span class="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-                  Total Reviews
-                </span>
-                <span class="text-[40px] font-bold leading-tight text-primary">
-                  842
-                </span>
-                <div class="mt-2 flex items-center rounded bg-orange-muted px-2 py-1 text-orange">
-                  <TrendingUp size={14} aria-hidden="true" />
-                  <span class="ml-1 text-xs">+12% this week</span>
-                </div>
-              </div>
-              <div class="flex flex-col items-center justify-center rounded-lg border border-border bg-slate-50 p-5 shadow-sm">
-                <span class="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-                  Average Rating
-                </span>
-                <div class="mb-2 flex items-center gap-2">
-                  <span class="text-[40px] font-bold leading-tight text-card-foreground">
-                    4.8
-                  </span>
-                  <Star
+            <div class="rounded-xl border border-border bg-background p-4">
+              <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Unreplied
+              </dt>
+              <dd class="tnum mt-1 font-heading text-2xl font-semibold text-card-foreground">
+                3
+              </dd>
+            </div>
+          </dl>
+          <div class="flex items-center gap-4 rounded-xl border border-border bg-background p-4">
+            <div class="grid size-24 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-white p-1.5">
+              <Show
+                when={qrDataUrl()}
+                fallback={
+                  <QrCode
                     size={28}
-                    class="fill-orange text-orange"
+                    class="text-muted-foreground"
                     aria-hidden="true"
                   />
-                </div>
-                <div class="mt-2 h-2 w-full rounded-full bg-muted">
-                  <div class="h-2 w-[90%] rounded-full bg-primary" />
-                </div>
-              </div>
-            </div>
-
-            <div class="mt-2 rounded-lg border border-border bg-slate-50 p-4 shadow-sm">
-              <div class="mb-3 flex items-center justify-between">
-                <div class="text-sm font-semibold text-card-foreground">
-                  Recent Activity
-                </div>
-                <span class="text-xs text-primary">View All</span>
-              </div>
-              <div class="space-y-3">
-                {[
-                  { name: "Rahul S.", time: "2m ago" },
-                  { name: "Priya M.", time: "1h ago" },
-                ].map((item) => (
-                  <div class="flex items-center gap-3">
-                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-purple-muted text-purple">
-                      <User size={14} aria-hidden="true" />
-                    </div>
-                    <div class="flex-1">
-                      <div class="text-sm font-semibold text-card-foreground">
-                        {item.name}
-                      </div>
-                      <div class="text-xs text-muted-foreground">
-                        Left a 5-star review
-                      </div>
-                    </div>
-                    <div class="text-xs text-muted-foreground">{item.time}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div class="idle-float glass-card absolute -left-12 top-1/4 z-20 flex items-center gap-4 rounded-xl p-4 shadow-md will-change-transform">
-            <div class="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-inner">
-              <MessageSquareText size={24} aria-hidden="true" />
+                }
+              >
+                <img
+                  src={qrDataUrl()!}
+                  alt=""
+                  aria-hidden="true"
+                  width={96}
+                  height={96}
+                  class="h-full w-full object-contain"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </Show>
             </div>
             <div>
-              <div class="text-sm font-bold text-card-foreground">
-                New 5-Star Review!
-              </div>
-              <div class="text-xs text-muted-foreground">from Google Maps</div>
-            </div>
-          </div>
-
-          <div class="glass-card absolute -right-8 bottom-24 z-20 rounded-xl p-5 shadow-md will-change-transform">
-            <div class="mb-3 flex items-center justify-between gap-4 text-sm font-bold text-card-foreground">
-              <span>Weekly Growth</span>
-              <span class="rounded bg-orange-muted px-2 py-0.5 text-xs font-bold text-orange">
-                +24%
-              </span>
-            </div>
-            <div class="flex h-20 items-end gap-2.5">
-              {[30, 45, 60, 50, 85].map((height, i) => (
-                <div
-                  class={`w-5 rounded-t transition-colors hover:bg-primary ${i === 4
-                      ? "bg-primary shadow-[0_0_10px_rgba(15,118,110,0.4)]"
-                      : "bg-slate-300"
-                    }`}
-                  style={{ height: `${height}%` }}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div class="idle-float-delayed glass-card absolute right-10 top-12 z-20 flex items-center gap-2 rounded-full px-4 py-2.5 shadow-md will-change-transform">
-            <div class="flex text-orange">
-              {[0, 1, 2].map((item) => (
-                <Star
-                  key={item}
-                  size={14}
-                  class="fill-orange"
-                  aria-hidden="true"
-                />
-              ))}
-            </div>
-            <div class="text-sm font-bold text-card-foreground">4.9/5</div>
-            <div class="ml-1 text-xs text-muted-foreground">Rating</div>
-          </div>
-
-          <div class="glass-card absolute bottom-16 left-10 z-20 flex items-center gap-3 rounded-xl p-3 shadow-md">
-            <div class="flex -space-x-2">
-              <div class="z-10 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-white p-1.5 shadow-sm">
-                <span class="text-[10px] font-bold text-primary">G</span>
-              </div>
-              <div class="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-white p-1.5 shadow-sm">
-                <span class="text-[10px] font-bold text-purple">W</span>
-              </div>
-            </div>
-            <div class="pr-1 text-xs font-bold text-card-foreground">
-              Synced
+              <p class="text-sm font-medium text-card-foreground">
+                Scan to leave a review
+              </p>
+              <p class="tnum mt-0.5 font-mono text-xs text-muted-foreground">
+                flonion.ai/r/swaad
+              </p>
+              <p class="mt-1 text-xs text-muted-foreground">
+                Under 60 seconds · works on any phone
+              </p>
             </div>
           </div>
         </div>

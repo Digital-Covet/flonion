@@ -32,7 +32,7 @@ export const StarRating = (props: StarRatingProps) => {
                         size={size()}
                         class={
                           itemState().highlighted
-                            ? "text-orange fill-orange"
+                            ? "text-star fill-star"
                             : "text-muted-foreground"
                         }
                       />

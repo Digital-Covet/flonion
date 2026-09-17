@@ -3,7 +3,7 @@ import type { AvailabilityWindowProps } from "~/types";
 
 function AvailabilityWindow(props: AvailabilityWindowProps) {
   return (
-    <div class="rounded-lg border border-border p-3 transition-colors hover:border-primary/40">
+    <div class="rounded-card border border-border p-3 transition-colors hover:border-primary/40">
       <div class="mb-2 flex items-start justify-between gap-3">
         <div class="flex items-center gap-2">
           <span

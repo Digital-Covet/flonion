@@ -11,7 +11,7 @@ export const DayChip = (props: DayChipProps) => (
     type="button"
     onClick={props.onClick}
     class={cn(
-      "flex-shrink-0 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+      "flex-shrink-0 px-3 py-2 rounded-control text-sm font-medium transition-colors",
       props.active
         ? "bg-primary text-primary-foreground"
         : "bg-card text-foreground border border-border hover:bg-muted",

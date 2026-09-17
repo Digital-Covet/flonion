@@ -1,11 +1,30 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "~/db/prisma";
-import { APP_DOMAIN } from "~/lib/constants";
-import { sign } from "~/lib/crypto";
+import { meetingDecisionUrl } from "~/lib/meeting-decision";
+import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
 import { sendEmail } from "~/services/email";
 import { renderMeetingRequestEmail } from "~/services/email-templates";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const MAX_NAME_LENGTH = 100;
+const MAX_EMAIL_LENGTH = 254;
+const MAX_PHONE_LENGTH = 32;
+const MAX_MESSAGE_LENGTH = 1000;
+
+// Anonymous, and every booking locks a slot and emails the owner. Without a
+// cap one caller can book out a business's whole calendar.
+const IP_BOOKING_LIMIT = 5;
+const IP_BOOKING_WINDOW_MS = 60 * 60 * 1000;
+const BUSINESS_BOOKING_LIMIT = 20;
+const BUSINESS_BOOKING_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+function rateLimited() {
+  return Response.json(
+    { error: "Too many booking requests. Please try again later." },
+    { status: 429 },
+  );
+}
 
 export async function POST(event: APIEvent) {
   const url = new URL(event.request.url);
@@ -54,6 +73,27 @@ export async function POST(event: APIEvent) {
       { error: "Phone number is required" },
       { status: 400 },
     );
+  }
+  if (
+    name.trim().length > MAX_NAME_LENGTH ||
+    email.trim().length > MAX_EMAIL_LENGTH ||
+    phone.trim().length > MAX_PHONE_LENGTH ||
+    (typeof message === "string" && message.trim().length > MAX_MESSAGE_LENGTH)
+  ) {
+    return Response.json(
+      { error: "One or more fields are too long" },
+      { status: 400 },
+    );
+  }
+
+  if (
+    !checkRateLimit(
+      `booking-ip:${getClientIp(event.request)}`,
+      IP_BOOKING_LIMIT,
+      IP_BOOKING_WINDOW_MS,
+    ).allowed
+  ) {
+    return rateLimited();
   }
 
   const business = await prisma.business.findUnique({
@@ -105,6 +145,18 @@ export async function POST(event: APIEvent) {
       { error: "Cannot book a slot in the past" },
       { status: 400 },
     );
+  }
+
+  // Counted only once the request is otherwise bookable, so invalid requests
+  // cannot use up a business's daily allowance.
+  if (
+    !checkRateLimit(
+      `booking-business:${business.id}`,
+      BUSINESS_BOOKING_LIMIT,
+      BUSINESS_BOOKING_WINDOW_MS,
+    ).allowed
+  ) {
+    return rateLimited();
   }
 
   const trimmedName = name.trim();
@@ -162,8 +214,8 @@ export async function POST(event: APIEvent) {
       startTime: slot.startTime,
       endTime: slot.endTime,
       message: trimmedMessage ?? undefined,
-      acceptUrl: `${APP_DOMAIN}/api/marketplace/meetings/${meetingId}?action=accept&sig=${sign(`${meetingId}:accept`, "meeting-decision")}`,
-      rejectUrl: `${APP_DOMAIN}/api/marketplace/meetings/${meetingId}?action=reject&sig=${sign(`${meetingId}:reject`, "meeting-decision")}`,
+      acceptUrl: meetingDecisionUrl(meetingId, "accept"),
+      rejectUrl: meetingDecisionUrl(meetingId, "reject"),
     });
 
     await sendEmail({

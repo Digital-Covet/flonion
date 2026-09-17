@@ -30,18 +30,48 @@ function ensureCleanupRunning() {
 }
 
 /**
+ * Upper bound on tracked keys. Every forged address used to add an entry that
+ * lived until the next sweep; past this size expired entries are swept inline,
+ * and if that is not enough the oldest entries are dropped.
+ */
+const MAX_ENTRIES = 50_000;
+
+function trustedProxyHops(): number {
+  const hops = Number(process.env.TRUSTED_PROXY_HOPS ?? 1);
+  return Number.isInteger(hops) && hops >= 1 ? hops : 1;
+}
+
+/**
  * Best-effort client address for rate-limit keys.
  *
- * Trusts `x-forwarded-for` because this app runs behind a proxy that sets it.
- * A client can forge the header, so never use this for authorization -- only to
+ * Proxies append the address they received the connection from, so the
+ * leftmost `x-forwarded-for` entries are whatever the client sent. The client
+ * is the entry `TRUSTED_PROXY_HOPS` places from the right (default 1: a single
+ * proxy in front of the app). Never use this for authorization -- only to
  * spread limits across callers.
  */
 export function getClientIp(request: Request): string {
+  const chain = (request.headers.get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
   return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    chain[chain.length - trustedProxyHops()] ||
     request.headers.get("x-real-ip") ||
     "unknown"
   );
+}
+
+function enforceStoreBound(now: number) {
+  if (store.size < MAX_ENTRIES) return;
+  for (const [key, entry] of store) {
+    if (now > entry.resetAt) store.delete(key);
+  }
+  // Map iteration is insertion order, so this drops the oldest windows first.
+  for (const key of store.keys()) {
+    if (store.size < MAX_ENTRIES) break;
+    store.delete(key);
+  }
 }
 
 export function checkRateLimit(
@@ -55,6 +85,7 @@ export function checkRateLimit(
   const entry = store.get(key);
 
   if (!entry || now > entry.resetAt) {
+    enforceStoreBound(now);
     store.set(key, { count: 1, resetAt: now + windowMs });
     return {
       allowed: true,

@@ -248,15 +248,20 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
     ctx.fillText(instructionText(), canvasWidth / 2, instrY);
   };
 
+  const qrAlt = () => {
+    const url = getQrUrl(props.businessUsername, props.businessId, props.url);
+    return url ? `QR code linking to ${url}` : "QR code placeholder";
+  };
+
   return (
-    <div class="h-full rounded-xl border border-border bg-card p-5 shadow-md">
+    <div class="h-full rounded-card border border-border bg-card p-5 shadow-md">
       <div class="flex h-full flex-col items-center justify-center gap-3">
         <Show
           when={dataUrl()}
           fallback={
             <div class="flex flex-col items-center gap-3">
               <div
-                class="flex items-center justify-center rounded-xl border-2 border-dashed border-border/60 bg-muted/30"
+                class="flex items-center justify-center rounded-card border-2 border-dashed border-border/60 bg-muted/30"
                 style={{ width: `${QR_SIZE}px`, height: `${QR_SIZE}px` }}
               >
                 <QrCode
@@ -270,12 +275,13 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
             </div>
           }
         >
-          <div class="relative inline-block">
+          <div class="qr-pop relative inline-block">
             <img
               src={dataUrl()!}
-              alt="QR code"
+              alt={qrAlt()}
               width={QR_SIZE}
               height={QR_SIZE}
+              class="rounded-control"
             />
             <Show when={props.logo}>
               <div class="absolute inset-0 flex items-center justify-center">
@@ -340,7 +346,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
                   setInstructionText(trimmed || "Scan to leave a review");
                   setEditing(false);
                 }}
-                class="mt-1 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
+                class="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
               >
                 Done
               </button>
@@ -354,7 +360,7 @@ export function QRCodeDisplay(props: QRCodeDisplayProps) {
           <button
             type="button"
             onClick={downloadQR}
-            class="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            class="inline-flex h-8 items-center gap-1.5 rounded-control px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <Download class="size-3.5" aria-hidden="true" />
             Download QR

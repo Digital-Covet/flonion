@@ -1,3 +1,10 @@
+/**
+ * The only role better-auth's admin plugin grants permissions to. It is not a
+ * team role: it must never appear in ROLE_DEFINITIONS, so no team route that
+ * validates with isValidRole can write it.
+ */
+export const PLATFORM_ADMIN_ROLE = "platform_admin";
+
 export const ROLE_DEFINITIONS = [
   {
     value: "admin",

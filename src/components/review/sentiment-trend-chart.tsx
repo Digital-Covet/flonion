@@ -12,7 +12,7 @@ export function SentimentTrendChart() {
   return (
     <section
       aria-labelledby="sentiment-trend-heading"
-      class="rounded-lg border border-border bg-card p-5 shadow-sm"
+      class="rounded-card border border-border bg-card p-5 shadow-sm"
     >
       <div class="flex flex-wrap items-center justify-between gap-4">
         <h2
@@ -29,7 +29,7 @@ export function SentimentTrendChart() {
           </span>
           <span class="flex items-center gap-2">
             <span
-              class="size-3 rounded-sm border border-slate-400 bg-[repeating-linear-gradient(135deg,#94a3b8_0_2px,#f8fafc_2px_4px)]"
+              class="size-3 rounded-control border border-muted-foreground bg-muted"
               aria-hidden="true"
             />
             Negative
@@ -44,7 +44,7 @@ export function SentimentTrendChart() {
               <button
                 type="button"
                 aria-label={`${point.date}: ${point.positive} positive reviews and ${point.negative} negative reviews`}
-                class="group flex h-52 w-full min-w-0 items-end justify-center gap-1 rounded-md px-1 transition-colors hover:bg-muted focus:bg-muted"
+                class="group flex h-52 w-full min-w-0 items-end justify-center gap-1 rounded-card px-1 transition-colors hover:bg-muted focus:bg-muted"
               >
                 <span
                   class="relative block w-3 rounded-t-sm border border-slate-400 bg-[repeating-linear-gradient(135deg,#94a3b8_0_2px,#f8fafc_2px_4px)] sm:w-4"
@@ -56,7 +56,7 @@ export function SentimentTrendChart() {
                   style={{ height: `${point.positive}%` }}
                   aria-hidden="true"
                 >
-                  <span class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-card px-2 py-1 text-xs font-semibold text-foreground shadow-sm group-hover:block group-focus:block">
+                  <span                 class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-card border border-border bg-card px-2 py-1 text-xs font-medium text-foreground shadow-sm group-hover:block group-focus:block">
                     {point.positive} Positive
                   </span>
                 </span>
@@ -65,7 +65,7 @@ export function SentimentTrendChart() {
               <span
                 class={`mt-2 text-xs ${
                   point.date === "5 Jul"
-                    ? "font-semibold text-foreground"
+                    ? "font-medium text-foreground"
                     : "text-muted-foreground"
                 }`}
               >

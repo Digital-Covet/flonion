@@ -20,8 +20,8 @@ import type {
 } from "./seo-types";
 
 export const SEO_PAGE_HEADER = {
-  title: "GMB SEO Optimizer",
-  subtitle: "AI-driven insights to improve your local search visibility.",
+  title: "Local SEO",
+  subtitle: "Raise your profile score by completing prioritised actions.",
 };
 
 export const businessInfo: BusinessInfo = {
@@ -151,6 +151,8 @@ export const photoStatus: PhotoStatus = {
 
 export const seoScore: SeoScore = {
   overall: 70,
+  delta: 6,
+  deltaLabel: "+6 this week",
   categories: [
     { name: "Profile Completeness", score: 85, weight: 25 },
     { name: "Photos", score: 60, weight: 20 },
@@ -185,8 +187,10 @@ export const seoActionItems: ActionItemData[] = [
       "Listings with 10+ photos get 52% more calls. Upload high-quality images of your signature dishes.",
     status: "high-priority",
     icon: Camera,
-    actionLabel: "Upload Photos",
+    actionLabel: "Upload photos",
     actionType: "primary",
+    impact: "High impact",
+    href: "/marketing/seo",
   },
   {
     id: "seo-2",
@@ -195,8 +199,10 @@ export const seoActionItems: ActionItemData[] = [
       "Your description is missing 4 high-volume keywords identified by AI analysis.",
     status: "high-priority",
     icon: PenLine,
-    actionLabel: "Edit Description",
+    actionLabel: "Edit description",
     actionType: "primary",
+    impact: "High impact",
+    href: "/settings",
   },
   {
     id: "seo-3",
@@ -205,8 +211,10 @@ export const seoActionItems: ActionItemData[] = [
       "Competitors Pho 99 and Sakura Garden both show this attribute. It increases visibility by 15%.",
     status: "pending",
     icon: Globe,
-    actionLabel: "Add Attribute",
+    actionLabel: "Add attribute",
     actionType: "primary",
+    impact: "Medium impact",
+    href: "/settings",
   },
   {
     id: "seo-4",
@@ -215,8 +223,10 @@ export const seoActionItems: ActionItemData[] = [
       "Your website shows (555) 234-8901 but directories list (555) 234-8902.",
     status: "high-priority",
     icon: Tag,
-    actionLabel: "Fix Now",
+    actionLabel: "Fix now",
     actionType: "primary",
+    impact: "High impact",
+    href: "/settings",
   },
   {
     id: "seo-5",
@@ -225,8 +235,10 @@ export const seoActionItems: ActionItemData[] = [
       "Responding to reviews improves engagement and signals active management to Google.",
     status: "pending",
     icon: FileText,
-    actionLabel: "Go to Inbox",
+    actionLabel: "Go to inbox",
     actionType: "primary",
+    impact: "Medium impact",
+    href: "/reviews/inbox",
   },
   {
     id: "seo-6",
@@ -235,8 +247,10 @@ export const seoActionItems: ActionItemData[] = [
       "Your hours for Sep 1 show default times. Mark early closure or update hours.",
     status: "pending",
     icon: Clock,
-    actionLabel: "Update Hours",
+    actionLabel: "Update hours",
     actionType: "secondary",
+    impact: "Low impact",
+    href: "/settings",
   },
   {
     id: "seo-7",
@@ -247,6 +261,8 @@ export const seoActionItems: ActionItemData[] = [
     icon: ImagePlus,
     actionLabel: "Uploaded",
     actionType: "secondary",
+    impact: "Low impact",
+    href: "/marketing/seo",
   },
   {
     id: "seo-8",
@@ -256,27 +272,38 @@ export const seoActionItems: ActionItemData[] = [
     icon: CheckCircle2,
     actionLabel: "Verified",
     actionType: "secondary",
+    impact: "High impact",
+    href: "/settings",
   },
 ];
 
+/* DS §2: semantic bar colours as theme tokens (never raw blue/rose). */
 export const VOLUME_COLORS: Record<string, { bg: string; text: string }> = {
-  high: { bg: "bg-blue-100", text: "text-blue-700" },
-  medium: { bg: "bg-amber-100", text: "text-amber-700" },
-  low: { bg: "bg-slate-100", text: "text-slate-600" },
+  high: { bg: "bg-success-muted", text: "text-success" },
+  medium: { bg: "bg-warning-muted", text: "text-warning" },
+  low: { bg: "bg-muted", text: "text-muted-foreground" },
 };
 
 export function scoreColor(score: number): string {
-  if (score >= 80) return "bg-blue-600";
-  if (score >= 60) return "bg-blue-400";
-  if (score >= 40) return "bg-amber-400";
-  return "bg-rose-500";
+  if (score >= 80) return "bg-success";
+  if (score >= 60) return "bg-primary";
+  if (score >= 40) return "bg-warning";
+  return "bg-destructive";
 }
 
 export function scoreTextColor(score: number): string {
-  if (score >= 80) return "text-blue-700";
-  if (score >= 60) return "text-blue-600";
-  if (score >= 40) return "text-amber-600";
-  return "text-rose-600";
+  if (score >= 80) return "text-success";
+  if (score >= 60) return "text-primary";
+  if (score >= 40) return "text-warning";
+  return "text-destructive";
+}
+
+/** DS §6 Local SEO: score is number + words, never colour alone. */
+export function scoreLabel(score: number): string {
+  if (score >= 80) return "Excellent";
+  if (score >= 60) return "Good";
+  if (score >= 40) return "Needs work";
+  return "At risk";
 }
 
 export interface KpiTrend {
@@ -297,28 +324,28 @@ export const seoKpiStats: KpiStat[] = [
     label: "Photos",
     value: photoStatus.total,
     icon: Camera,
-    accent: "bg-blue-50 text-blue-600",
+    accent: "bg-success-muted text-success",
     trend: { value: "+2", direction: "positive" },
   },
   {
     label: "Avg Rating",
     value: businessInfo.rating,
     icon: Star,
-    accent: "bg-amber-50 text-amber-600",
+    accent: "bg-warning-muted text-warning",
     trend: { value: "+0.1", direction: "positive" },
   },
   {
     label: "Actions Open",
     value: seoActionItems.filter((a) => a.status !== "completed").length,
     icon: ListChecks,
-    accent: "bg-rose-50 text-rose-600",
+    accent: "bg-destructive-muted text-destructive",
     trend: { value: "+2", direction: "negative" },
   },
   {
     label: "Reviews",
     value: businessInfo.reviewCount,
     icon: Zap,
-    accent: "bg-violet-50 text-violet-600",
+    accent: "bg-positive-muted text-primary",
     trend: { value: "+12", direction: "positive" },
   },
 ];

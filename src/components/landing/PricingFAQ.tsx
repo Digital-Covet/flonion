@@ -5,27 +5,29 @@ import { pricingFaqItems } from "~/constants/landing";
 
 export default function PricingFAQ() {
   return (
-    <section class="bg-white px-4 py-24 md:px-16" id="pricing-faq">
+    <section class="bg-card px-4 py-20 md:px-8 md:py-28" id="pricing-faq">
       <div class="mx-auto max-w-3xl">
-        <h2 class="mb-16 text-center text-3xl font-bold text-foreground">
-          Pricing FAQs
-        </h2>
+        <div class="mx-auto mb-12 max-w-2xl text-center">
+          <h2 class="font-heading text-2xl font-semibold text-foreground md:text-3xl">
+            Pricing FAQs
+          </h2>
+        </div>
         <Accordion.Root multiple collapsible defaultValue={[]}>
           <div class="space-y-4">
             <For each={pricingFaqItems}>
               {(item) => (
                 <Accordion.Item
                   value={item.question}
-                  class="rounded-xl border border-border bg-card shadow-sm"
+                  class="rounded-xl border border-border bg-background shadow-sm"
                 >
-                  <Accordion.ItemTrigger class="flex w-full cursor-pointer items-center justify-between p-6 text-left text-card-foreground transition-colors hover:bg-muted/50">
-                    <h3 class="text-base font-bold">{item.question}</h3>
+                  <Accordion.ItemTrigger class="flex min-h-11 w-full cursor-pointer items-center justify-between gap-4 p-5 text-left text-card-foreground transition-opacity duration-[180ms] hover:bg-muted/60 motion-reduce:transition-none">
+                    <span class="text-base font-medium">{item.question}</span>
                     <Accordion.ItemIndicator class="ml-4 shrink-0 text-primary transition-transform duration-200 data-[state=open]:rotate-180">
                       <ChevronDown size={20} aria-hidden="true" />
                     </Accordion.ItemIndicator>
                   </Accordion.ItemTrigger>
                   <Accordion.ItemContent>
-                    <div class="border-t border-border px-6 pb-6 pt-4 text-base text-muted-foreground">
+                    <div class="border-t border-border px-5 pb-5 pt-4 text-base leading-[1.6] text-muted-foreground">
                       {item.answer}
                     </div>
                   </Accordion.ItemContent>

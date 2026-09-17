@@ -40,10 +40,10 @@ interface SectorSelectProps {
 }
 
 const triggerClass =
-  "flex w-full items-center justify-between gap-3 rounded-lg border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
+  "flex w-full items-center justify-between gap-3 rounded-control border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
 
 const inputClass =
-  "w-full rounded-lg border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
+  "w-full rounded-control border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
 
 export const SectorSelect: Component<SectorSelectProps> = (props) => {
   return (
@@ -54,7 +54,7 @@ export const SectorSelect: Component<SectorSelectProps> = (props) => {
         onValueChange={(details) => props.onChange(details.value[0] ?? "")}
         positioning={{ placement: "bottom-start", sameWidth: true }}
       >
-        <Select.Label class="text-sm font-semibold text-foreground">
+        <Select.Label class="text-sm font-medium text-foreground">
           Business Sector
         </Select.Label>
         <Select.Control>
@@ -72,12 +72,12 @@ export const SectorSelect: Component<SectorSelectProps> = (props) => {
 
         <Portal>
           <Select.Positioner>
-            <Select.Content class="z-50 mt-1 max-h-64 min-w-52 overflow-y-auto rounded-md border border-border bg-card p-1 shadow-sm">
+            <Select.Content class="z-50 mt-1 max-h-64 min-w-52 overflow-y-auto rounded-card border border-border bg-card p-1 shadow-sm">
               <For each={sectorItems}>
                 {(item) => (
                   <Select.Item
                     item={item}
-                    class="flex cursor-pointer items-center justify-between rounded-sm px-3 py-2 text-sm text-foreground outline-none data-highlighted:bg-muted"
+                    class="flex cursor-pointer items-center justify-between rounded-control px-3 py-2 text-sm text-foreground outline-none data-highlighted:bg-muted"
                   >
                     <Select.ItemText>{item.label}</Select.ItemText>
                     <Select.ItemIndicator>
@@ -97,7 +97,7 @@ export const SectorSelect: Component<SectorSelectProps> = (props) => {
         <Field.Root>
           <Field.Label
             for="business-sector-other"
-            class="text-sm font-semibold text-foreground"
+            class="text-sm font-medium text-foreground"
           >
             Specify your sector
           </Field.Label>

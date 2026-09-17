@@ -40,6 +40,7 @@ export async function GET(event: APIEvent) {
       id: true,
       token: true,
       role: true,
+      expiresAt: true,
       business: {
         select: { name: true },
       },

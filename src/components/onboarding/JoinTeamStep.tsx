@@ -28,7 +28,7 @@ interface JoinTeamStepProps {
 const MAX_MESSAGE_LENGTH = 300;
 
 const fieldInputClass =
-  "w-full rounded-lg border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
+  "w-full rounded-control border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
 
 export const JoinTeamStep: Component<JoinTeamStepProps> = (props) => {
   const [handle, setHandle] = createSignal("");
@@ -132,7 +132,7 @@ export const JoinTeamStep: Component<JoinTeamStepProps> = (props) => {
             <button
               type="submit"
               disabled={searching()}
-              class="flex shrink-0 items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
+              class="flex shrink-0 items-center gap-2 rounded-control bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
             >
               <Search size={16} aria-hidden="true" />
               {searching() ? "Finding..." : "Find"}
@@ -146,7 +146,7 @@ export const JoinTeamStep: Component<JoinTeamStepProps> = (props) => {
       </form>
 
       <Show when={notice()}>
-        <p class="rounded-lg bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+        <p class="rounded-card bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
           {notice()}
         </p>
       </Show>
@@ -159,12 +159,12 @@ export const JoinTeamStep: Component<JoinTeamStepProps> = (props) => {
 
       <Show when={found()}>
         {(business) => (
-          <div class="flex flex-col gap-4 rounded-lg border border-border bg-background p-4">
+          <div class="flex flex-col gap-4 rounded-card border border-border bg-background p-4">
             <div class="flex items-center gap-3">
               <Show
                 when={business().logo}
                 fallback={
-                  <div class="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted text-base font-medium text-muted-foreground">
+                  <div class="flex size-11 shrink-0 items-center justify-center rounded-card bg-muted text-base font-medium text-muted-foreground">
                     {business().name.charAt(0).toUpperCase()}
                   </div>
                 }
@@ -172,7 +172,7 @@ export const JoinTeamStep: Component<JoinTeamStepProps> = (props) => {
                 <img
                   src={business().logo ?? ""}
                   alt=""
-                  class="size-11 shrink-0 rounded-lg object-cover"
+                  class="size-11 shrink-0 rounded-card object-cover"
                 />
               </Show>
               <div class="min-w-0">
@@ -212,7 +212,7 @@ export const JoinTeamStep: Component<JoinTeamStepProps> = (props) => {
                 type="button"
                 onClick={() => submit(false)}
                 disabled={sending()}
-                class="rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
+                class="rounded-control bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
               >
                 {sending() ? "Sending..." : "Request to join"}
               </button>
@@ -225,7 +225,7 @@ export const JoinTeamStep: Component<JoinTeamStepProps> = (props) => {
             {/* The server refuses until this is acknowledged, so the trade is
                 always named before anything is deleted. */}
             <Show when={confirmDelete()}>
-              <div class="flex flex-col gap-3 rounded-lg border border-border bg-muted/40 p-4">
+              <div class="flex flex-col gap-3 rounded-card border border-border bg-muted/40 p-4">
                 <p class="text-sm text-muted-foreground">
                   You can only belong to one business.{" "}
                   <span class="font-medium text-foreground">
@@ -240,7 +240,7 @@ export const JoinTeamStep: Component<JoinTeamStepProps> = (props) => {
                     type="button"
                     onClick={() => submit(true)}
                     disabled={sending()}
-                    class="rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
+                    class="rounded-control bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
                   >
                     {sending() ? "Sending..." : "Delete and request"}
                   </button>
@@ -248,7 +248,7 @@ export const JoinTeamStep: Component<JoinTeamStepProps> = (props) => {
                     type="button"
                     onClick={() => setConfirmDelete("")}
                     disabled={sending()}
-                    class="rounded-lg bg-muted px-6 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/80 disabled:opacity-50"
+                    class="rounded-control bg-muted px-6 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/80 disabled:opacity-50"
                   >
                     Go back
                   </button>

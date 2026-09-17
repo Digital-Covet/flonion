@@ -1,5 +1,7 @@
-import { ChevronLeft, ChevronRight } from "lucide-solid";
-import { createResource, For, Show, Suspense } from "solid-js";
+import { CalendarDays, ChevronLeft, ChevronRight, Lock } from "lucide-solid";
+import { createMemo, createResource, For, Show, Suspense } from "solid-js";
+import { Skeleton } from "~/components/ui/skeleton";
+import { tzLabel } from "~/lib/timezone-label";
 import type { CalendarEventTone } from "~/types";
 import CalendarEvent from "./CalendarEvent";
 import SectionShell from "./SectionShell";
@@ -7,6 +9,7 @@ import SectionShell from "./SectionShell";
 interface WeeklyCalendarProps {
   weekOffset: number;
   onWeekChange: (change: number) => void;
+  timezone?: string | null;
 }
 
 interface SlotData {
@@ -131,39 +134,59 @@ function WeeklyCalendar(props: WeeklyCalendarProps) {
   const heightPercent = (durationMinutes: number) =>
     (durationMinutes / (SLOT_COUNT * 60)) * 100;
 
+  // DS §6: agenda list below `md`, week grid on `lg`. Both read from the
+  // same slot resource so counts never diverge.
+  const agendaItems = createMemo(() =>
+    weekDates().flatMap((date, dayIndex) =>
+      eventsForDay(dayIndex).map((event) => ({
+        date,
+        dayLabel: date.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        }),
+        ...event,
+      })),
+    ),
+  );
+
   return (
     <SectionShell>
       <header class="flex flex-wrap items-center justify-between gap-3 border-b border-border p-5">
         <div>
-          <h3>This Week at a Glance</h3>
-          <p class="mt-1 text-sm text-muted-foreground">{weekRange()} (IST)</p>
+          <h2 class="font-heading text-lg font-semibold text-foreground">
+            This Week at a Glance
+          </h2>
+          <p class="tnum mt-1 text-sm text-muted-foreground">
+            {weekRange()} · {tzLabel(props.timezone)}
+          </p>
         </div>
         <div class="flex items-center gap-2">
           <Show when={props.weekOffset !== 0}>
             <button
               type="button"
               onClick={() => props.onWeekChange(-props.weekOffset)}
-              class="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              class="inline-flex min-h-11 items-center rounded-control border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors duration-150 motion-reduce:transition-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               Today
             </button>
           </Show>
-          <div class="flex overflow-hidden rounded-md border border-border">
+          <div class="flex overflow-hidden rounded-card border border-border">
             <button
               type="button"
               aria-label="Previous week"
               onClick={() => props.onWeekChange(-1)}
-              class="grid size-8 place-items-center border-r border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              class="grid min-h-11 min-w-11 place-items-center border-r border-border text-muted-foreground transition-colors duration-150 motion-reduce:transition-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
-              <ChevronLeft class="size-4" />
+              <ChevronLeft class="size-5" aria-hidden="true" />
             </button>
             <button
               type="button"
               aria-label="Next week"
               onClick={() => props.onWeekChange(1)}
-              class="grid size-8 place-items-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              class="grid min-h-11 min-w-11 place-items-center text-muted-foreground transition-colors duration-150 motion-reduce:transition-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
-              <ChevronRight class="size-4" />
+              <ChevronRight class="size-5" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -171,12 +194,52 @@ function WeeklyCalendar(props: WeeklyCalendarProps) {
 
       <Suspense
         fallback={
-          <div class="p-8 text-center text-sm text-muted-foreground">
-            Loading calendar...
+          <div class="grid gap-3 p-5" aria-hidden="true">
+            <Skeleton class="h-4 w-40" />
+            <Skeleton class="h-48 w-full" />
           </div>
         }
       >
-        <div class="overflow-x-auto px-5 pt-5">
+        {/* Mobile agenda — list-only below `md`, 48px rows, tabular times. */}
+        <div class="p-3 md:hidden">
+          <Show
+            when={agendaItems().length > 0}
+            fallback={
+              <p class="rounded-card border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                No slots this week. Add a bookable window to open your calendar.
+              </p>
+            }
+          >
+            <ul class="grid gap-2">
+              <For each={agendaItems()}>
+                {(item) => (
+                  <li class="flex min-h-12 items-center gap-3 rounded-card border border-border bg-card p-3">
+                    <span
+                      aria-hidden="true"
+                      class={`size-2.5 shrink-0 rounded-full ${item.tone === "orange" ? "bg-warning" : "bg-primary"}`}
+                    />
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-sm font-medium text-foreground">
+                        {item.label}
+                      </p>
+                      <p class="tnum text-xs text-muted-foreground">
+                        {item.dayLabel}
+                      </p>
+                    </div>
+                    <span class="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                      {item.tone === "orange" && (
+                        <Lock class="size-3" aria-hidden="true" />
+                      )}
+                      {item.tone === "orange" ? "Booked" : "Free"}
+                    </span>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </Show>
+        </div>
+
+        <div class="hidden overflow-x-auto px-5 pt-5 md:block">
           <div class="min-w-[44rem] pb-3">
             <div class={`${GRID_COLUMNS} border-b border-border pb-2`}>
               <div />
@@ -186,7 +249,7 @@ function WeeklyCalendar(props: WeeklyCalendarProps) {
                     <div
                       class={
                         isToday(index())
-                          ? "text-xs font-semibold tracking-wide text-primary uppercase"
+                          ? "text-xs font-medium tracking-wide text-primary uppercase"
                           : "text-xs font-medium tracking-wide text-muted-foreground uppercase"
                       }
                     >
@@ -195,7 +258,7 @@ function WeeklyCalendar(props: WeeklyCalendarProps) {
                     <div
                       class={
                         isToday(index())
-                          ? "mx-auto mt-1 grid size-7 place-items-center rounded-full bg-primary text-sm font-semibold text-primary-foreground"
+                          ? "mx-auto mt-1 grid size-7 place-items-center rounded-full bg-primary text-sm font-medium text-primary-foreground"
                           : "mx-auto mt-1 grid size-7 place-items-center text-sm font-medium text-foreground"
                       }
                     >
@@ -211,7 +274,7 @@ function WeeklyCalendar(props: WeeklyCalendarProps) {
                 <For each={hours}>
                   {(hour, index) => (
                     <span
-                      class="absolute right-2 -translate-y-1/2 text-[11px] tabular-nums text-muted-foreground"
+                      class="tnum absolute right-2 -translate-y-1/2 text-xs text-muted-foreground"
                       style={{ top: `${(index() / SLOT_COUNT) * 100}%` }}
                     >
                       {formatHour(hour)}
@@ -240,9 +303,7 @@ function WeeklyCalendar(props: WeeklyCalendarProps) {
                           }}
                           tone={event.tone}
                         >
-                          <span class="truncate text-[11px]">
-                            {event.label}
-                          </span>
+                          <span class="truncate text-xs">{event.label}</span>
                         </CalendarEvent>
                       )}
                     </For>
@@ -254,13 +315,15 @@ function WeeklyCalendar(props: WeeklyCalendarProps) {
         </div>
       </Suspense>
 
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 pt-3 pb-5">
-        <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span class="size-2 rounded-full bg-primary" />
-          Available
+      <div class="hidden flex-wrap items-center gap-x-4 gap-y-1 px-5 pt-3 pb-5 md:flex">
+        <span class="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <CalendarDays class="size-3.5 text-primary" aria-hidden="true" />
+          <span class="size-2 rounded-full bg-primary" aria-hidden="true" />
+          Free
         </span>
-        <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span class="size-2 rounded-full bg-orange" />
+        <span class="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <Lock class="size-3.5 text-warning" aria-hidden="true" />
+          <span class="size-2 rounded-full bg-warning" aria-hidden="true" />
           Booked
         </span>
       </div>

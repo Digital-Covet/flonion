@@ -13,7 +13,7 @@ interface ButtonProps {
 }
 
 const base =
-  "inline-flex items-center justify-center font-medium transition-colors rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center font-medium transition-colors rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50 disabled:cursor-not-allowed";
 
 const variants: Record<ButtonVariant, string> = {
   primary:

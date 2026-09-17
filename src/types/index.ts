@@ -35,12 +35,19 @@ export interface ActionItemData {
   icon: IconComponent;
   actionLabel: string;
   actionType: ActionType;
+  /** DS §6 Local SEO: short impact label, e.g. "High impact". */
+  impact?: string;
+  /** Deep link to the setting that fixes the item. */
+  href?: string;
 }
 
 export interface ProgressData {
   value: number;
   title: string;
   description: string;
+  /** Week-over-week delta in points; rendered beside the ring with tnum. */
+  delta?: number;
+  deltaLabel?: string;
 }
 
 export interface PageHeaderData {

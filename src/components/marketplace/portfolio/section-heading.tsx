@@ -9,7 +9,7 @@ interface SectionHeadingProps {
 export const SectionHeading = (props: SectionHeadingProps) => (
   <h3
     class={cn(
-      "font-heading text-xl font-semibold text-foreground",
+      "font-heading text-xl font-medium text-foreground",
       props.class,
     )}
   >

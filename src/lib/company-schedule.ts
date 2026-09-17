@@ -117,7 +117,6 @@ export async function getCompanySchedule(
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
       select: {
         id: true,
-        title: true,
         date: true,
         startTime: true,
         endTime: true,
@@ -151,7 +150,8 @@ export async function getCompanySchedule(
       startTime: tm.startTime,
       endTime: tm.endTime,
       status: "booked",
-      title: tm.title || "Team Meeting",
+      // Public page: internal meeting titles are not for visitors.
+      title: "Busy",
     });
   }
 

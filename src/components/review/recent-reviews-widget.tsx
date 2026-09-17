@@ -55,7 +55,7 @@ export function RecentReviewsWidget(props: RecentReviewsWidgetProps) {
         </Show>
       </div>
 
-      <div class="mt-3 rounded-xl border border-border bg-card p-4 shadow-md">
+      <div class="mt-3 rounded-card border border-border bg-card p-4 shadow-md">
         <Show
           when={props.reviews.length > 0}
           fallback={
@@ -67,9 +67,9 @@ export function RecentReviewsWidget(props: RecentReviewsWidgetProps) {
           <ul class="space-y-2">
             <For each={props.reviews}>
               {(review) => (
-                <li class="flex items-start gap-3 rounded-lg bg-muted/50 px-3 py-3">
+                <li class="flex items-start gap-3 rounded-card bg-muted/50 px-3 py-3">
                   <div
-                    class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
+                    class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground"
                     aria-hidden="true"
                   >
                     {review.reviewerName ? initials(review.reviewerName) : "?"}

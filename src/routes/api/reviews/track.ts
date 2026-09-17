@@ -1,6 +1,10 @@
+import { randomUUID } from "node:crypto";
 import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "@/db/prisma";
+import { REVIEW_PLATFORMS } from "~/features/settings/review-platforms";
 import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
+
+const PLATFORM_SLUGS = new Set(REVIEW_PLATFORMS.map((p) => p.slug));
 
 // Public and unauthenticated, and every call is a DB write. Capped per IP so a
 // single caller cannot inflate a business's metrics or use it as write load.
@@ -38,11 +42,15 @@ export async function POST(event: APIEvent) {
       );
     }
 
-    if (type === "redirect" && platform && typeof platform !== "string") {
-      return Response.json(
-        { error: "platform must be a string" },
-        { status: 400 },
-      );
+    // Each platform becomes a key in the review's JSON column, so only known
+    // slugs are accepted; free-form strings let a caller grow it without bound.
+    if (
+      type === "redirect" &&
+      platform !== undefined &&
+      platform !== null &&
+      !(typeof platform === "string" && PLATFORM_SLUGS.has(platform))
+    ) {
+      return Response.json({ error: "Unknown platform" }, { status: 400 });
     }
 
     const review = await prisma.sharedReview.findUnique({
@@ -55,33 +63,22 @@ export async function POST(event: APIEvent) {
     }
 
     if (type === "redirect" && platform) {
-      const existing = await prisma.reviewAnalytics.findUnique({
-        where: { reviewId },
-        select: { platformRedirects: true },
-      });
-
-      const currentRedirects =
-        (existing?.platformRedirects as Record<string, number>) || {};
-      const updatedRedirects: Record<string, number> = {
-        ...currentRedirects,
-        [platform]: (currentRedirects[platform] || 0) + 1,
-      };
-
-      await prisma.reviewAnalytics.upsert({
-        where: { reviewId },
-        create: {
-          reviewId,
-          visitCount: 0,
-          reviewCount: 0,
-          redirectCount: 1,
-          aiCopyCount: 0,
-          platformRedirects: { [platform]: 1 },
-        },
-        update: {
-          redirectCount: { increment: 1 },
-          platformRedirects: updatedRedirects,
-        },
-      });
+      // One statement, so concurrent redirects cannot overwrite each other's
+      // increments the way a read-modify-write of the JSON did.
+      await prisma.$executeRaw`
+        INSERT INTO review_analytics
+          (id, "reviewId", "visitCount", "reviewCount", "redirectCount", "aiCopyCount", "platformRedirects", "createdAt", "updatedAt")
+        VALUES
+          (${randomUUID()}, ${reviewId}, 0, 0, 1, 0, jsonb_build_object(${platform}::text, 1), now(), now())
+        ON CONFLICT ("reviewId") DO UPDATE SET
+          "redirectCount" = review_analytics."redirectCount" + 1,
+          "platformRedirects" = jsonb_set(
+            COALESCE(review_analytics."platformRedirects", '{}'::jsonb),
+            ARRAY[${platform}::text],
+            to_jsonb(COALESCE((review_analytics."platformRedirects" ->> ${platform}::text)::int, 0) + 1)
+          ),
+          "updatedAt" = now()
+      `;
     } else {
       await prisma.reviewAnalytics.upsert({
         where: { reviewId },

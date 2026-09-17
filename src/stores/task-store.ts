@@ -76,17 +76,20 @@ export interface TaskContextValue {
   canManageTasks: Accessor<boolean>;
   /** Whether the signed-in user may edit, move, or delete the given task. */
   canEditTask: (task: Task) => boolean;
+  tasksLoading: Accessor<boolean>;
+  tasksError: Accessor<string | null>;
+  clearTasksError: () => void;
   fetchTasks: () => Promise<void>;
   fetchMeetings: () => Promise<void>;
   fetchTeamMembers: () => Promise<void>;
   addTask: (data: CreateTaskData) => Promise<Task | null>;
-  updateTask: (taskId: string, data: UpdateTaskData) => Promise<void>;
-  deleteTask: (taskId: string) => Promise<void>;
+  updateTask: (taskId: string, data: UpdateTaskData) => Promise<boolean>;
+  deleteTask: (taskId: string) => Promise<boolean>;
   moveTask: (
     taskId: string,
     targetColumn: string,
     newPosition: number,
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   addMeeting: (data: CreateMeetingData) => Promise<TeamMeeting | null>;
   deleteMeeting: (meetingId: string) => Promise<void>;
 }

@@ -51,10 +51,10 @@ export function AccountInfoCard(props: AccountInfoCardProps) {
   };
 
   return (
-    <section class="relative overflow-hidden rounded-xl border border-border bg-card p-6">
+    <section class="relative overflow-hidden rounded-card border border-border bg-card p-6">
       <div class="mb-6 flex items-center gap-4">
         <props.icon size={20} class="text-primary" />
-        <h3 class="text-lg leading-7 font-semibold">Account Information</h3>
+        <h3 class="font-heading text-lg font-medium">Account Information</h3>
       </div>
 
       <div class="space-y-4">
@@ -67,11 +67,11 @@ export function AccountInfoCard(props: AccountInfoCardProps) {
               when={editing()}
               fallback={
                 <div class="flex items-center gap-2">
-                  <p class="text-sm font-bold">{user()?.name ?? "Not set"}</p>
+                  <p class="text-sm font-medium">{user()?.name ?? "Not set"}</p>
                   <button
                     type="button"
                     onClick={startEditing}
-                    class="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    class="rounded-control p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     aria-label="Edit name"
                   >
                     <Pencil size={14} />
@@ -89,14 +89,14 @@ export function AccountInfoCard(props: AccountInfoCardProps) {
                       setName((e.target as HTMLInputElement).value)
                     }
                     placeholder="Enter your name"
-                    class="h-9 w-full rounded-lg border border-border bg-card px-3 text-sm leading-5 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    class="h-9 w-full rounded-control border border-border bg-card px-3 text-base leading-6 transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
                 </Field.Root>
                 <button
                   type="button"
                   onClick={saveName}
                   disabled={saving()}
-                  class="inline-flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+                  class="inline-flex size-8 items-center justify-center rounded-control bg-primary/10 text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
                   aria-label="Save name"
                 >
                   <Check size={16} />
@@ -105,7 +105,7 @@ export function AccountInfoCard(props: AccountInfoCardProps) {
                   type="button"
                   onClick={cancelEditing}
                   disabled={saving()}
-                  class="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                  class="inline-flex size-8 items-center justify-center rounded-control text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                   aria-label="Cancel editing"
                 >
                   <X size={16} />
@@ -121,7 +121,7 @@ export function AccountInfoCard(props: AccountInfoCardProps) {
               Email Address
             </p>
             <div class="flex items-center gap-2">
-              <p class="text-sm font-bold">{user()?.email}</p>
+              <p class="text-sm font-medium">{user()?.email}</p>
               <Show
                 when={isVerified()}
                 fallback={
@@ -145,7 +145,7 @@ export function AccountInfoCard(props: AccountInfoCardProps) {
             <p class="text-sm leading-5 font-medium text-muted-foreground">
               Member Since
             </p>
-            <p class="text-sm font-bold">
+            <p class="text-sm font-medium">
               {user()?.createdAt
                 ? new Date(user()!.createdAt).toLocaleDateString("en-US", {
                     year: "numeric",

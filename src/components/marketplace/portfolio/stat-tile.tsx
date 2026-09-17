@@ -10,7 +10,7 @@ interface StatTileProps {
 
 export const StatTile = (props: StatTileProps) => (
   <GlassCard class="flex flex-col items-center justify-center text-center p-4">
-    <span class="font-heading text-2xl font-bold text-foreground">
+    <span class="font-heading text-2xl font-semibold text-foreground">
       {props.value}
     </span>
     <Show when={props.children}>

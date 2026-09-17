@@ -2,6 +2,7 @@ export { default as AvailabilityWindow } from "./AvailabilityWindow";
 export { default as AvatarGroup } from "./AvatarGroup";
 export { default as BookableWindows } from "./BookableWindows";
 export { default as CalendarEvent } from "./CalendarEvent";
+export { default as FilterChip } from "./FilterChip";
 export { default as LoadBar } from "./LoadBar";
 export { default as LoadOverview } from "./LoadOverview";
 export { default as MeetingRow } from "./MeetingRow";

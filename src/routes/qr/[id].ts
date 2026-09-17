@@ -11,7 +11,10 @@ export async function GET(event: APIEvent) {
   const id = event.params.id;
 
   if (!id || typeof id !== "string") {
-    return new Response("Not found", { status: 404 });
+    return new Response(null, {
+      status: 302,
+      headers: { Location: "/404" },
+    });
   }
 
   try {
@@ -22,7 +25,10 @@ export async function GET(event: APIEvent) {
       (await prisma.business.findUnique({ where: { id } }));
 
     if (!business) {
-      return new Response("Not found", { status: 404 });
+      return new Response(null, {
+        status: 302,
+        headers: { Location: "/404" },
+      });
     }
 
     const countable = checkRateLimit(
@@ -47,7 +53,15 @@ export async function GET(event: APIEvent) {
         "Cache-Control": "no-store, no-cache, must-revalidate",
       },
     });
-  } catch {
-    return new Response("Internal error", { status: 500 });
+  } catch (err) {
+    const referenceId =
+      typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : String(Date.now());
+    console.error(`[qr/redirect] ${referenceId}:`, err);
+    return new Response(null, {
+      status: 302,
+      headers: { Location: `/500?ref=${referenceId}` },
+    });
   }
 }

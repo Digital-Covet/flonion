@@ -19,36 +19,48 @@ export default function ComparisonTable() {
       );
     }
     return (
-      <span class="text-sm font-semibold text-card-foreground">{value}</span>
+      <span class="text-sm font-medium text-card-foreground">{value}</span>
     );
   };
 
   return (
-    <section class="bg-muted px-4 py-24 md:px-16" id="comparison">
+    <section class="bg-muted px-4 py-20 md:px-8 md:py-28" id="comparison">
       <div class="mx-auto max-w-[1024px]">
-        <div class="mb-16 text-center">
-          <h2 class="mb-4 text-3xl font-bold text-foreground">
+        <div class="mx-auto mb-12 max-w-2xl text-center">
+          <h2 class="font-heading text-2xl font-semibold text-foreground md:text-3xl">
             Compare plans in detail
           </h2>
-          <p class="text-lg text-muted-foreground">
+          <p class="mt-3 text-base leading-[1.6] text-muted-foreground">
             See exactly what&apos;s included in each tier.
           </p>
         </div>
 
-        <div class="overflow-x-auto rounded-2xl border border-border bg-card shadow-md">
+        <div class="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
           <table class="w-full min-w-[640px] border-collapse">
             <thead>
               <tr class="border-b border-border">
-                <th class="w-2/5 p-5 text-left text-sm font-semibold text-muted-foreground">
+                <th
+                  scope="col"
+                  class="w-2/5 p-5 text-left text-sm font-medium text-muted-foreground"
+                >
                   Features
                 </th>
-                <th class="w-1/5 p-5 text-center text-sm font-semibold text-card-foreground">
+                <th
+                  scope="col"
+                  class="w-1/5 p-5 text-center text-sm font-medium text-card-foreground"
+                >
                   Starter
                 </th>
-                <th class="w-1/5 p-5 text-center text-sm font-bold text-primary">
+                <th
+                  scope="col"
+                  class="w-1/5 p-5 text-center text-sm font-medium text-primary"
+                >
                   Business
                 </th>
-                <th class="w-1/5 p-5 text-center text-sm font-semibold text-card-foreground">
+                <th
+                  scope="col"
+                  class="w-1/5 p-5 text-center text-sm font-medium text-card-foreground"
+                >
                   Enterprise
                 </th>
               </tr>
@@ -59,7 +71,7 @@ export default function ComparisonTable() {
                   <tr class="border-b border-border bg-muted/50">
                     <td
                       colspan={4}
-                      class="px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground"
+                      class="px-5 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground"
                     >
                       {group.category}
                     </td>

@@ -1,13 +1,10 @@
-import Bell from "lucide-solid/icons/bell";
 import BellRing from "lucide-solid/icons/bell-ring";
-import Car from "lucide-solid/icons/car";
+import CalendarCheck from "lucide-solid/icons/calendar-check";
 import LayoutDashboard from "lucide-solid/icons/layout-dashboard";
-import MessageCircle from "lucide-solid/icons/message-circle";
-import Scissors from "lucide-solid/icons/scissors";
-import Smartphone from "lucide-solid/icons/smartphone";
+import QrCode from "lucide-solid/icons/qr-code";
+import SearchCheck from "lucide-solid/icons/search-check";
 import Sparkles from "lucide-solid/icons/sparkles";
 import Store from "lucide-solid/icons/store";
-import UtensilsCrossed from "lucide-solid/icons/utensils-crossed";
 import type {
   BusinessLogo,
   ComparisonFeature,
@@ -31,107 +28,100 @@ export const faqItems: FaqItem[] = [
   {
     question: "How does Flonion help me get more reviews?",
     answer:
-      "We send automated, friendly reminders via WhatsApp/SMS after a purchase, making it easy for customers to leave feedback.",
+      "Print your QR table stand or share your review link. Customers scan, rate, and submit in under a minute — then get redirected to your Google profile. Every visit is tracked so you can see scans, submits, and redirects.",
   },
   {
     question: "Does Flonion work with Google and WhatsApp?",
     answer:
-      "Yes, we integrate directly with Google Business Profile and use WhatsApp for easy customer replies.",
+      "Yes. Connect Google Business Profile to read and reply to reviews from one inbox. Share review links over WhatsApp or SMS. Google stays the system of record — Flonion never posts anything without your approval.",
+  },
+  {
+    question: "How does the AI reply drafting work?",
+    answer:
+      "When you open a review, Flonion drafts a reply in your chosen tone (Professional, Friendly, or Formal). Every draft is clearly labelled “AI draft · edit before posting” and stays in an editable field until you approve and post it yourself.",
   },
   {
     question: "Is my customer data secure?",
     answer:
-      "Absolutely. We use bank-grade encryption and follow strict privacy standards to keep your data safe.",
+      "Customer details are used only to send the review request you created. Connections use scoped OAuth tokens, secrets stay server-side, and team access follows least-privilege roles. Disconnecting Google revokes access immediately.",
   },
   {
     question: "Do I need technical skills to use this?",
     answer:
-      "Not at all! If you can use WhatsApp, you can use Flonion. Our interface is designed for simplicity.",
+      "Not at all. If you can use WhatsApp, you can use Flonion. Onboarding is a 4-step wizard (business basics → platforms → review settings → invite team), and the dashboard always shows the single next action.",
   },
   {
     question: "Is pricing available in INR?",
     answer:
-      "Yes, we offer affordable plans priced in INR with a 14-day free trial so you can see the value first.",
+      "Yes, plans are priced in INR with a 14-day free trial. Start free, upgrade when review volume or seats demand it — downgrade takes effect at the end of your billing cycle.",
   },
 ];
 
 export const featureItems: FeatureItem[] = [
   {
-    icon: <Smartphone size={24} class="text-primary-foreground" />,
-    title: "Automated Review Collection",
+    icon: <QrCode size={22} class="text-primary-foreground" />,
+    title: "QR review capture",
     description:
-      "Collect reviews via WhatsApp and SMS instantly after every customer visit.",
-    mockup: (
-      <div class="w-full md:w-48 bg-slate-50 border border-border p-3 rounded-lg shadow-sm relative overflow-hidden group-hover:-translate-y-1 transition-transform">
-        <div class="absolute top-0 right-0 w-16 h-16 bg-primary/20 rounded-bl-full" />
-        <div class="flex items-center gap-2 mb-2">
-          <div class="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white">
-            <MessageCircle size={10} />
-          </div>
-          <div class="text-[10px] font-bold text-card-foreground font-body">
-            WhatsApp
-          </div>
-        </div>
-        <div class="bg-white rounded p-2 mb-2">
-          <div class="h-1.5 w-full bg-slate-300 rounded mb-1.5" />
-          <div class="h-1.5 w-3/4 bg-slate-300 rounded" />
-        </div>
-        <div class="bg-primary text-white rounded p-1.5 text-[9px] text-center font-bold font-body inline-block">
-          Review Us
-        </div>
-      </div>
-    ),
+      "A scannable link + print-ready A6 table stand. Customers submit in under 60 seconds; scans, submits, and redirects are tracked per link.",
+    span: true,
   },
   {
-    icon: <LayoutDashboard size={24} class="text-white" />,
-    title: "Centralized Reputation Dashboard",
+    icon: <Sparkles size={22} class="text-primary-foreground" />,
+    title: "AI reply drafts",
     description:
-      "See your Google, Facebook, and Justdial reviews in one simple view.",
-    class: "relative overflow-hidden",
+      "One click drafts a reply in three tones. Every suggestion is labelled “AI draft · edit before posting” — you always approve before anything goes public.",
+    span: true,
   },
   {
-    icon: <Sparkles size={24} class="text-white" />,
-    title: "AI-Powered Marketing",
+    icon: <LayoutDashboard size={22} class="text-primary-foreground" />,
+    title: "Reputation dashboard",
     description:
-      "Turn your best reviews into social media posts and marketing insights with one click.",
-    mockup: (
-      <div class="w-full md:w-48 bg-white border border-border p-4 rounded-lg shadow-sm group-hover:-translate-y-1 transition-transform">
-        <div class="flex items-center gap-2 mb-3">
-          <div class="w-6 h-6 bg-purple rounded-full" />
-          <div class="h-3 w-16 bg-slate-300 rounded" />
-        </div>
-        <div class="h-2 w-full bg-slate-200 rounded mb-2" />
-        <div class="h-2 w-3/4 bg-slate-200 rounded mb-4" />
-        <div class="bg-purple-muted rounded p-2 text-center text-[10px] text-purple font-bold font-body">
-          "Amazing Service!" - ⭐⭐⭐⭐⭐
-        </div>
-      </div>
-    ),
+      "Average rating, total reviews, QR scans (30d), and unreplied count — with the next best action on top.",
   },
   {
-    icon: <BellRing size={24} class="text-primary-foreground" />,
-    title: "Multi-Platform Alerts",
+    icon: <SearchCheck size={22} class="text-primary-foreground" />,
+    title: "Local SEO checklist",
     description:
-      "Get real-time notifications so you can thank your customers immediately.",
-    mockup: (
-      <div class="w-full md:w-48 bg-slate-50 border border-border p-3 rounded-lg shadow-sm relative group-hover:-translate-y-1 transition-transform">
-        <div class="absolute -top-2 -right-2 w-6 h-6 bg-destructive rounded-full text-white text-[10px] font-bold flex items-center justify-center border-2 border-white">
-          3
-        </div>
-        <div class="flex items-center gap-3 mb-2">
-          <div class="w-8 h-8 rounded bg-muted flex items-center justify-center text-primary">
-            <Bell size={14} />
-          </div>
-          <div class="flex-1">
-            <div class="h-2 w-full bg-slate-300 rounded mb-1" />
-            <div class="h-2 w-1/2 bg-slate-300 rounded" />
-          </div>
-        </div>
-        <div class="bg-white rounded p-2 text-[9px] text-muted-foreground font-body">
-          New review from Amit K. on Google
-        </div>
-      </div>
-    ),
+      "Profile completeness score with prioritised fixes, keywords, competitors, and photo guidance.",
+  },
+  {
+    icon: <CalendarCheck size={22} class="text-primary-foreground" />,
+    title: "Bookings",
+    description:
+      "Guests pick a labelled slot (Free / Booked / Past) and get a timezone-aware confirmation. No double-booking.",
+  },
+  {
+    icon: <BellRing size={22} class="text-primary-foreground" />,
+    title: "Marketplace, tasks & meetings",
+    description:
+      "Find local partners, run the team kanban with keyboard-friendly “Move to…” actions, and schedule partner meetings.",
+  },
+];
+
+export const howItWorksSteps = [
+  {
+    step: "1",
+    title: "Create your link & QR",
+    description:
+      "Add your platforms (Google, Yelp, Facebook, JustDial) and print the A6 table stand. Takes under 60 seconds.",
+  },
+  {
+    step: "2",
+    title: "Customers scan & submit",
+    description:
+      "They rate, optionally polish wording with clearly-labelled AI drafts, and submit. Works on flaky connections too.",
+  },
+  {
+    step: "3",
+    title: "They land on Google",
+    description:
+      "One tap opens your Google profile with a “Copy my review” helper, so the words they wrote travel with them.",
+  },
+  {
+    step: "4",
+    title: "You reply in minutes",
+    description:
+      "The inbox collects every review. Pick a tone, edit the AI draft, post — and watch unreplied hit zero.",
   },
 ];
 
@@ -154,7 +144,7 @@ export const testimonialItems: TestimonialItem[] = [
   {
     rating: 5,
     quote:
-      "Our customers love the easy WhatsApp review link. Highly recommended!",
+      "Our customers love the easy QR review link. Replies take me minutes now.",
     name: "Vikram M.",
     business: "Heritage Silks, Jaipur",
     avatarColor: "tertiary",
@@ -162,26 +152,13 @@ export const testimonialItems: TestimonialItem[] = [
 ];
 
 export const businessLogos: BusinessLogo[] = [
+  { icon: <Store size={18} class="text-primary" />, name: "Annapoorna Foods" },
+  { icon: <Store size={18} class="text-secondary" />, name: "Radiance Salon" },
   {
-    icon: <UtensilsCrossed size={20} class="text-primary" />,
-    name: "Annapoorna Foods",
-    color: "primary",
-  },
-  {
-    icon: <Scissors size={20} class="text-purple" />,
-    name: "Radiance Salon",
-    color: "secondary",
-  },
-  {
-    icon: <Store size={20} class="text-orange" />,
+    icon: <Store size={18} class="text-star-text" />,
     name: "The Corner Store",
-    color: "tertiary",
   },
-  {
-    icon: <Car size={20} class="text-info" />,
-    name: "AutoWorks",
-    color: "primary-container",
-  },
+  { icon: <Store size={18} class="text-secondary" />, name: "AutoWorks" },
 ];
 
 export const dashboardStats = [
@@ -213,7 +190,7 @@ export const pricingTiers: PricingTier[] = [
       "Email support",
     ],
     cta: "Get Started Free",
-    ctaHref: "https://app.flonion.com/signup",
+    ctaHref: "/signup",
   },
   {
     name: "Business",

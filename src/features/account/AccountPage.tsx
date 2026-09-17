@@ -14,10 +14,10 @@ export function AccountPage() {
       <Title>Account Settings — Cognitive Enterprise</Title>
       <div class="mx-auto max-w-4xl space-y-8">
         <div class="mb-8">
-          <h2 class="text-2xl font-semibold leading-10 tracking-tight text-foreground">
+          <h1 class="font-heading text-3xl font-semibold text-foreground">
             Account Settings
-          </h2>
-          <p class="mt-1 text-lg leading-6 text-muted-foreground">
+          </h1>
+          <p class="mt-1 text-base text-muted-foreground">
             Manage your account information, security, and authentication.
           </p>
         </div>

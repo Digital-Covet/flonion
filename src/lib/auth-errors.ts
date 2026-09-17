@@ -29,3 +29,29 @@ export function authErrorCode(error: unknown): string | null {
   const code = (error as { code?: unknown } | null)?.code;
   return typeof code === "string" ? code : null;
 }
+
+/**
+ * Rate-limit / lockout detection across better-auth's shapes (429 status,
+ * TOO_MANY_REQUESTS / RATE_LIMIT codes, "too many attempts" / locked-until
+ * messages). Callers map this to a "wait and retry" state instead of a
+ * generic failure (spec §6: rate-limit/lockout states).
+ */
+export function isRateLimitError(error: unknown): boolean {
+  const err = error as {
+    code?: unknown;
+    message?: unknown;
+    status?: unknown;
+    statusCode?: unknown;
+  } | null;
+  if (!err || typeof err !== "object") return false;
+  if (err.status === 429 || err.statusCode === 429) return true;
+  const code = typeof err.code === "string" ? err.code : "";
+  if (/RATE_LIMIT|TOO_MANY|LOCKED|LOCKOUT/i.test(code)) return true;
+  const message = typeof err.message === "string" ? err.message : "";
+  return /too many|rate.?limit|429|try again (later|in)|locked until|locked/i.test(
+    message,
+  );
+}
+
+export const RATE_LIMIT_MESSAGE =
+  "Too many attempts. Wait a minute and try again.";

@@ -58,6 +58,9 @@ export interface SeoScoreCategory {
 
 export interface SeoScore {
   overall: number;
+  /** Week-over-week delta in points (e.g. +6). Rendered beside the ring. */
+  delta: number;
+  deltaLabel: string;
   categories: SeoScoreCategory[];
 }
 

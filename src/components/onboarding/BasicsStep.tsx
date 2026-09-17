@@ -1,5 +1,6 @@
 import { Field } from "@ark-ui/solid/field";
 import { TagsInput } from "@ark-ui/solid/tags-input";
+import ArrowLeft from "lucide-solid/icons/arrow-left";
 import ArrowRight from "lucide-solid/icons/arrow-right";
 import Search from "lucide-solid/icons/search";
 import X from "lucide-solid/icons/x";
@@ -26,10 +27,12 @@ interface BasicsStepProps {
   data: BasicsData;
   onChange: (data: Partial<BasicsData>) => void;
   onContinue: () => void;
+  /** Return to the create/join branch picker; absent outside the wizard. */
+  onBack?: () => void;
 }
 
 const fieldInputClass =
-  "w-full rounded-lg border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
+  "w-full rounded-control border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
 
 const USERNAME_REGEX = /^[a-z0-9-]+$/;
 const MAX_USERNAME_LENGTH = 15;
@@ -94,7 +97,7 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
       <Field.Root>
         <Field.Label
           for="business-name"
-          class="text-sm font-semibold text-foreground"
+          class="text-sm font-medium text-foreground"
         >
           Business Name
         </Field.Label>
@@ -113,7 +116,7 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
       <Field.Root>
         <Field.Label
           for="username"
-          class="text-sm font-semibold text-foreground"
+          class="text-sm font-medium text-foreground"
         >
           Username
         </Field.Label>
@@ -147,7 +150,7 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
       <Field.Root>
         <Field.Label
           for="business-address-search"
-          class="text-sm font-semibold text-foreground"
+          class="text-sm font-medium text-foreground"
         >
           Business Location
         </Field.Label>
@@ -203,7 +206,7 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
       <Field.Root>
         <Field.Label
           for="business-description"
-          class="text-sm font-semibold text-foreground"
+          class="text-sm font-medium text-foreground"
         >
           Business Description
         </Field.Label>
@@ -259,10 +262,10 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
         <TagsInput.Context>
           {(api) => (
             <>
-              <TagsInput.Label class="text-sm font-semibold text-foreground">
+              <TagsInput.Label class="text-sm font-medium text-foreground">
                 Business Keywords
               </TagsInput.Label>
-              <TagsInput.Control class="flex min-h-10 flex-wrap items-center gap-2 rounded-lg border border-input bg-background px-3 py-2 shadow-sm focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10">
+              <TagsInput.Control class="flex min-h-11 flex-wrap items-center gap-2 rounded-control border border-input bg-background px-3 py-2 shadow-sm focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10">
                 <Index each={api().value}>
                   {(keyword, index) => (
                     <TagsInput.Item
@@ -299,9 +302,19 @@ export const BasicsStep: Component<BasicsStepProps> = (props) => {
         onChange={(logo) => props.onChange({ logo })}
       />
 
-      <div class="mt-1 flex justify-end">
+      <div class="mt-1 flex items-center justify-between">
+        <Show when={props.onBack}>
+          <button
+            class="flex items-center gap-2 rounded-control border border-border px-6 py-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+            type="button"
+            onClick={props.onBack}
+          >
+            <ArrowLeft size={20} strokeWidth={2} aria-hidden="true" />
+            Back
+          </button>
+        </Show>
         <button
-          class="flex items-center gap-2 rounded-lg bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover disabled:opacity-50"
+          class="ml-auto flex items-center gap-2 rounded-control bg-primary px-8 py-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover disabled:opacity-50"
           type="submit"
           disabled={!props.data.businessName.trim()}
         >

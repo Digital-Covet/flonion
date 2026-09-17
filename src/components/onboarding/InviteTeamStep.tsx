@@ -19,10 +19,10 @@ interface InviteTeamStepProps {
 }
 
 const fieldInputClass =
-  "w-full rounded-lg border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
+  "w-full rounded-control border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10";
 
 const selectClass =
-  "w-full rounded-lg border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow focus:border-primary focus:ring-4 focus:ring-primary/10";
+  "w-full rounded-control border border-input bg-background px-4 py-2.5 text-base text-foreground shadow-sm outline-none transition-shadow focus:border-primary focus:ring-4 focus:ring-primary/10";
 
 export const InviteTeamStep: Component<InviteTeamStepProps> = (props) => {
   const [email, setEmail] = createSignal("");
@@ -58,7 +58,7 @@ export const InviteTeamStep: Component<InviteTeamStepProps> = (props) => {
   return (
     <div class="flex flex-col gap-6">
       <div>
-        <h3 class="text-lg font-semibold text-foreground mb-2">
+        <h3 class="text-lg font-medium text-foreground mb-2">
           Invite Your Team
         </h3>
         <p class="text-sm text-muted-foreground">
@@ -72,7 +72,7 @@ export const InviteTeamStep: Component<InviteTeamStepProps> = (props) => {
           <Field.Root class="flex-1">
             <Field.Label
               for="invite-email"
-              class="text-sm font-semibold text-foreground"
+              class="text-sm font-medium text-foreground"
             >
               Email Address
             </Field.Label>
@@ -97,7 +97,7 @@ export const InviteTeamStep: Component<InviteTeamStepProps> = (props) => {
           <Field.Root class="w-40">
             <Field.Label
               for="invite-role"
-              class="text-sm font-semibold text-foreground"
+              class="text-sm font-medium text-foreground"
             >
               Role
             </Field.Label>
@@ -116,7 +116,7 @@ export const InviteTeamStep: Component<InviteTeamStepProps> = (props) => {
 
         <button
           type="submit"
-          class="self-start flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors"
+          class="self-start flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/10 rounded-control transition-colors"
         >
           <UserPlus size={16} />
           Add to List
@@ -124,7 +124,7 @@ export const InviteTeamStep: Component<InviteTeamStepProps> = (props) => {
       </form>
 
       <Show when={props.invites.length > 0}>
-        <div class="border border-border rounded-lg overflow-hidden">
+        <div class="border border-border rounded-card overflow-hidden">
           <table class="w-full">
             <thead class="bg-muted">
               <tr>
@@ -176,7 +176,7 @@ export const InviteTeamStep: Component<InviteTeamStepProps> = (props) => {
         <button
           type="button"
           onClick={props.onContinue}
-          class="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-primary-foreground bg-primary rounded-lg hover:bg-primary-hover transition-colors"
+          class="flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-primary-foreground bg-primary rounded-control hover:bg-primary-hover transition-colors"
         >
           Continue
           <ArrowRight size={16} />

@@ -44,7 +44,7 @@ export function LogoUploader(props: LogoUploaderProps) {
       </Field.Label>
 
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-muted">
+        <div class="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-card border border-border bg-muted">
           <Show
             when={props.logo}
             fallback={
@@ -53,15 +53,15 @@ export function LogoUploader(props: LogoUploaderProps) {
                 fallback={
                   <div class="flex flex-col items-center gap-1 text-muted-foreground">
                     <ImagePlus size={24} />
-                    <span class="text-[10px] leading-tight">No logo</span>
+                    <span class="text-xs leading-tight">No logo</span>
                   </div>
                 }
               >
                 <div class="flex flex-col items-center gap-1">
-                  <span class="text-xl font-bold text-primary">
+                  <span class="font-heading text-xl font-semibold text-primary">
                     {initials()}
                   </span>
-                  <span class="max-w-[80px] truncate text-[10px] leading-tight text-muted-foreground">
+                  <span class="max-w-[80px] truncate text-xs leading-tight text-muted-foreground">
                     {props.businessName}
                   </span>
                 </div>
@@ -83,7 +83,7 @@ export function LogoUploader(props: LogoUploaderProps) {
           onFileAccept={handleFileAccept}
           onFileReject={handleFileReject}
         >
-          <FileUpload.Dropzone class="flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-border bg-card px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-muted/50 data-[dragging]:border-primary data-[dragging]:bg-primary/5">
+          <FileUpload.Dropzone class="flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-card border border-dashed border-border bg-card px-4 py-6 text-center transition-colors hover:border-primary/50 hover:bg-muted/50 data-[dragging]:border-primary data-[dragging]:bg-primary/5">
             <UploadCloud size={20} class="text-primary" strokeWidth={2} />
             <p class="text-sm leading-5 font-medium text-foreground">
               Click to upload{" "}
@@ -103,7 +103,7 @@ export function LogoUploader(props: LogoUploaderProps) {
                   {(file) => (
                     <FileUpload.Item
                       file={file}
-                      class="flex items-center justify-between rounded-lg border border-border bg-muted/50 px-3 py-2"
+                      class="flex items-center justify-between rounded-card border border-border bg-muted/50 px-3 py-2"
                     >
                       <div class="flex items-center gap-2 overflow-hidden">
                         <FileUpload.ItemPreview type="image/*">
@@ -112,7 +112,7 @@ export function LogoUploader(props: LogoUploaderProps) {
                         <FileUpload.ItemName class="truncate text-sm text-foreground" />
                         <FileUpload.ItemSizeText class="text-xs text-muted-foreground" />
                       </div>
-                      <FileUpload.ItemDeleteTrigger class="ml-2 inline-flex items-center justify-center rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-rose-500">
+                      <FileUpload.ItemDeleteTrigger class="ml-2 inline-flex items-center justify-center rounded-control p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive">
                         <Trash2 size={14} />
                       </FileUpload.ItemDeleteTrigger>
                     </FileUpload.Item>
@@ -144,7 +144,7 @@ export function LogoUploader(props: LogoUploaderProps) {
               }
             }}
             placeholder="…or paste an image URL"
-            class="w-full rounded-lg border border-border bg-card py-2.5 pl-9 pr-3 text-sm leading-5 text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
+            class="w-full rounded-control border border-border bg-card py-2.5 pl-9 pr-3 text-base leading-6 text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
         </div>
         <button
@@ -155,7 +155,7 @@ export function LogoUploader(props: LogoUploaderProps) {
             props.onChange(urlValue().trim());
             setUrlValue("");
           }}
-          class="rounded-lg border border-border bg-card px-4 py-2.5 text-sm leading-5 font-medium text-foreground transition-colors hover:bg-muted active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          class="rounded-control border border-border bg-card px-4 py-2.5 text-sm leading-5 font-medium text-foreground transition-colors hover:bg-muted active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Use URL
         </button>
@@ -163,7 +163,7 @@ export function LogoUploader(props: LogoUploaderProps) {
           <button
             type="button"
             onClick={() => props.onChange(null)}
-            class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm leading-5 font-medium text-rose-500 transition-colors hover:bg-rose-100 active:scale-95 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-400"
+            class="inline-flex items-center justify-center gap-1.5 rounded-control border border-destructive/25 bg-destructive-muted px-4 py-2.5 text-sm leading-5 font-medium text-destructive transition-colors hover:bg-destructive-muted/70 active:scale-95"
           >
             <Trash2 size={16} />
             Remove

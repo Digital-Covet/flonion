@@ -13,7 +13,7 @@ export interface Metric {
   icon: Component<LucideProps>;
 }
 
-export type SourceColor = "primary" | "info" | "purple";
+export type SourceColor = "primary" | "info" | "secondary";
 
 export interface ReviewSource {
   name: string;

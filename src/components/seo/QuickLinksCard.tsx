@@ -19,25 +19,25 @@ const LINK_ICONS: Record<string, typeof ExternalLink> = {
 };
 
 const QuickLinksCard: Component<QuickLinksCardProps> = (props) => (
-  <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-    <h3 class="mb-4 text-lg font-bold text-slate-900">Quick Links</h3>
+  <div class="rounded-card border border-border bg-card p-6 shadow-sm">
+    <h3 class="mb-4 font-heading text-lg font-medium text-foreground">Quick Links</h3>
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <For each={props.links}>
         {(link) => {
           const Icon = LINK_ICONS[link.id] ?? ExternalLink;
           const linkClasses = cn(
-            "flex flex-col items-center gap-2 rounded-xl border border-slate-200 p-4 text-center transition-all hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700",
-            "text-slate-600",
+            "flex flex-col items-center gap-2 rounded-card border border-border p-4 text-center transition-all hover:border-primary/40 hover:bg-muted hover:text-primary",
+            "text-muted-foreground",
           );
 
           const content = (
             <>
-              <div class="flex size-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors group-hover:bg-blue-100 group-hover:text-blue-600">
+              <div class="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
                 <Icon size={18} />
               </div>
               <span class="text-sm font-medium">{link.label}</span>
               {link.external && (
-                <ExternalLink size={10} class="text-slate-400" />
+                <ExternalLink size={10} class="text-muted-foreground" />
               )}
             </>
           );

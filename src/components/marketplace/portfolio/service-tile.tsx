@@ -16,7 +16,7 @@ export const ServiceTile = (props: ServiceTileProps) => {
       <div class="text-primary mb-4 group-hover:scale-110 transition-transform">
         <IconComp size={32} />
       </div>
-      <h4 class="text-base font-medium text-foreground mb-2">{props.title}</h4>
+      <h4 class="text-lg font-medium text-foreground mb-2">{props.title}</h4>
       <p class="text-sm text-muted-foreground leading-relaxed">
         {props.description}
       </p>

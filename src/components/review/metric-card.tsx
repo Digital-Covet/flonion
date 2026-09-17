@@ -9,19 +9,19 @@ export function MetricCard(props: { metric: Metric }) {
   const isPositive = () => props.metric.trendDirection === "positive";
 
   return (
-    <article class="flex min-h-28 flex-col justify-between rounded-lg border border-border bg-card p-4 shadow-sm">
+    <article class="flex min-h-28 flex-col justify-between rounded-card border border-border bg-card p-4 shadow-sm">
       <div class="flex items-center gap-2 text-sm font-medium text-muted-foreground">
         <Icon class="size-4" aria-hidden="true" />
         <span>{props.metric.label}</span>
       </div>
 
       <div class="flex items-end gap-3">
-        <strong class="text-2xl leading-none tracking-tight text-foreground">
+        <strong class="tnum font-heading text-2xl font-semibold leading-none text-foreground">
           {props.metric.value}
         </strong>
 
         <span
-          class={`flex items-center gap-1 text-xs font-semibold ${
+          class={`flex items-center gap-1 text-xs font-medium ${
             isPositive() ? "text-positive" : "text-destructive"
           }`}
         >
@@ -42,7 +42,7 @@ export function DisabledMetricCard() {
   return (
     <article
       aria-disabled="true"
-      class="flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/40 p-4 text-center"
+      class="flex min-h-28 flex-col items-center justify-center rounded-card border border-dashed border-border bg-muted/40 p-4 text-center"
     >
       <Plus class="size-5 text-muted-foreground" aria-hidden="true" />
       <p class="mt-1 text-sm font-medium text-muted-foreground">Add metric</p>

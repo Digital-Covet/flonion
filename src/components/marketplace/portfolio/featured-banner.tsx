@@ -10,7 +10,7 @@ export const FeaturedBanner = () => (
     </div>
     <div class="absolute inset-0 bg-linear-to-t from-foreground/80 to-transparent z-10" />
     <div class="z-20">
-      <h4 class="text-base font-medium text-primary-foreground mb-1">
+      <h4 class="text-lg font-medium text-primary-foreground mb-1">
         3D Brand Environments
       </h4>
       <p class="text-sm text-primary-foreground/90">

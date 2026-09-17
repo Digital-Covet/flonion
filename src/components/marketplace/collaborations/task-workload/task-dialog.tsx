@@ -26,7 +26,9 @@ export default function TaskDialog(props: TaskDialogProps) {
   const [description, setDescription] = createSignal("");
   const [assignee, setAssignee] = createSignal("");
   const [priority, setPriority] = createSignal("medium");
+  const [dueDate, setDueDate] = createSignal("");
   const [isSubmitting, setIsSubmitting] = createSignal(false);
+  const [submitError, setSubmitError] = createSignal<string | null>(null);
 
   const isEdit = () => !!props.task;
 
@@ -53,6 +55,9 @@ export default function TaskDialog(props: TaskDialogProps) {
           ? taskPriority
           : "medium",
       );
+      // Stored as ISO; the date input wants YYYY-MM-DD.
+      setDueDate((task?.dueDate ?? "").slice(0, 10));
+      setSubmitError(null);
     }
   });
 
@@ -60,22 +65,34 @@ export default function TaskDialog(props: TaskDialogProps) {
     if (!title().trim() || !assignee() || isSubmitting()) return;
 
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
+      const due = dueDate().trim() || undefined;
       if (isEdit() && props.task) {
-        await updateTask(props.task.id, {
+        const ok = await updateTask(props.task.id, {
           title: title().trim(),
           description: description().trim(),
           assigneeId: assignee(),
           priority: priority(),
+          dueDate: due ?? null,
         });
+        if (!ok) {
+          setSubmitError("Couldn't save this task. Please try again.");
+          return;
+        }
       } else {
-        await addTask({
+        const created = await addTask({
           title: title().trim(),
           description: description().trim() || undefined,
           assigneeId: assignee(),
           priority: priority(),
+          dueDate: due,
           column: "todo",
         });
+        if (!created) {
+          setSubmitError("Couldn't create this task. Please try again.");
+          return;
+        }
       }
       props.onOpenChange(false);
     } finally {
@@ -89,27 +106,30 @@ export default function TaskDialog(props: TaskDialogProps) {
       onOpenChange={(details) => props.onOpenChange(details.open)}
     >
       <Portal>
-        <Dialog.Backdrop class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
-        <Dialog.Positioner class="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <Dialog.Content class="bg-card border border-border rounded-xl shadow-lg w-full max-w-lg p-6">
-            <div class="flex justify-between items-center mb-4">
-              <Dialog.Title class="text-xl font-bold font-heading text-foreground">
+        <Dialog.Backdrop class="fixed inset-0 z-50 bg-black/40" />
+        <Dialog.Positioner class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+          <Dialog.Content class="e2-enter flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-soft border border-border bg-card shadow-lg sm:rounded-card">
+            <div class="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+              <Dialog.Title class="font-heading text-xl font-semibold text-foreground">
                 {isEdit() ? "Edit Task" : "Add Task"}
               </Dialog.Title>
-              <Dialog.CloseTrigger class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted transition-colors cursor-pointer">
-                <X size={20} />
+              <Dialog.CloseTrigger
+                aria-label="Close task dialog"
+                class="grid min-h-11 min-w-11 place-items-center rounded-control text-muted-foreground transition-colors duration-150 motion-reduce:transition-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                <X size={20} aria-hidden="true" />
               </Dialog.CloseTrigger>
             </div>
-            <Dialog.Description class="text-sm text-muted-foreground mb-4">
+            <Dialog.Description class="px-5 pt-3 text-sm text-muted-foreground">
               {isEdit()
                 ? "Update this task's details."
                 : "Create a new project task and assign it to a team member."}
             </Dialog.Description>
 
-            <div class="flex flex-col gap-4">
+            <div class="grid min-h-0 flex-1 gap-4 overflow-y-auto px-5 py-4">
               <div>
                 <label
-                  class="block text-sm font-medium text-foreground mb-1"
+                  class="mb-1 block text-sm font-medium text-foreground"
                   for="task-title"
                 >
                   Title
@@ -120,13 +140,13 @@ export default function TaskDialog(props: TaskDialogProps) {
                   placeholder="Task title"
                   value={title()}
                   onInput={(e) => setTitle(e.currentTarget.value)}
-                  class="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20"
+                  class="min-h-11 w-full rounded-control border border-control bg-card px-3 py-2.5 text-base text-foreground outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 />
               </div>
 
               <div>
                 <label
-                  class="block text-sm font-medium text-foreground mb-1"
+                  class="mb-1 block text-sm font-medium text-foreground"
                   for="task-description"
                 >
                   Description
@@ -136,7 +156,7 @@ export default function TaskDialog(props: TaskDialogProps) {
                   placeholder="Optional details"
                   value={description()}
                   onInput={(e) => setDescription(e.currentTarget.value)}
-                  class="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 min-h-[80px] resize-y"
+                  class="min-h-20 w-full resize-y rounded-control border border-control bg-card px-3 py-2.5 text-base text-foreground outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 />
               </div>
 
@@ -148,21 +168,21 @@ export default function TaskDialog(props: TaskDialogProps) {
                     if (details.value[0]) setAssignee(details.value[0]);
                   }}
                 >
-                  <Select.Label class="block text-sm font-medium text-foreground mb-1">
+                  <Select.Label class="mb-1 block text-sm font-medium text-foreground">
                     Assignee
                   </Select.Label>
                   <Select.Control class="w-full">
-                    <Select.Trigger class="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary/20 outline-none flex items-center justify-between">
+                    <Select.Trigger class="flex min-h-11 w-full items-center justify-between rounded-control border border-control bg-card px-3 py-2.5 text-sm text-foreground outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                       <Select.ValueText placeholder="Select a team member" />
                     </Select.Trigger>
                   </Select.Control>
                   <Portal>
                     <Select.Positioner>
-                      <Select.Content class="bg-card border border-border rounded-lg shadow-lg p-1 z-[60]">
+                      <Select.Content class="rounded-card border border-border bg-card p-1.5 shadow-lg z-[60]">
                         <Show
                           when={assigneeCollection().items.length > 0}
                           fallback={
-                            <p class="px-4 py-2 text-sm text-muted-foreground">
+                            <p class="px-4 py-2.5 text-sm text-muted-foreground">
                               No team members available
                             </p>
                           }
@@ -171,7 +191,7 @@ export default function TaskDialog(props: TaskDialogProps) {
                             {(item) => (
                               <Select.Item
                                 item={item}
-                                class="px-4 py-2 text-sm text-foreground rounded cursor-pointer hover:bg-muted data-[highlighted]:bg-muted outline-none"
+                                class="min-h-11 rounded-control px-4 py-2.5 text-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
                               >
                                 <Select.ItemText>{item.label}</Select.ItemText>
                               </Select.Item>
@@ -186,6 +206,25 @@ export default function TaskDialog(props: TaskDialogProps) {
               </div>
 
               <div>
+                <label
+                  class="block text-sm font-medium text-foreground mb-1"
+                  for="task-due-date"
+                >
+                  Due date
+                  <span class="ml-1 text-xs font-normal text-muted-foreground">
+                    (optional)
+                  </span>
+                </label>
+                <input
+                  id="task-due-date"
+                  type="date"
+                  value={dueDate()}
+                  onInput={(e) => setDueDate(e.currentTarget.value)}
+                  class="tnum min-h-11 w-full rounded-control border border-control bg-card px-3 py-2.5 text-sm text-foreground outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                />
+              </div>
+
+              <div>
                 <Select.Root
                   collection={priorityCollection}
                   value={[priority()]}
@@ -193,22 +232,22 @@ export default function TaskDialog(props: TaskDialogProps) {
                     if (details.value[0]) setPriority(details.value[0]);
                   }}
                 >
-                  <Select.Label class="block text-sm font-medium text-foreground mb-1">
+                  <Select.Label class="mb-1 block text-sm font-medium text-foreground">
                     Priority
                   </Select.Label>
                   <Select.Control class="w-full">
-                    <Select.Trigger class="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary/20 outline-none flex items-center justify-between">
+                    <Select.Trigger class="flex min-h-11 w-full items-center justify-between rounded-control border border-control bg-card px-3 py-2.5 text-sm text-foreground outline-none transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                       <Select.ValueText placeholder="Select priority" />
                     </Select.Trigger>
                   </Select.Control>
                   <Portal>
                     <Select.Positioner>
-                      <Select.Content class="bg-card border border-border rounded-lg shadow-lg p-1 z-[60]">
+                      <Select.Content class="rounded-card border border-border bg-card p-1.5 shadow-lg z-[60]">
                         <For each={priorityCollection.items}>
                           {(item) => (
                             <Select.Item
                               item={item}
-                              class="px-4 py-2 text-sm text-foreground rounded cursor-pointer hover:bg-muted data-[highlighted]:bg-muted outline-none"
+                              class="min-h-11 rounded-control px-4 py-2.5 text-sm text-foreground outline-none transition-colors hover:bg-muted data-[highlighted]:bg-muted"
                             >
                               <Select.ItemText>{item.label}</Select.ItemText>
                             </Select.Item>
@@ -222,17 +261,27 @@ export default function TaskDialog(props: TaskDialogProps) {
               </div>
             </div>
 
-            <div class="mt-6 flex justify-end gap-3">
-              <Dialog.CloseTrigger class="px-4 py-2 text-sm font-medium text-foreground bg-muted rounded-lg hover:bg-border transition-colors cursor-pointer">
+            <Show when={submitError()}>
+              <p role="alert" class="px-5 pt-2 text-sm text-destructive">
+                {submitError()}
+              </p>
+            </Show>
+
+            <div class="flex flex-col-reverse gap-2 border-t border-border px-5 py-4 sm:flex-row sm:justify-end sm:gap-2.5">
+              <Dialog.CloseTrigger class="inline-flex min-h-11 items-center justify-center rounded-control bg-muted px-4 py-2.5 text-sm font-medium text-foreground transition-colors duration-150 motion-reduce:transition-none hover:bg-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
                 Cancel
               </Dialog.CloseTrigger>
               <button
                 type="button"
                 onClick={handleSubmit}
                 disabled={!title().trim() || !assignee() || isSubmitting()}
-                class="px-4 py-2 text-sm font-medium text-background bg-primary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                class="inline-flex min-h-11 items-center justify-center rounded-control bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors duration-150 motion-reduce:transition-none hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
-                {isEdit() ? "Save Changes" : "Create Task"}
+                {isSubmitting()
+                  ? "Saving…"
+                  : isEdit()
+                    ? "Save Changes"
+                    : "Create Task"}
               </button>
             </div>
           </Dialog.Content>

@@ -1,5 +1,10 @@
-import { ChatDeepSeek } from "@langchain/deepseek";
 import { z } from "zod";
+import { extractUsage, type UsageMeta } from "./ledger";
+import { getModel as getModelImport } from "./model";
+
+function getModel(apiKey: string) {
+  return getModelImport(apiKey, 0);
+}
 
 const sentimentWordSchema = z.object({
   word: z
@@ -37,19 +42,16 @@ export const sentimentAnalysisSchema = z.object({
 
 export type SentimentAnalysis = z.infer<typeof sentimentAnalysisSchema>;
 
-function getModel(apiKey: string): ChatDeepSeek {
-  return new ChatDeepSeek({
-    model: "deepseek-v4-flash",
-    temperature: 0,
-    apiKey,
-  });
+export interface SentimentResult {
+  analysis: SentimentAnalysis;
+  usage: UsageMeta;
 }
 
 export async function analyzeSentiment(params: {
   comment: string;
   starRating: number;
   apiKey: string;
-}): Promise<SentimentAnalysis> {
+}): Promise<SentimentResult> {
   if (!params.comment.trim()) {
     const overallSentiment: SentimentAnalysis["overallSentiment"] =
       params.starRating >= 4
@@ -60,11 +62,14 @@ export async function analyzeSentiment(params: {
     const sentimentScore =
       params.starRating >= 4 ? 0.7 : params.starRating <= 2 ? -0.6 : 0.0;
     return {
-      overallSentiment,
-      sentimentScore,
-      sentimentWords: [],
-      keyTopics: [],
-      customerIntent: params.starRating >= 4 ? "compliment" : "complaint",
+      analysis: {
+        overallSentiment,
+        sentimentScore,
+        sentimentWords: [],
+        keyTopics: [],
+        customerIntent: params.starRating >= 4 ? "compliment" : "complaint",
+      },
+      usage: { promptTokens: 0, completionTokens: 0, model: "none" },
     };
   }
 
@@ -113,10 +118,12 @@ Do not output any explanation.`,
     },
   ]);
 
-  const content =
-    typeof response.content === "string"
-      ? response.content
-      : response.content.map((c) => ("text" in c ? c.text : "")).join("");
+  const usage = extractUsage(response);
 
-  return sentimentAnalysisSchema.parse(JSON.parse(content));
+  return {
+    analysis: sentimentAnalysisSchema.parse(
+      JSON.parse(response.content as string),
+    ),
+    usage,
+  };
 }

@@ -1,6 +1,11 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "~/db/prisma";
+import {
+  getPlatformLabel,
+  type ReviewLinksMap,
+} from "~/features/settings/review-platforms";
 import { fetchBusinessRating } from "~/lib/google-business-rating";
+import { httpUrl, sanitizeReviewLinks } from "~/lib/safe-url";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 
 const USERNAME_REGEX = /^[a-z0-9-]+$/;
@@ -182,15 +187,42 @@ export async function POST(event: APIEvent) {
       normalizedUsername = trimmed;
     }
 
+    // Review links are navigated to on the public review page, so anything
+    // other than an http(s) URL (e.g. `javascript:`) is stored XSS.
+    const safeReviewLink = httpUrl(reviewLink);
+    if (
+      typeof reviewLink === "string" &&
+      reviewLink.trim() &&
+      !safeReviewLink
+    ) {
+      return Response.json(
+        { error: "Review link must be a full http(s) URL" },
+        { status: 400 },
+      );
+    }
+
+    let safeReviewLinks: ReviewLinksMap | undefined;
+    if (
+      typeof reviewLinks === "object" &&
+      reviewLinks !== null &&
+      !Array.isArray(reviewLinks)
+    ) {
+      const sanitized = sanitizeReviewLinks(reviewLinks);
+      if (!sanitized.ok) {
+        return Response.json(
+          {
+            error: `The ${getPlatformLabel(sanitized.slug, {})} link must be a full http(s) URL`,
+          },
+          { status: 400 },
+        );
+      }
+      safeReviewLinks = sanitized.links;
+    }
+
     const data = {
       placeId: typeof placeId === "string" ? placeId : null,
-      reviewLink: typeof reviewLink === "string" ? reviewLink : null,
-      reviewLinks:
-        typeof reviewLinks === "object" &&
-        reviewLinks !== null &&
-        !Array.isArray(reviewLinks)
-          ? reviewLinks
-          : undefined,
+      reviewLink: safeReviewLink,
+      reviewLinks: safeReviewLinks,
       logo: typeof logo === "string" ? logo : null,
       name: businessName.trim(),
       username: normalizedUsername,
