@@ -102,7 +102,6 @@ export async function POST(event: APIEvent) {
       );
     }
 
-
     const ip = getClientIp(event.request);
 
     if (reviewId) {

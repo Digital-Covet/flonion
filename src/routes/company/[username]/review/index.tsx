@@ -1,897 +1,906 @@
-import { Field } from "@ark-ui/solid/field";
-import { RatingGroup } from "@ark-ui/solid/rating-group";
 import { Meta, Title } from "@solidjs/meta";
-import AlertTriangle from "lucide-solid/icons/alert-triangle";
-import Check from "lucide-solid/icons/check";
-import Copy from "lucide-solid/icons/copy";
-import ExternalLink from "lucide-solid/icons/external-link";
-import LoaderCircle from "lucide-solid/icons/loader-circle";
-import MapPin from "lucide-solid/icons/map-pin";
-import MessageSquare from "lucide-solid/icons/message-square";
-import Phone from "lucide-solid/icons/phone";
-import Send from "lucide-solid/icons/send";
-import Sparkles from "lucide-solid/icons/sparkles";
-import Star from "lucide-solid/icons/star";
+import { createAsync, useParams } from "@solidjs/router";
+import { HttpStatusCode } from "@solidjs/start";
+import { IconExternalLink, IconSparkles } from "@tabler/icons-solidjs";
 import {
   createEffect,
-  createMemo,
   createSignal,
   For,
+  Match,
   onCleanup,
   onMount,
   Show,
+  Switch,
 } from "solid-js";
-import InlineCombinationMark from "@/assets/inline-combination-mark";
-import type { Rating, ReviewSuggestion } from "@/features/reviews/review-types";
 import {
-  RedirectCountdown,
-  SubmittedCheck,
-} from "~/components/ui/redirect-countdown";
-import { Skeleton } from "~/components/ui/skeleton";
-import { AppToaster, notify } from "~/components/ui/toast";
+  FieldError,
+  focusRing,
+  inputBase,
+  labelClass,
+  textLink,
+} from "~/components/auth/AuthShell";
 import {
-  CUSTOM_LABEL_KEY,
-  getPlatformBySlug,
-  getPlatformLabel,
-  type ReviewLinksMap,
-} from "~/features/settings/review-platforms";
-import { httpUrl } from "~/lib/safe-url";
+  btnPrimary,
+  btnSecondary,
+  Notice,
+  Spinner,
+} from "~/components/onboarding/ui";
+import {
+  CooldownRing,
+  CopyButton,
+  NAME_MAX,
+  SuggestionCards,
+  SuggestionSkeletons,
+  TEXT_MAX,
+} from "~/components/reviews/composer";
+import {
+  BusinessHeader,
+  InactiveLink,
+  PublicShell,
+  publicCardClass,
+  useOsColorScheme,
+} from "~/components/reviews/public";
+import { StarRating } from "~/components/reviews/StarRating";
+import type { ReviewPlatformSlug } from "~/features/settings/review-platforms";
+import { cn } from "~/lib/cn";
+import { getCompanyReview, type PublicBusiness } from "~/lib/public-review";
 
-interface BusinessInfo {
-  logo: string | null;
-  name: string;
-  phone: string | null;
-  address: string | null;
-  placeId: string | null;
-  reviewLink: string | null;
-  reviewLinks: ReviewLinksMap | null;
-}
+// ─── Requests ────────────────────────────────────────────────────────────
 
-const tones = ["Simple", "Professional", "Casual"] as const;
-const RATE_LIMIT_COOLDOWN = 30;
-const SUCCESS_COOLDOWN = 5;
+type TrackType = "visit" | "review" | "redirect" | "ai_copy";
 
-function isCuid(value: string): boolean {
-  return /^c[a-z0-9]{20,}$/.test(value);
-}
-
-function urlParam(): string | null {
-  if (typeof window === "undefined") return null;
-  const parts = window.location.pathname.split("/");
-  return parts[2] || null;
-}
-
-/** Fire-and-forget analytics: sendBeacon on unload-safe paths, fetch fallback. */
+/** Beacon first so a redirect tap is still counted as the page unloads. */
 function track(
-  reviewId: string | null,
-  type: "visit" | "review" | "redirect" | "ai_copy",
-  platform?: string,
+  reviewId: string,
+  type: TrackType,
+  platform?: ReviewPlatformSlug,
 ) {
-  if (!reviewId) return;
-  const payload = JSON.stringify({ reviewId, type, platform });
+  const body = JSON.stringify({ reviewId, type, platform });
   try {
-    if (typeof navigator !== "undefined" && "sendBeacon" in navigator) {
-      const blob = new Blob([payload], { type: "application/json" });
-      if (navigator.sendBeacon("/api/reviews/track", blob)) return;
-    }
-  } catch {
-    // Fall through to fetch.
-  }
-  fetch("/api/reviews/track", {
+    if (
+      navigator.sendBeacon?.(
+        "/api/reviews/track",
+        new Blob([body], { type: "application/json" }),
+      )
+    )
+      return;
+  } catch {}
+  void fetch("/api/reviews/track", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: payload,
     keepalive: true,
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body,
   }).catch(() => {});
 }
 
-export default function PublicReviewPage() {
-  const [reviewId, setReviewId] = createSignal<string | null>(null);
-  // Proves this page created the review row it is about to fill in.
-  const [claimToken, setClaimToken] = createSignal<string | null>(null);
-  const [keywords, setKeywords] = createSignal("");
-  const [loading, setLoading] = createSignal(true);
-  const [error, setError] = createSignal<string | null>(null);
-  const [submitted, setSubmitted] = createSignal(false);
-  const [business, setBusiness] = createSignal<BusinessInfo | null>(null);
+/**
+ * The visitor's own review row, created empty when the page opens and filled
+ * in on Continue. The token proves they created it, so knowing an id is not
+ * enough to overwrite someone else's review.
+ */
+type Claim = { reviewId: string; claimToken: string };
 
-  const [rating, setRating] = createSignal<Rating>(0);
-  const [text, setText] = createSignal("");
-  const [visitorName, setVisitorName] = createSignal("");
-  const [suggestions, setSuggestions] = createSignal<ReviewSuggestion[]>([]);
-  const [pickedId, setPickedId] = createSignal<string | null>(null);
-  const [copiedReview, setCopiedReview] = createSignal(false);
-  // Inline, persistent form errors (role=alert). Never auto-cleared.
-  const [formError, setFormError] = createSignal<string | null>(null);
-  // Token-expiry recovery: the claim row is gone server-side, but the draft
-  // text is intact — mint a fresh row and let the user retry.
-  const [claimExpired, setClaimExpired] = createSignal(false);
-  const [refreshingClaim, setRefreshingClaim] = createSignal(false);
-  const [submitting, setSubmitting] = createSignal(false);
-  const [aiLoading, setAiLoading] = createSignal(false);
-  const [aiError, setAiError] = createSignal<string | null>(null);
-  const [cooldownSecs, setCooldownSecs] = createSignal(0);
-  const [stayed, setStayed] = createSignal(false);
+const claimKey = (businessId: string) => `flonion:review-claim:${businessId}`;
+const visitKey = (businessId: string) => `flonion:review-visit:${businessId}`;
 
-  let successHeadingRef: HTMLHeadingElement | undefined;
-  let cooldownTimer: ReturnType<typeof setInterval> | undefined;
-  let copyTimer: ReturnType<typeof setTimeout> | undefined;
+function readClaim(businessId: string): Claim | null {
+  try {
+    const raw = sessionStorage.getItem(claimKey(businessId));
+    const value = raw ? JSON.parse(raw) : null;
+    return typeof value?.reviewId === "string" &&
+      typeof value?.claimToken === "string"
+      ? value
+      : null;
+  } catch {
+    return null;
+  }
+}
 
-  onCleanup(() => {
-    clearInterval(cooldownTimer);
-    clearTimeout(copyTimer);
-  });
+function writeClaim(businessId: string, claim: Claim | null) {
+  try {
+    if (claim)
+      sessionStorage.setItem(claimKey(businessId), JSON.stringify(claim));
+    else sessionStorage.removeItem(claimKey(businessId));
+  } catch {}
+}
 
-  const startCooldown = (secs: number) => {
-    clearInterval(cooldownTimer);
-    setCooldownSecs(secs);
-    cooldownTimer = setInterval(() => {
-      setCooldownSecs((s) => {
-        if (s <= 1) {
-          clearInterval(cooldownTimer);
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-  };
+type CreateResult =
+  | { kind: "created"; claim: Claim }
+  /** Signed-in visitors hit the owner path of /api/reviews/share, which saves nothing. */
+  | { kind: "signed-in" }
+  | { kind: "error" };
 
-  onMount(async () => {
-    const param = urlParam();
-    if (!param) {
-      setError("No business identifier provided.");
-      setLoading(false);
-      return;
-    }
-
-    const isBusinessId = isCuid(param);
-    const query = isBusinessId
-      ? `businessId=${encodeURIComponent(param)}`
-      : `username=${encodeURIComponent(param)}`;
-
-    try {
-      const response = await fetch(`/api/reviews/share?${query}`);
-      if (!response.ok) {
-        setError("Business not found. Check the link and try again.");
-        setLoading(false);
-        return;
-      }
-
-      const data = await response.json();
-      if (data.keywords) setKeywords(data.keywords);
-      if (data.business) setBusiness(data.business);
-
-      const createResponse = await fetch("/api/reviews/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: "",
-          rating: 0,
-          ...(isBusinessId ? { businessId: param } : { username: param }),
-        }),
-      });
-
-      if (createResponse.ok) {
-        const { reviewId: rid, claimToken: token } =
-          await createResponse.json();
-        if (rid) {
-          setReviewId(rid);
-          if (token) setClaimToken(token);
-          track(rid, "visit");
-        }
-      }
-    } catch {
-      setError("Could not connect to the server. Check your connection.");
-    } finally {
-      setLoading(false);
-    }
-  });
-
-  const fetchSuggestions = async () => {
-    if (aiLoading() || cooldownSecs() > 0) return;
-    if (!rating()) {
-      setFormError("Select a star rating first.");
-      return;
-    }
-    setAiLoading(true);
-    setAiError(null);
-
-    try {
-      const response = await fetch("/api/ai/suggest-review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reviewId: reviewId() || undefined,
-          draftText: text().trim() || undefined,
-          starRating: rating(),
-          keywords: keywords() || undefined,
-          businessName: business()?.name || undefined,
-        }),
-      });
-
-      if (response.status === 429) {
-        const retryAfter = Number(response.headers.get("Retry-After"));
-        const secs =
-          Number.isFinite(retryAfter) && retryAfter > 0
-            ? retryAfter
-            : RATE_LIMIT_COOLDOWN;
-        startCooldown(secs);
-        setAiError(
-          `AI limit reached — your draft is preserved. Try again in ${secs}s.`,
-        );
-        notify("warning", "AI limit reached", "Your draft is preserved.");
-        return;
-      }
-
-      if (!response.ok) {
-        const err = await response.json().catch(() => null);
-        throw new Error(err?.error || `Request failed (${response.status})`);
-      }
-
-      const data = await response.json();
-      const texts: string[] = data.suggestedReviews;
-      if (!Array.isArray(texts) || texts.length === 0)
-        throw new Error("No suggestions returned from AI service.");
-
-      setSuggestions(
-        texts.slice(0, 3).map((t, i) => ({
-          id: `ai-${Date.now()}-${i}`,
-          tone: tones[i] ?? "Professional",
-          text: t,
-          recommended: i === 0,
-        })),
-      );
-      setPickedId(null);
-      startCooldown(SUCCESS_COOLDOWN);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setAiError(`AI service unavailable: ${message} Your draft is preserved.`);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  const applySuggestion = (suggestion: ReviewSuggestion) => {
-    setText(suggestion.text);
-    setPickedId(suggestion.id);
-    setFormError(null);
-    track(reviewId(), "ai_copy");
-    notify("success", `${suggestion.tone} draft applied`, "Edit as needed.");
-  };
-
-  const submitReview = async () => {
-    if (submitting()) return;
-    const reviewText = text();
-    const param = urlParam();
-    const isBusinessIdParam = param ? isCuid(param) : false;
-    const id = reviewId();
-
-    if (!rating()) {
-      setFormError("Select a star rating first.");
-      return;
-    }
-    if (!reviewText.trim()) {
-      setFormError("Write a few words about your visit before submitting.");
-      return;
-    }
-    if (loading()) return;
-
-    setFormError(null);
-    setClaimExpired(false);
-    setSubmitting(true);
-
-    try {
-      const response = await fetch("/api/reviews/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...(id ? { id, claimToken: claimToken() ?? undefined } : {}),
-          ...(param && !id && isBusinessIdParam ? { businessId: param } : {}),
-          ...(param && !id && !isBusinessIdParam ? { username: param } : {}),
-          text: reviewText,
-          rating: rating(),
-          reviewerName: visitorName().trim() || undefined,
-        }),
-      });
-
-      if (!response.ok) {
-        // 401/403/410 = the claim row is gone (expired, revoked, or already
-        // submitted elsewhere). The draft is intact — offer a fresh form.
-        if ([401, 403, 410].includes(response.status)) {
-          setClaimExpired(true);
-          setFormError(
-            "Your session expired. Your text is saved, tap to continue.",
-          );
-          return;
-        }
-        throw new Error("Failed to submit review");
-      }
-
-      track(id, "review");
-      try {
-        await navigator.clipboard.writeText(reviewText);
-      } catch {
-        // Clipboard may be unavailable — the "Copy my review" button covers it.
-      }
-      setSubmitted(true);
-    } catch {
-      setFormError("Could not submit review. Your text is preserved — retry.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  /** Mint a fresh claim row after expiry; the draft text is untouched. */
-  const refreshClaim = async () => {
-    const param = urlParam();
-    if (!param) return;
-    const isBusinessIdParam = isCuid(param);
-    setRefreshingClaim(true);
-    try {
-      const res = await fetch("/api/reviews/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: "",
-          rating: 0,
-          ...(isBusinessIdParam ? { businessId: param } : { username: param }),
-        }),
-      });
-      if (!res.ok) throw new Error("refresh failed");
-      const { reviewId: rid, claimToken: token } = await res.json();
-      if (rid) {
-        setReviewId(rid);
-        if (token) setClaimToken(token);
-        setClaimExpired(false);
-        setFormError(null);
-        notify("success", "Session renewed", "Tap Submit review to retry.");
-      }
-    } catch {
-      setFormError("Could not start a fresh submission. Please try again.");
-    } finally {
-      setRefreshingClaim(false);
-    }
-  };
-
-  const copyMyReview = async () => {
-    try {
-      await navigator.clipboard.writeText(text());
-    } catch {
-      // Clipboard unavailable — still show confirmation.
-    }
-    setCopiedReview(true);
-    notify("success", "Review copied", "Paste it on Google.");
-    clearTimeout(copyTimer);
-    copyTimer = setTimeout(() => setCopiedReview(false), 2000);
-  };
-
-  const trackRedirect = (platform?: string) =>
-    track(reviewId(), "redirect", platform);
-
-  const platformEntries = createMemo(() => {
-    const links = business()?.reviewLinks;
-    if (!links) return [] as [string, string][];
-    // Links are navigated to automatically, and rows saved before the API
-    // validated schemes may still hold `javascript:` URLs, so re-check here.
-    return Object.entries(links).flatMap(([key, value]) => {
-      if (key === CUSTOM_LABEL_KEY) return [];
-      const url = httpUrl(value);
-      return url ? [[key, url] as [string, string]] : [];
+/** Creates the empty row. Rating 0 because the visitor has not chosen yet. */
+async function createRow(businessId: string): Promise<CreateResult> {
+  try {
+    const res = await fetch("/api/reviews/share", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessId, rating: 0, text: "" }),
     });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { kind: "error" };
+    return typeof data.reviewId === "string" &&
+      typeof data.claimToken === "string"
+      ? {
+          kind: "created",
+          claim: { reviewId: data.reviewId, claimToken: data.claimToken },
+        }
+      : { kind: "signed-in" };
+  } catch {
+    return { kind: "error" };
+  }
+}
+
+type SaveResult =
+  | { kind: "saved" }
+  | { kind: "expired" }
+  | { kind: "error"; message: string };
+
+async function saveReview(input: {
+  claim: Claim;
+  rating: number;
+  text: string;
+  name: string;
+}): Promise<SaveResult> {
+  try {
+    const res = await fetch("/api/reviews/share", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: input.claim.reviewId,
+        claimToken: input.claim.claimToken,
+        rating: input.rating,
+        text: input.text,
+        reviewerName: input.name.trim() || undefined,
+      }),
+    });
+    if (res.ok) return { kind: "saved" };
+    // The token lasts 24h, and the row can be gone if the owner deleted it.
+    if (res.status === 403 || res.status === 404) return { kind: "expired" };
+    if (res.status === 429) {
+      return {
+        kind: "error",
+        message:
+          "Too many reviews were sent from this network. Your text is still here, so try again in a little while.",
+      };
+    }
+    return {
+      kind: "error",
+      message:
+        "We couldn't save your review. Your text is still here, so try again.",
+    };
+  } catch {
+    return {
+      kind: "error",
+      message:
+        "We couldn't reach Flonion. Check your connection and try again. Your text is still here.",
+    };
+  }
+}
+
+type SuggestResult =
+  | { kind: "ok"; suggestions: string[] }
+  | { kind: "rate-limited" }
+  | { kind: "error"; message: string };
+
+async function suggestReview(input: {
+  reviewId?: string;
+  text: string;
+  rating: number;
+  keywords: string | null;
+  businessName: string;
+}): Promise<SuggestResult> {
+  try {
+    const res = await fetch("/api/ai/suggest-review", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reviewId: input.reviewId,
+        draftText: input.text,
+        starRating: input.rating,
+        keywords: input.keywords || undefined,
+        businessName: input.businessName,
+      }),
+    });
+    if (res.status === 429) return { kind: "rate-limited" };
+    const data = await res.json().catch(() => ({}));
+    const list: string[] = Array.isArray(data.suggestedReviews)
+      ? data.suggestedReviews.filter(
+          (s: unknown): s is string => typeof s === "string" && s.trim() !== "",
+        )
+      : [];
+    if (!res.ok || list.length === 0) {
+      return {
+        kind: "error",
+        message:
+          data.error ?? "We couldn't write suggestions. Please try again.",
+      };
+    }
+    return { kind: "ok", suggestions: list.slice(0, 3) };
+  } catch {
+    return {
+      kind: "error",
+      message:
+        "We couldn't reach Flonion. Check your connection and try again.",
+    };
+  }
+}
+
+const formatWait = (ms: number) => `${Math.max(1, Math.ceil(ms / 1000))}s`;
+
+// ─── Page ────────────────────────────────────────────────────────────────
+
+export default function CompanyReviewPage() {
+  const params = useParams<{ username: string }>();
+  // Waiting for the data before flushing keeps the title, the 404 status and
+  // the business name (the LCP) in the first HTML.
+  const review = createAsync(() => getCompanyReview(params.username), {
+    deferStream: true,
   });
 
-  const googleUrl = () =>
-    httpUrl(business()?.reviewLink) ??
-    (business()?.placeId
-      ? `https://search.google.com/local/writereview?placeid=${encodeURIComponent(business()?.placeId ?? "")}`
-      : null);
-
-  /** Google first when configured, then the rest in stored order. */
-  const orderedPlatforms = createMemo(() => {
-    const entries = platformEntries();
-    const google = googleUrl();
-    const nonGoogle = entries.filter(([slug]) => slug !== "google");
-    if (google) return [["google", google] as [string, string], ...nonGoogle];
-    return entries;
-  });
-
-  const primaryRedirect = () =>
-    orderedPlatforms()[0]?.[1] ?? "https://search.google.com/local/writereview";
-
-  // Spec: focus moves to the success heading on submit.
-  createEffect(() => {
-    if (submitted()) successHeadingRef?.focus();
-  });
-
-  const pageTitle = () =>
-    submitted()
-      ? `Thanks for reviewing ${business()?.name || "us"}`
-      : business()?.name
-        ? `Review ${business()?.name}`
-        : "Leave a Review";
+  onMount(() => onCleanup(useOsColorScheme()));
 
   return (
     <>
-      <Title>{pageTitle()}</Title>
-      <Meta name="description" content="Leave a review for this business." />
-      <AppToaster />
-
-      <div class="hero-gradient flex min-h-dvh flex-col items-center bg-background px-4 py-8 sm:py-12">
-        <Show
-          when={!error()}
-          fallback={
-            <div class="e1-enter w-full max-w-120 rounded-soft border border-border bg-card p-8 text-center shadow-md sm:p-10">
-              <div class="mx-auto mb-5 grid size-14 place-items-center rounded-soft bg-destructive-muted">
-                <AlertTriangle
-                  class="size-7 text-destructive"
-                  aria-hidden="true"
-                />
-              </div>
-              <p class="tnum text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                404
-              </p>
-              <h1 class="mt-1 font-heading text-2xl font-semibold text-foreground">
-                {error()}
-              </h1>
-              <p class="mt-2 text-sm text-muted-foreground">
-                Check the link and try again, or find the business below.
-              </p>
-              <div class="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-                <a
-                  href="/"
-                  class="inline-flex h-14 items-center justify-center rounded-control bg-primary px-6 text-base font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover"
-                >
-                  Home
-                </a>
-                <a
-                  href="/marketplace"
-                  class="inline-flex h-14 items-center justify-center rounded-control border border-border bg-card px-6 text-base font-medium text-foreground transition-colors hover:bg-muted"
-                >
-                  Find a business
-                </a>
-              </div>
-            </div>
+      <Meta name="robots" content="noindex" />
+      <PublicShell>
+        <Show when={review()} keyed>
+          {(value) =>
+            value.kind === "active" ? (
+              <ReviewFlow business={value.business} />
+            ) : (
+              <>
+                <HttpStatusCode code={404} />
+                <Title>Review link not active · Flonion</Title>
+                <InactiveLink />
+              </>
+            )
           }
-        >
-          <Show
-            when={!submitted()}
-            fallback={
-              <div class="e1-enter w-full max-w-120 rounded-soft border border-border bg-card p-8 text-center shadow-md sm:p-10">
-                <div class="mx-auto mb-5 flex justify-center">
-                  <SubmittedCheck />
-                </div>
-                <h1
-                  ref={successHeadingRef}
-                  tabIndex={-1}
-                  class="font-heading text-2xl font-semibold text-foreground focus:outline-none"
-                >
-                  Thanks for your review
-                </h1>
-                <p class="mt-2 text-base text-muted-foreground">
-                  Your review for {business()?.name ?? "this business"} is
-                  saved. One last step — post it on Google so others can see it.
-                </p>
-                <Show when={!stayed()}>
-                  <div class="mx-auto mt-6 max-w-sm">
-                    <RedirectCountdown
-                      seconds={5}
-                      targetLabel="Google"
-                      onRedirect={() => {
-                        trackRedirect("google");
-                        window.location.href = primaryRedirect();
-                      }}
-                      onStay={() => setStayed(true)}
-                    />
-                  </div>
-                </Show>
-                <div class="mt-6 grid gap-3">
-                  <Show
-                    when={orderedPlatforms().length > 0}
-                    fallback={
-                      <p class="text-sm text-muted-foreground">
-                        No redirect configured — you're all done. Thank you!
-                      </p>
-                    }
-                  >
-                    <For each={orderedPlatforms()}>
-                      {([slug, redirectUrl]) => {
-                        const label = getPlatformLabel(
-                          slug,
-                          business()?.reviewLinks ?? {},
-                        );
-                        const color =
-                          getPlatformBySlug(slug)?.color ?? "#5b21b6";
-                        return (
-                          <a
-                            href={redirectUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => trackRedirect(slug)}
-                            class="inline-flex h-14 items-center justify-center gap-2 rounded-control px-6 text-base font-medium text-white shadow-sm transition-opacity hover:opacity-90"
-                            style={{ "background-color": color }}
-                          >
-                            <ExternalLink class="size-5" aria-hidden="true" />
-                            Post on {label}
-                          </a>
-                        );
-                      }}
-                    </For>
-                  </Show>
-                  <button
-                    type="button"
-                    onClick={copyMyReview}
-                    aria-live="polite"
-                    class="inline-flex h-14 items-center justify-center gap-2 rounded-control border border-border bg-card px-6 text-base font-medium text-foreground transition-colors hover:bg-muted"
-                  >
-                    <Show
-                      when={copiedReview()}
-                      fallback={<Copy class="size-5" aria-hidden="true" />}
-                    >
-                      <Check class="size-5 text-success" aria-hidden="true" />
-                    </Show>
-                    {copiedReview()
-                      ? "Copied — paste it on Google"
-                      : "Copy my review"}
-                  </button>
-                </div>
-              </div>
-            }
-          >
-            {/* DS §6: single column, max 480px, Soft layer (20px radius). */}
-            <div class="flex w-full max-w-120 flex-col gap-4">
-              {/* Business header — skeleton holds layout while loading. */}
-              <Show
-                when={!loading() || business()}
-                fallback={
+        </Show>
+      </PublicShell>
+    </>
+  );
+}
+
+type AiState = {
+  status: "idle" | "loading" | "error";
+  suggestions: string[];
+  error?: string;
+  retryAt?: number;
+  cooldownMs?: number;
+};
+
+/** Short pause between requests so a double tap can't burn the hourly limit. */
+const AI_COOLDOWN_MS = 10_000;
+const AI_RATE_LIMIT_MS = 60_000;
+
+/** The visitor's row: created when the page opens, saved on Continue. */
+type RowState =
+  | { kind: "creating" }
+  | { kind: "ready"; claim: Claim }
+  | { kind: "preview" }
+  | { kind: "failed" };
+
+function ReviewFlow(props: { business: PublicBusiness }) {
+  const business = () => props.business;
+
+  const [step, setStep] = createSignal<"write" | "done">("write");
+  const [rating, setRating] = createSignal(0);
+  const [ratingError, setRatingError] = createSignal<string>();
+  const [name, setName] = createSignal("");
+  const [text, setText] = createSignal("");
+  const [textError, setTextError] = createSignal<string>();
+  const [saving, setSaving] = createSignal(false);
+  const [saveNotice, setSaveNotice] = createSignal<{
+    tone: "error" | "warning";
+    message: string;
+  }>();
+  const [preview, setPreview] = createSignal(false);
+
+  let textarea: HTMLTextAreaElement | undefined;
+  let firstStar: HTMLInputElement | undefined;
+  let thanksHeading: HTMLHeadingElement | undefined;
+
+  // ── Live region
+  const [message, setMessage] = createSignal("");
+  function announce(value: string) {
+    setMessage("");
+    queueMicrotask(() => setMessage(value));
+  }
+
+  // ── The visitor's row
+  const [row, setRow] = createSignal<RowState>({ kind: "creating" });
+  let pending: Promise<void> | undefined;
+  let counted = false;
+
+  function trackVisitOnce(reviewId: string) {
+    // One visit per browser session, so refreshes don't inflate the funnel.
+    try {
+      if (sessionStorage.getItem(visitKey(business().id))) return;
+      sessionStorage.setItem(visitKey(business().id), "1");
+    } catch {}
+    track(reviewId, "visit");
+  }
+
+  function start(): Promise<void> {
+    if (pending) return pending;
+    setRow({ kind: "creating" });
+    pending = (async () => {
+      const result = await createRow(business().id);
+      if (result.kind === "created") {
+        writeClaim(business().id, result.claim);
+        setRow({ kind: "ready", claim: result.claim });
+        trackVisitOnce(result.claim.reviewId);
+      } else if (result.kind === "signed-in") {
+        setRow({ kind: "preview" });
+      } else {
+        setRow({ kind: "failed" });
+      }
+      pending = undefined;
+    })();
+    return pending;
+  }
+
+  onMount(() => {
+    // A refresh keeps the row the visitor already started this session.
+    const existing = readClaim(business().id);
+    if (existing) {
+      setRow({ kind: "ready", claim: existing });
+      trackVisitOnce(existing.reviewId);
+      return;
+    }
+    void start();
+  });
+
+  const claimedId = () => {
+    const r = row();
+    return r.kind === "ready" ? r.claim.reviewId : undefined;
+  };
+
+  // Auto-grow the review box.
+  createEffect(() => {
+    text();
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight + 2}px`;
+  });
+
+  // ── AI suggestions
+  const [ai, setAi] = createSignal<AiState>({
+    status: "idle",
+    suggestions: [],
+  });
+  const [aiHint, setAiHint] = createSignal<string>();
+  const [now, setNow] = createSignal(Date.now());
+  const waitMs = () => Math.max(0, (ai().retryAt ?? 0) - now());
+  const coolingDown = () => waitMs() > 0;
+
+  createEffect(() => {
+    const until = ai().retryAt;
+    if (!until || until <= Date.now()) return;
+    setNow(Date.now());
+    const timer = setInterval(() => {
+      setNow(Date.now());
+      if (Date.now() >= until) clearInterval(timer);
+    }, 1000);
+    onCleanup(() => clearInterval(timer));
+  });
+
+  async function helpMeWrite() {
+    if (ai().status === "loading" || coolingDown()) return;
+    if (!rating()) {
+      setAiHint(
+        "Pick a star rating first so the suggestions match your visit.",
+      );
+      firstStar?.focus();
+      return;
+    }
+    if (!text().trim()) {
+      setAiHint(
+        "Write a few words first. We'll help you turn them into a review.",
+      );
+      textarea?.focus();
+      return;
+    }
+    setAiHint(undefined);
+    setAi((s) => ({ ...s, status: "loading", error: undefined }));
+    announce("Writing suggestions…");
+
+    const result = await suggestReview({
+      reviewId: claimedId(),
+      text: text(),
+      rating: rating(),
+      keywords: business().keywords,
+      businessName: business().name,
+    });
+
+    if (result.kind === "ok") {
+      setAi({
+        status: "idle",
+        suggestions: result.suggestions,
+        retryAt: Date.now() + AI_COOLDOWN_MS,
+        cooldownMs: AI_COOLDOWN_MS,
+      });
+      announce(
+        `${result.suggestions.length} AI suggestions ready. Pick one to use or edit.`,
+      );
+    } else if (result.kind === "rate-limited") {
+      setAi((s) => ({
+        ...s,
+        status: "idle",
+        retryAt: Date.now() + AI_RATE_LIMIT_MS,
+        cooldownMs: AI_RATE_LIMIT_MS,
+      }));
+      announce("Suggestion limit reached. Try again in a minute.");
+    } else {
+      setAi((s) => ({
+        ...s,
+        status: "error",
+        error: result.message,
+        retryAt: Date.now() + AI_COOLDOWN_MS,
+        cooldownMs: AI_COOLDOWN_MS,
+      }));
+    }
+  }
+
+  function applySuggestion(value: string, edit: boolean) {
+    setText(value);
+    setTextError(undefined);
+    const id = claimedId();
+    if (!edit && id) track(id, "ai_copy");
+    announce(
+      edit
+        ? "Suggestion added to the review box for editing."
+        : "Suggestion added to your review.",
+    );
+    if (edit && textarea) {
+      textarea.focus();
+      textarea.setSelectionRange(value.length, value.length);
+    }
+  }
+
+  // ── Continue
+  async function submit(e: Event) {
+    e.preventDefault();
+    if (saving()) return;
+    setSaveNotice(undefined);
+
+    if (!rating()) {
+      setRatingError("Pick a star rating to continue.");
+      firstStar?.focus();
+      return;
+    }
+    if (text().length > TEXT_MAX) {
+      setTextError("Keep your review under 5,000 characters.");
+      textarea?.focus();
+      return;
+    }
+
+    setSaving(true);
+    if (row().kind === "creating") await pending;
+    if (row().kind === "failed") await start();
+
+    const current = row();
+    if (current.kind === "preview") {
+      setSaving(false);
+      finish(true);
+      return;
+    }
+    if (current.kind !== "ready") {
+      setSaving(false);
+      setSaveNotice({
+        tone: "error",
+        message:
+          "We couldn't reach Flonion. Check your connection and try again. Your text is still here.",
+      });
+      return;
+    }
+
+    const result = await saveReview({
+      claim: current.claim,
+      rating: rating(),
+      text: text(),
+      name: name(),
+    });
+    setSaving(false);
+
+    if (result.kind === "saved") {
+      if (!counted) {
+        counted = true;
+        track(current.claim.reviewId, "review");
+      }
+      finish(false);
+      return;
+    }
+    if (result.kind === "expired") {
+      writeClaim(business().id, null);
+      void start();
+      setSaveNotice({
+        tone: "warning",
+        message:
+          "Your session expired. Your text is still here. Tap Continue to save again.",
+      });
+      return;
+    }
+    setSaveNotice({ tone: "error", message: result.message });
+  }
+
+  function finish(isPreview: boolean) {
+    setPreview(isPreview);
+    setStep("done");
+    queueMicrotask(() => thanksHeading?.focus());
+  }
+
+  return (
+    <>
+      <Title>Review {business().name} · Flonion</Title>
+
+      <p aria-live="polite" class="sr-only">
+        {message()}
+      </p>
+
+      <div class="flex flex-col gap-6">
+        <BusinessHeader business={business()} />
+
+        <Switch>
+          <Match when={step() === "write"}>
+            {/*
+             * The rest of the form opens once a star is checked. Done in CSS
+             * (`group-has-checked`) so it also works before hydration.
+             */}
+            <form
+              novalidate
+              onSubmit={submit}
+              aria-label={`Review of ${business().name}`}
+              class={cn(publicCardClass, "group/review flex flex-col gap-6")}
+            >
+              <StarRating
+                legend="How was your visit?"
+                value={rating()}
+                onChange={(n) => {
+                  setRating(n);
+                  setRatingError(undefined);
+                }}
+                error={ratingError()}
+                ref={(el) => {
+                  firstStar = el;
+                }}
+              />
+
+              <div class="hidden flex-col gap-6 border-t border-border pt-6 group-has-checked/review:flex motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-2 motion-safe:duration-[var(--duration-base)]">
+                {/* Review text, with AI help and the counter in its footer */}
+                <div class="flex flex-col gap-2">
+                  <label for="review-text" class={labelClass}>
+                    Tell others about your visit
+                  </label>
                   <div
-                    class="rounded-soft border border-border bg-card p-6 shadow-md"
-                    aria-hidden="true"
+                    class={cn(
+                      "overflow-hidden rounded-md border border-border-strong bg-surface transition-colors duration-[var(--duration-fast)] focus-within:border-primary focus-within:outline-2 focus-within:outline-primary",
+                      textError() && "border-error",
+                    )}
                   >
-                    <div class="flex flex-col items-center gap-4">
-                      <Skeleton class="size-20 rounded-soft" />
-                      <Skeleton class="h-7 w-3/4" />
-                      <Skeleton class="h-4 w-1/2" />
-                    </div>
-                  </div>
-                }
-              >
-                <Show when={business()}>
-                  <header class="e1-enter rounded-soft border border-border bg-card p-6 text-center shadow-md">
-                    <Show
-                      when={business()?.logo}
-                      fallback={
-                        <div
-                          class="mx-auto grid size-20 place-items-center rounded-soft bg-linear-to-br from-primary/10 to-purple/10 font-heading text-3xl font-semibold text-primary"
-                          aria-hidden="true"
-                        >
-                          {business()?.name?.charAt(0) || "?"}
-                        </div>
+                    <textarea
+                      ref={textarea}
+                      id="review-text"
+                      name="text"
+                      rows={4}
+                      maxLength={TEXT_MAX}
+                      placeholder="What did you like? What could be better?"
+                      value={text()}
+                      onInput={(e) => {
+                        setText(e.currentTarget.value);
+                        setTextError(undefined);
+                        setAiHint(undefined);
+                      }}
+                      aria-invalid={textError() ? "true" : undefined}
+                      aria-describedby={
+                        textError() ? "review-text-error" : undefined
                       }
-                    >
-                      <img
-                        src={business()!.logo!}
-                        alt={`${business()?.name} logo`}
-                        class="mx-auto size-20 rounded-soft object-cover shadow-md"
-                      />
-                    </Show>
-                    <h1 class="mt-3 font-heading text-2xl font-semibold text-foreground">
-                      {business()?.name ?? "Leave a Review"}
-                    </h1>
-                    <div class="mt-2 grid justify-items-center gap-1 text-sm text-muted-foreground">
-                      <Show when={business()?.address}>
-                        <p class="flex items-center gap-1.5">
-                          <MapPin
-                            class="size-4 shrink-0 text-muted-foreground/60"
-                            aria-hidden="true"
-                          />
-                          {business()?.address}
-                        </p>
-                      </Show>
-                      <Show when={business()?.phone}>
-                        <p class="flex items-center gap-1.5">
-                          <Phone
-                            class="size-4 shrink-0 text-muted-foreground/60"
-                            aria-hidden="true"
-                          />
-                          {business()?.phone}
-                        </p>
-                      </Show>
-                    </div>
-                    <p class="mt-3 text-base font-medium text-foreground">
-                      How was your visit?
-                    </p>
-                    <p class="mt-0.5 text-sm text-muted-foreground">
-                      Takes less than a minute.
-                    </p>
-                  </header>
-                </Show>
-              </Show>
-
-              <Show
-                when={!business() && !loading()}
-                fallback={
-                  <form
-                    aria-label="Leave a review"
-                    class="rounded-soft border border-border bg-card p-6 shadow-md"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      submitReview();
-                    }}
-                  >
-                    {/* Star Rating Select — calm, instant, no bounce. */}
-                    <fieldset>
-                      <legend class="sr-only">
-                        How would you rate your visit? Required.
-                      </legend>
-                      <RatingGroup.Root
-                        value={rating()}
-                        onValueChange={(details) =>
-                          setRating(details.value as Rating)
-                        }
-                        count={5}
-                      >
-                        <div class="flex items-center justify-between gap-3">
-                          <RatingGroup.Label class="text-base font-medium text-foreground">
-                            Your rating
-                          </RatingGroup.Label>
-                          <Show when={rating() > 0}>
-                            <span
-                              class="tnum inline-flex items-center gap-1 text-base font-medium text-star-text"
-                              aria-live="polite"
-                            >
-                              {rating()}.0
-                              <Star
-                                class="size-4 text-star"
-                                fill="currentColor"
-                                aria-hidden="true"
-                              />
-                            </span>
-                          </Show>
-                        </div>
-                        <RatingGroup.Control class="mt-2 flex items-center justify-between">
-                          <RatingGroup.Context>
-                            {(api) => (
-                              <For each={api().items}>
-                                {(item) => (
-                                  <RatingGroup.Item
-                                    index={item}
-                                    aria-label={`${item} star${item === 1 ? "" : "s"}`}
-                                    class="inline-flex size-12 items-center justify-center rounded-control transition-colors duration-75 hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
-                                  >
-                                    <RatingGroup.ItemContext>
-                                      {(itemState) => (
-                                        <Star
-                                          class="size-8 text-star"
-                                          fill={
-                                            itemState().highlighted
-                                              ? "currentColor"
-                                              : "none"
-                                          }
-                                          aria-hidden="true"
-                                        />
-                                      )}
-                                    </RatingGroup.ItemContext>
-                                  </RatingGroup.Item>
-                                )}
-                              </For>
-                            )}
-                          </RatingGroup.Context>
-                          <RatingGroup.HiddenInput />
-                        </RatingGroup.Control>
-                      </RatingGroup.Root>
-                    </fieldset>
-
-                    <Field.Root class="mt-5">
-                      <Field.Label class="text-base font-medium text-foreground">
-                        Tell others about your visit
-                      </Field.Label>
-                      <Field.Textarea
-                        id="public-review-text"
-                        value={text()}
-                        onInput={(e) =>
-                          setText((e.target as HTMLTextAreaElement).value)
-                        }
-                        placeholder="What did you like? What could be better?"
-                        rows={4}
-                        aria-describedby={
-                          formError() ? "public-review-error" : undefined
-                        }
-                        class="mt-2 w-full resize-y rounded-control border border-input bg-background px-4 py-3.5 text-base leading-6 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      />
-                    </Field.Root>
-
-                    <Field.Root class="mt-4">
-                      <Field.Label class="text-base font-medium text-foreground">
-                        Your name{" "}
-                        <span class="font-normal text-muted-foreground">
-                          (optional)
-                        </span>
-                      </Field.Label>
-                      <Field.Input
-                        type="text"
-                        value={visitorName()}
-                        onInput={(e) =>
-                          setVisitorName((e.target as HTMLInputElement).value)
-                        }
-                        placeholder="How should we attribute this review?"
-                        class="mt-2 h-14 w-full rounded-control border border-input bg-background px-4 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      />
-                    </Field.Root>
-
-                    {/* AI Draft Reveal — customer-initiated, clearly labelled. */}
-                    <section
-                      aria-labelledby="ai-help-heading"
-                      aria-busy={aiLoading()}
-                      class="mt-5"
-                    >
+                      class="block min-h-28 w-full resize-none overflow-hidden bg-transparent px-3.5 pt-3 pb-2 text-base text-text outline-none placeholder:text-text-muted/80"
+                    />
+                    <div class="flex items-center justify-between gap-2 border-t border-border bg-background/60 py-1 pr-3 pl-1">
                       <button
                         type="button"
-                        onClick={fetchSuggestions}
-                        disabled={aiLoading() || cooldownSecs() > 0}
-                        class="inline-flex h-14 w-full items-center justify-center gap-2 rounded-control border border-border bg-card px-4 text-base font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={() => void helpMeWrite()}
+                        disabled={ai().status === "loading" || coolingDown()}
+                        aria-describedby={
+                          aiHint() ? "review-ai-hint" : undefined
+                        }
+                        class={cn(
+                          "inline-flex min-h-11 items-center gap-2 rounded-sm px-3 font-display text-sm font-semibold text-primary transition-colors duration-[var(--duration-fast)] hover:bg-primary-soft disabled:cursor-not-allowed disabled:text-text-muted disabled:hover:bg-transparent",
+                          focusRing,
+                        )}
                       >
-                        <Show
-                          when={!aiLoading()}
+                        <Switch
                           fallback={
-                            <LoaderCircle
-                              class="size-5 animate-spin"
-                              aria-hidden="true"
-                            />
+                            <>
+                              <IconSparkles aria-hidden="true" class="size-4" />
+                              Help me write
+                            </>
                           }
                         >
-                          <Sparkles class="size-5" aria-hidden="true" />
-                        </Show>
-                        {aiLoading()
-                          ? "Writing drafts…"
-                          : cooldownSecs() > 0
-                            ? `Try again in ${cooldownSecs()}s`
-                            : "Help me write it"}
-                      </button>
-
-                      <Show when={aiLoading()}>
-                        <div class="mt-3 grid gap-3" role="status">
-                          <span class="sr-only">Writing drafts…</span>
-                          <For each={[0, 1, 2]}>
-                            {() => (
-                              <div class="skeleton h-24 rounded-card border border-border bg-muted" />
-                            )}
-                          </For>
-                        </div>
-                      </Show>
-
-                      <Show when={!aiLoading() && suggestions().length > 0}>
-                        <h2
-                          id="ai-help-heading"
-                          class="mt-4 flex flex-wrap items-center gap-2 text-lg font-semibold text-foreground"
-                        >
-                          AI drafts
-                          <span class="rounded-full bg-warning-muted px-2 py-0.5 text-xs font-medium text-warning">
-                            AI draft · edit before posting
-                          </span>
-                        </h2>
-                        <ul class="mt-3 grid gap-3" aria-live="polite">
-                          <For each={suggestions()}>
-                            {(suggestion, i) => (
-                              <li
-                                class="e4-card-enter"
-                                style={{ "animation-delay": `${i() * 60}ms` }}
-                              >
-                                <div
-                                  class="rounded-card border bg-background p-4 transition-colors"
-                                  classList={{
-                                    "border-primary":
-                                      pickedId() === suggestion.id,
-                                    "border-border hover:border-primary/60":
-                                      pickedId() !== suggestion.id,
-                                  }}
-                                  style={
-                                    pickedId() !== null &&
-                                    pickedId() !== suggestion.id
-                                      ? { opacity: "0.6" }
-                                      : {}
-                                  }
-                                >
-                                  <p class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-secondary">
-                                    <MessageSquare
-                                      class="size-3.5"
-                                      aria-hidden="true"
-                                    />
-                                    {suggestion.tone}
-                                  </p>
-                                  <p class="mt-1.5 text-base leading-6 text-foreground">
-                                    {suggestion.text}
-                                  </p>
-                                  <button
-                                    type="button"
-                                    aria-pressed={pickedId() === suggestion.id}
-                                    onClick={() => applySuggestion(suggestion)}
-                                    class="mt-3 inline-flex h-11 items-center gap-1.5 rounded-control bg-primary/10 px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
-                                  >
-                                    <Check class="size-4" aria-hidden="true" />
-                                    {pickedId() === suggestion.id
-                                      ? "Applied — edit above"
-                                      : "Use this version"}
-                                  </button>
-                                </div>
-                              </li>
-                            )}
-                          </For>
-                        </ul>
-                      </Show>
-                      <Show when={aiError()}>
-                        <p role="alert" class="mt-3 text-sm text-destructive">
-                          {aiError()}
-                        </p>
-                      </Show>
-                    </section>
-
-                    <Show when={formError()}>
-                      <div
-                        id="public-review-error"
-                        role="alert"
-                        class="mt-4 grid gap-3 rounded-card border border-destructive/25 bg-destructive-muted p-4"
-                      >
-                        <p class="text-sm text-destructive">{formError()}</p>
-                        <Show when={claimExpired()}>
-                          <button
-                            type="button"
-                            onClick={refreshClaim}
-                            disabled={refreshingClaim()}
-                            class="inline-flex h-11 items-center justify-center rounded-control bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-60"
-                          >
-                            {refreshingClaim()
-                              ? "Preparing…"
-                              : "Continue — start fresh"}
-                          </button>
-                        </Show>
-                      </div>
-                    </Show>
-
-                    {/* Sticky primary on mobile; static on desktop. */}
-                    <div class="sticky bottom-4 mt-5 sm:static sm:bottom-auto">
-                      <button
-                        type="submit"
-                        disabled={submitting()}
-                        class="inline-flex h-14 w-full items-center justify-center gap-2 rounded-control bg-primary px-6 text-base font-medium text-primary-foreground shadow-md transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <Show
-                          when={!submitting()}
-                          fallback={
-                            <LoaderCircle
-                              class="size-5 animate-spin"
-                              aria-hidden="true"
+                          <Match when={ai().status === "loading"}>
+                            <Spinner class="size-4" />
+                            Writing…
+                          </Match>
+                          <Match when={coolingDown()}>
+                            <CooldownRing
+                              waitMs={waitMs()}
+                              totalMs={ai().cooldownMs ?? AI_COOLDOWN_MS}
                             />
-                          }
-                        >
-                          <Send class="size-5" aria-hidden="true" />
-                        </Show>
-                        {submitting() ? "Submitting…" : "Submit review"}
+                            Try again in{" "}
+                            <span class="font-mono tabular-nums">
+                              {formatWait(waitMs())}
+                            </span>
+                          </Match>
+                        </Switch>
                       </button>
+                      <span class="font-mono text-xs text-text-muted tabular-nums">
+                        {text().length.toLocaleString("en-IN")}
+                        <span class="sr-only"> of 5,000 characters</span>
+                      </span>
                     </div>
-                    <p class="mt-3 text-center text-xs text-muted-foreground/70">
-                      You'll review your feedback before it's posted anywhere.
-                    </p>
-                  </form>
-                }
-              >
-                <div class="e1-enter text-center">
-                  <h1 class="font-heading text-2xl font-semibold text-foreground">
-                    Leave a Review
-                  </h1>
-                  <p class="mt-2 text-base text-muted-foreground">
-                    Share your experience below
-                  </p>
-                </div>
-              </Show>
+                  </div>
 
-              <p class="flex items-center justify-center gap-1.5 text-xs text-muted-foreground/50">
-                Powered by{" "}
-                <InlineCombinationMark class="h-3.5 w-auto text-muted-foreground/60" />
-              </p>
-            </div>
-          </Show>
-        </Show>
+                  <Show when={aiHint()}>
+                    {(hint) => (
+                      <p id="review-ai-hint" class="text-sm text-text-muted">
+                        {hint()}
+                      </p>
+                    )}
+                  </Show>
+                  <FieldError id="review-text-error" message={textError()} />
+                </div>
+
+                <Show
+                  when={
+                    ai().status === "error" ||
+                    ai().status === "loading" ||
+                    ai().suggestions.length > 0
+                  }
+                >
+                  <div class="-mt-2 flex flex-col gap-3">
+                    <Show when={ai().status === "error" && ai().error}>
+                      {(error) => <Notice tone="error">{error()}</Notice>}
+                    </Show>
+                    <Switch>
+                      <Match when={ai().status === "loading"}>
+                        <SuggestionSkeletons />
+                      </Match>
+                      <Match
+                        when={ai().suggestions.length > 0 && ai().suggestions}
+                      >
+                        {(list) => (
+                          <Show when={list()} keyed>
+                            {(suggestions) => (
+                              <SuggestionCards
+                                suggestions={suggestions}
+                                onUse={(v) => applySuggestion(v, false)}
+                                onEdit={(v) => applySuggestion(v, true)}
+                              />
+                            )}
+                          </Show>
+                        )}
+                      </Match>
+                    </Switch>
+                  </div>
+                </Show>
+
+                {/* Name */}
+                <div class="flex flex-col gap-2">
+                  <label for="review-name" class={labelClass}>
+                    Your name{" "}
+                    <span class="font-normal text-text-muted">(optional)</span>
+                  </label>
+                  <input
+                    id="review-name"
+                    name="name"
+                    type="text"
+                    autocomplete="name"
+                    maxLength={NAME_MAX}
+                    placeholder="How you'd like to appear"
+                    value={name()}
+                    onInput={(e) => setName(e.currentTarget.value)}
+                    class={inputBase}
+                  />
+                </div>
+              </div>
+
+              <div class="hidden flex-col gap-3 group-has-checked/review:flex">
+                <Show when={saveNotice()}>
+                  {(n) => <Notice tone={n().tone}>{n().message}</Notice>}
+                </Show>
+                <button
+                  type="submit"
+                  aria-disabled={saving() ? "true" : undefined}
+                  class={cn(
+                    btnPrimary,
+                    "min-h-12 w-full",
+                    saving() && "cursor-progress opacity-80",
+                  )}
+                >
+                  <Show when={saving()} fallback="Continue">
+                    <Spinner />
+                    Saving…
+                  </Show>
+                </button>
+                <p class="text-center text-xs text-text-muted">
+                  Shared with {business().name}.
+                  <Show when={business().platforms.length > 0}>
+                    {" "}
+                    Next, you can post it on{" "}
+                    {new Intl.ListFormat("en", { type: "disjunction" }).format(
+                      business().platforms.map((p) => p.label),
+                    )}
+                    .
+                  </Show>
+                </p>
+              </div>
+            </form>
+          </Match>
+
+          <Match when={step() === "done"}>
+            <ThankYou
+              business={business()}
+              text={text()}
+              preview={preview()}
+              reviewId={claimedId()}
+              headingRef={(el) => {
+                thanksHeading = el;
+              }}
+              announce={announce}
+              onEdit={() => {
+                setStep("write");
+                queueMicrotask(() => textarea?.focus());
+              }}
+            />
+          </Match>
+        </Switch>
       </div>
     </>
+  );
+}
+
+function ThankYou(props: {
+  business: PublicBusiness;
+  text: string;
+  preview: boolean;
+  reviewId?: string;
+  headingRef: (el: HTMLHeadingElement) => void;
+  announce: (message: string) => void;
+  onEdit: () => void;
+}) {
+  const platforms = () => props.business.platforms;
+  const [copyFailed, setCopyFailed] = createSignal(false);
+
+  return (
+    <section
+      aria-labelledby="thanks-heading"
+      class={cn(
+        publicCardClass,
+        "flex flex-col items-center gap-4 text-center",
+      )}
+    >
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 48 48"
+        fill="none"
+        class="size-16 text-success"
+      >
+        <circle
+          cx="24"
+          cy="24"
+          r="22"
+          stroke="currentColor"
+          stroke-width="2"
+          opacity="0.3"
+        />
+        <path
+          d="M15 24.5l6 6 12-13"
+          pathLength="1"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="check-draw"
+        />
+      </svg>
+
+      <h2
+        ref={props.headingRef}
+        id="thanks-heading"
+        tabindex="-1"
+        class="font-display text-xl font-semibold text-text outline-none"
+      >
+        <Show when={platforms().length > 0} fallback="Thanks for your review!">
+          Thanks! One more step:
+        </Show>
+      </h2>
+
+      <Show when={props.preview}>
+        <Notice tone="info" class="text-left">
+          You're signed in to Flonion, so this test review wasn't saved. Open
+          the link in a private window to try it as a customer.
+        </Notice>
+      </Show>
+
+      <Show
+        when={platforms().length > 0}
+        fallback={
+          <p class="max-w-[36ch] text-base text-pretty text-text-muted">
+            Your feedback has been shared with {props.business.name}.
+          </p>
+        }
+      >
+        <p class="max-w-[40ch] text-base text-pretty text-text-muted">
+          <Show
+            when={props.text.trim()}
+            fallback="Post your review where others can find it."
+          >
+            Copy your review, then paste it on the site you choose so others can
+            find it.
+          </Show>
+        </p>
+
+        <div class="flex w-full flex-col gap-3">
+          <Show when={props.text.trim()}>
+            <CopyButton
+              value={props.text}
+              label="Copy my review"
+              copiedMessage="Review copied"
+              announce={props.announce}
+              onFailed={() => setCopyFailed(true)}
+              class="min-h-12 w-full"
+            />
+            <Show when={copyFailed()}>
+              <Notice tone="warning" class="text-left">
+                We couldn't copy automatically. Select your review below and
+                copy it.
+                <p class="mt-2 rounded-sm border border-border bg-background p-2 text-left whitespace-pre-wrap break-words select-all">
+                  {props.text}
+                </p>
+              </Notice>
+            </Show>
+          </Show>
+
+          {/* Equal-weight buttons, the same for every star rating. */}
+          <ul aria-label="Post your review on" class="flex flex-col gap-3">
+            <For each={platforms()}>
+              {(p) => (
+                <li>
+                  <a
+                    href={p.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      if (props.reviewId)
+                        track(props.reviewId, "redirect", p.slug);
+                    }}
+                    class={cn(btnSecondary, "min-h-12 w-full")}
+                  >
+                    Post on {p.label}
+                    <IconExternalLink aria-hidden="true" class="size-5" />
+                    <span class="sr-only">(opens in a new tab)</span>
+                  </a>
+                </li>
+              )}
+            </For>
+          </ul>
+        </div>
+      </Show>
+
+      <button
+        type="button"
+        onClick={() => props.onEdit()}
+        class={cn("min-h-11 px-2 text-sm", textLink, focusRing)}
+      >
+        Edit my review
+      </button>
+    </section>
   );
 }

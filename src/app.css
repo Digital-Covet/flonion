@@ -1,89 +1,120 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@fontsource-variable/rubik/wght.css";
-@import "@fontsource-variable/jost/wght.css";
-@import "@fontsource-variable/jetbrains-mono/wght.css";
 
-/* Short viewports (laptops, split screens) where full-height
-   chrome like the sidebar would otherwise need to scroll. */
-@custom-variant short (@media (max-height: 820px));
-
-@theme {
-  /* ---- Flonion DS §2 Colour (verified WCAG ratios, light canonical) ---- */
-  --color-background: #faf8f5;
-  --color-foreground: #1c1917;
-  --color-card: #ffffff;
-  --color-card-foreground: #1c1917;
-  --color-muted: #f3efe9;
-  --color-muted-foreground: #57534e;
-  --color-border: #e7e5e4;
-  --color-input: #8a847e;
-  --color-primary: #5b21b6;
-  --color-primary-hover: #4c1d95;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #0f766e;
-  --color-secondary-foreground: #ffffff;
-  --color-popover: #ffffff;
-  --color-popover-foreground: #1c1917;
-
-  --color-destructive: #b91c1c;
-  --color-destructive-muted: #fef2f2;
-  /* Legacy alias: `positive` historically meant primary tint. Kept for
-     compat; new code should prefer `success` / `primary` explicitly. */
-  --color-positive: #5b21b6;
-  --color-positive-muted: #f1eafd;
-  /* DS §2 semantic colors (verified contrast on canvas #FAF8F5) */
-  --color-success: #15803d;
-  --color-success-muted: #dcfce7;
-  --color-warning: #b45309;
-  --color-warning-muted: #fef3c7;
-  --color-star: #c2680a;
-  --color-star-text: #b45309;
-  --color-info: #1d4ed8;
-  --color-info-text: #1d4ed8;
-  --color-info-muted: #eff6ff;
-  --color-purple: #5b21b6;
-  --color-purple-muted: #f1eafd;
-  --color-orange: #b45309;
-  --color-orange-muted: #fef3c7;
-  --color-control: #8a847e;
-  --color-divider: #e7e5e4;
-
-  /* Dark-mode inversion tokens (DS §2 — light default, dark supported).
-     Never pure #000 + #FFF; warm off-black canvas avoids halation. */
-
-  --font-sans:
-    "Rubik Variable", ui-sans-serif, system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-heading:
-    "Jost Variable", ui-sans-serif, system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
-  /* Alias for DS §2 code skeleton which uses `font-display`. Same stack as
-     heading so both `font-heading` and `font-display` resolve to Jost. */
-  --font-display:
-    "Jost Variable", ui-sans-serif, system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
-  /* DS §2 monospace: JetBrains Mono Variable (Google Fonts, OFL) for
-     review links, invite tokens, claim IDs, Meet links, error reference IDs,
-     and tabular table numerals fallback. */
+:root {
+  /* core */
+  --background: #faf8f5;
+  --surface: #ffffff;
+  --primary: #5b21b6;
+  --primary-foreground: #ffffff;
+  --primary-soft: #ede9fe;
+  --secondary: #0f766e;
+  --secondary-foreground: #ffffff;
+  --accent: #b45309;
+  --accent-soft: #fef3c7;
+  --star: #f59e0b;
+  /* text & lines */
+  --text: #1c1917;
+  --text-muted: #57534e;
+  --border-strong: #8a837d; /* controls: 3:1 */
+  --border: #d6d3d1; /* decorative only */
+  /* semantic */
+  --success: #15803d;
+  --warning: #a16207;
+  --error: #b91c1c;
+  --info: #1d4ed8;
+  /* motif */
+  --motif: #5b21b624;
+  /* type */
+  --font-display: "Jost Variable", "Jost", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Rubik Variable", "Rubik", ui-sans-serif, system-ui, sans-serif;
   --font-mono:
-    "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, Consolas,
-    monospace;
+    "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+  /* shape & motion */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --duration-instant: 100ms;
+  --duration-fast: 160ms;
+  --duration-base: 240ms;
+  --duration-slow: 400ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1.25rem;
-  /* DS §2 Radius — semantic aliases (prefer these over sm/md/lg):
-     controls 8px, cards 12px, public-page cards/sheets 20px,
-     chips + avatars full. */
-  --radius-control: 0.5rem;
-  --radius-card: 0.75rem;
-  --radius-soft: 1.25rem;
+.dark,
+[data-surface="dark"] {
+  --background: #120f17;
+  --surface: #1c1822;
+  --primary: #c4b5fd;
+  --primary-foreground: #120f17;
+  --primary-soft: #2e2640;
+  --secondary: #5eead4;
+  --secondary-foreground: #120f17;
+  --accent: #fbbf24;
+  --accent-soft: #3a2e12;
+  --text: #eeeaf2;
+  --text-muted: #a8a1b3;
+  --border-strong: #6e6679;
+  --border: #3a3444;
+  --success: #4ade80;
+  --warning: #facc15;
+  --error: #f87171;
+  --info: #93c5fd;
+  --motif: #c4b5fd24;
+}
 
-  /* DS §2 Typography — 1.25 Major Third, base 16px.
-     xs 12.8 / sm 14 / base 16 / lg 20 (card titles) /
-     xl 25 (H3) / 2xl 31.25 (H2, KPI) / 3xl 39 (H1 app) /
-     4xl 48.8 (landing hero, clamp to 39 on mobile). */
+/* landing accent band */
+[data-surface="accent"] {
+  --background: #5b21b6;
+  --surface: #5b21b6;
+  --text: #ffffff;
+  --text-muted: #ddd6fe;
+  --border-strong: #a78bfa;
+  --primary: #ffffff;
+  --primary-foreground: #5b21b6;
+}
+[data-surface="light"] {
+  --background: #faf8f5;
+  --text: #1c1917;
+  --text-muted: #57534e;
+  --border-strong: #8a837d;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-star: var(--star);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-info: var(--info);
+  --color-motif: var(--motif);
+  --font-display: var(--font-display);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-mono);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --ease-out: var(--ease-out);
+  --ease-in-out: var(--ease-in-out);
+}
+
+/* Type scale: 1.25 (Major Third), base 16px */
+@theme {
   --text-xs: 0.8rem;
   --text-xs--line-height: 1.5;
   --text-sm: 0.875rem;
@@ -93,366 +124,55 @@
   --text-lg: 1.25rem;
   --text-lg--line-height: 1.45;
   --text-xl: 1.563rem;
-  --text-xl--line-height: 1.35;
+  --text-xl--line-height: 1.3;
   --text-2xl: 1.953rem;
-  --text-2xl--line-height: 1.25;
+  --text-2xl--line-height: 1.2;
   --text-3xl: 2.441rem;
   --text-3xl--line-height: 1.15;
   --text-4xl: 3.052rem;
   --text-4xl--line-height: 1.1;
-
-  --shadow-sm: 0 1px 2px rgb(28 25 23 / 0.06);
-  --shadow-md:
-    0 4px 6px -1px rgb(28 25 23 / 0.07), 0 2px 4px -2px rgb(28 25 23 / 0.05);
-
-  /* E1–E4 durations (transform/opacity only, §4–§5 perf budget) */
-  --duration-e1-in: 180ms;
-  --duration-e1-out: 120ms;
-  --duration-e2: 220ms;
-  --duration-qr-pop: 180ms;
-}
-
-/* Dark-mode tokens (DS §2 — verified ratios on canvas #14121A).
-   Surface #1E1B26, primary #A78BFA, secondary #2DD4BF, star #FBBF24. */
-[data-theme="dark"] {
-  --color-background: #14121a;
-  --color-foreground: #edeaf2;
-  --color-card: #1e1b26;
-  --color-card-foreground: #edeaf2;
-  --color-muted: #262130;
-  --color-muted-foreground: #a8a3b3;
-  --color-border: #2a2633;
-  --color-input: #6e6880;
-  --color-primary: #a78bfa;
-  --color-primary-hover: #c4b5fd;
-  --color-primary-foreground: #14121a;
-  --color-secondary: #2dd4bf;
-  --color-secondary-foreground: #14121a;
-  --color-popover: #1e1b26;
-  --color-popover-foreground: #edeaf2;
-  --color-destructive: #f87171;
-  --color-success: #4ade80;
-  --color-warning: #fbbf24;
-  --color-star: #fbbf24;
-  --color-star-text: #fbbf24;
-}
-
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ---- Flonion DS §4 motion blueprint (Tier 1 CSS only) ---- */
-/* E1 — state-change fade/slide: out 120ms ease-in, in 180ms ease-out */
-@keyframes e1-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-/* E2 — dialog/drawer/toast content rise */
-@keyframes e2-content-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-/* E3 — skeleton shimmer: pulse 1.2s ease-in-out infinite, layout-matched */
-@keyframes e3-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-/* E5a — QR tile pop 0.96→1.0, 180ms ease-out */
-@keyframes qr-pop {
-  from {
-    opacity: 0.6;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-/* Score-ring draw (SEO): stroke-dashoffset 600ms ease-out */
-@keyframes score-ring-draw {
-  from {
-    stroke-dashoffset: var(--score-ring-from, 200);
-  }
-  to {
-    stroke-dashoffset: var(--score-ring-to, 60);
-  }
 }
 
 @layer base {
-  * {
-    box-sizing: border-box;
-  }
-
   html {
-    font-family: var(--font-sans);
-    background: var(--color-background);
-    overscroll-behavior: none;
+    scroll-behavior: smooth;
   }
-
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
   body {
-    min-width: 320px;
-    margin: 0;
-    background: var(--color-background);
-    color: var(--color-foreground);
-    /* DS §2 Body/UI: Rubik. Set explicitly on body (not just html) so every
-       route inherits it even if a reset touches html. Matches font-sans. */
-    font-family: var(--font-sans);
-    font-size: 16px;
-    line-height: 1.6;
-  }
-
-  h1,
-  h2,
-  h3,
-  h4 {
-    font-family: var(--font-heading);
-    margin: 0;
-    line-height: 1.2;
-  }
-
-  h1 {
-    font-weight: 600;
-    /* DS §2: H1 app 3xl 39px; landing hero 4xl→3xl clamp on mobile. */
-    font-size: var(--text-3xl);
-    line-height: var(--text-3xl--line-height);
-    letter-spacing: -0.02em;
-  }
-
-  h2 {
-    font-weight: 600;
-    /* DS §2: H2 / KPI values 2xl 31.25px. */
-    font-size: var(--text-2xl);
-    line-height: var(--text-2xl--line-height);
-    letter-spacing: -0.01em;
-  }
-
-  h3 {
-    font-weight: 500;
-    /* DS §2: H3 / section titles xl 25px. Jost 500–600 for headings. */
-    font-size: var(--text-xl);
-    line-height: var(--text-xl--line-height);
-  }
-
-  h4 {
-    font-weight: 500;
-    /* DS §2: card titles lg 20px. */
-    font-size: var(--text-lg);
-    line-height: var(--text-lg--line-height);
-  }
-
-  button,
-  input,
-  textarea,
-  select {
-    font: inherit;
-  }
-
-  ::selection {
-    background: #ddd0f7;
-    color: #2e1065;
-  }
-
-  :focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 2px;
+    background-color: var(--background);
+    color: var(--text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
   }
 }
 
-@layer utilities {
-  /* Landing hero wash (DS §1 Soft layer): warm canvas with a faint violet
-     glow. Static — no animation on the LCP path (DS §5). */
-  .hero-gradient {
-    background:
-      radial-gradient(
-        circle at 18% 22%,
-        rgba(91, 33, 182, 0.1),
-        transparent 34%
-      ),
-      radial-gradient(
-        circle at 82% 14%,
-        rgba(15, 118, 110, 0.1),
-        transparent 32%
-      ),
-      linear-gradient(180deg, #faf8f5 0%, #f3efe9 100%);
-  }
-
-  /* Headline-only accent (never on body copy, KPI numbers, ratings, dates,
-     or error text — those stay solid). */
-  .accent-gradient {
-    background: linear-gradient(135deg, #5b21b6 0%, #0f766e 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-
-  /* Opaque surface card — landing uses solid #FFFFFF (no glass blur, so
-     first paint never depends on backdrop-filter). */
-  .glass-card {
-    border: 1px solid var(--color-border);
-    background: var(--color-card);
-  }
-
-  /* ---- Spec §2: tabular numerals for all data (ratings, counts, dates,
-     prices) — prevents column jitter ---- */
-  .tnum {
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* DS §2: landing hero 4xl 48.8px, clamped to 3xl 39px on mobile. */
-  .text-hero {
-    font-family: var(--font-heading);
-    font-size: clamp(var(--text-3xl), 5vw + 1rem, var(--text-4xl));
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-  }
-
-  /* ---- Spec §4 motion primitives (E1–E5) ---- */
-  /* E1: tab/filter/button crossfade in place (no layout animation on tables) */
-  .e1-enter {
-    animation: e1-in var(--duration-e1-in) ease-out both;
-  }
-  /* E2: dialog/drawer/toast content */
-  .e2-enter {
-    animation: e2-content-in var(--duration-e2) ease-out both;
-  }
-  /* E3: per-widget skeleton, shaped like final content */
-  .skeleton {
-    animation: e3-pulse 1.2s ease-in-out infinite;
-  }
-  /* E4: AI suggestion card stagger — delay set inline (i * 60ms) */
-  .e4-card-enter {
-    animation: e1-in 180ms ease-out both;
-  }
-  /* E5a: QR tile pop + countdown bar */
-  .qr-pop {
-    animation: qr-pop var(--duration-qr-pop) ease-out both;
-  }
-  .countdown-bar {
-    transition: width 1s linear;
-  }
-  /* SEO score ring draw */
-  .score-ring-animated {
-    animation: score-ring-draw 600ms ease-out both;
-  }
+/* Landing: one fade-and-rise per section, enabled by JS only when motion is allowed */
+.reveal-on [data-reveal=""] {
+  opacity: 0;
+  translate: 0 12px;
+}
+.reveal-on [data-reveal="in"] {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity var(--duration-slow) var(--ease-out),
+    translate var(--duration-slow) var(--ease-out);
 }
 
-/* Drawer transitions (E2: backdrop 200ms, content 300ms ease-out open) */
-[data-scope="drawer"][data-part="backdrop"][data-state="open"] {
-  animation: drawer-fade-in 200ms ease-out;
-}
-[data-scope="drawer"][data-part="backdrop"][data-state="closed"] {
-  animation: drawer-fade-out 150ms ease-in;
-}
-
-[data-scope="drawer"][data-part="content"][data-state="open"] {
-  animation: drawer-slide-in-left 300ms ease-out;
-}
-[data-scope="drawer"][data-part="content"][data-state="closed"] {
-  animation: drawer-slide-out-left 200ms ease-in;
-}
-
-/* E2: Ark UI dialog / popover / toast — backdrop opacity 200ms, content
-   opacity + translateY(8→0) 220ms; close 150–200ms ease-in. Toast 4s
-   auto-dismiss with pause-on-hover is handled in the Toast primitive. */
-[data-scope="dialog"][data-part="backdrop"][data-state="open"],
-[data-scope="popover"][data-part="content"][data-state="open"] {
-  animation: drawer-fade-in 200ms ease-out;
-}
-[data-scope="dialog"][data-part="backdrop"][data-state="closed"] {
-  animation: drawer-fade-out 150ms ease-in;
-}
-[data-scope="dialog"][data-part="content"][data-state="open"] {
-  animation: e2-content-in 220ms ease-out;
-}
-[data-scope="dialog"][data-part="content"][data-state="closed"] {
-  animation: drawer-fade-out 150ms ease-in;
-}
-[data-scope="toast"][data-part="root"][data-state="open"] {
-  animation: e2-content-in 220ms ease-out;
-}
-[data-scope="toast"][data-part="root"][data-state="closed"] {
-  animation: drawer-fade-out 150ms ease-in;
-}
-
-@keyframes drawer-fade-in {
-  from {
-    opacity: 0;
+/* Success checkmark: stroke draws in once (path needs pathLength="1") */
+@media (prefers-reduced-motion: no-preference) {
+  .check-draw {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: check-draw var(--duration-slow) var(--ease-out) 120ms forwards;
   }
+}
+@keyframes check-draw {
   to {
-    opacity: 1;
+    stroke-dashoffset: 0;
   }
 }
-@keyframes drawer-fade-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-@keyframes drawer-slide-in-left {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-@keyframes drawer-slide-out-left {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-100%);
-  }
-}
-
-/* biome-ignore-start lint/complexity/noImportantStyles: the reduced-motion override must beat component animation styles */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    scroll-behavior: auto !important;
-    transition-duration: 0.001ms !important;
-  }
-
-  .skeleton,
-  .qr-pop,
-  .e1-enter,
-  .e2-enter,
-  .e4-card-enter,
-  .score-ring-animated {
-    animation: none !important;
-  }
-
-  .countdown-bar {
-    transition: none !important;
-  }
-}
-/* biome-ignore-end lint/complexity/noImportantStyles: end reduced-motion override */

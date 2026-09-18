@@ -1,28 +1,13 @@
+import { Meta } from "@solidjs/meta";
 import type { RouteSectionProps } from "@solidjs/router";
-import { Suspense } from "solid-js";
-import LogoComponent from "~/assets/logomark";
-import { AppSidebar } from "~/components/layout/app-sidebar";
-import { MobileBottomNav } from "~/components/layout/mobile-navigation";
-import { AppToaster } from "~/components/ui";
+import { AppShell } from "~/components/app/AppShell";
 
+/** Signed-in app interior: sidebar on md+, bottom tabs on phones. */
 export default function AppLayout(props: RouteSectionProps) {
   return (
-    <div class="flex h-dvh overflow-hidden bg-background text-foreground">
-      <AppSidebar />
-
-      <div class="flex min-w-0 min-h-0 flex-1 flex-col">
-        <header class="flex items-center gap-3 border-b border-border bg-background px-4 py-4 sm:px-6 lg:hidden">
-          <LogoComponent class="h-8 w-auto" />
-        </header>
-
-        {/* Bottom padding reserves room for the tab bar below `md`. */}
-        <main class="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-20 md:pb-0">
-          <Suspense>{props.children}</Suspense>
-        </main>
-
-        <MobileBottomNav />
-      </div>
-      <AppToaster />
-    </div>
+    <>
+      <Meta name="robots" content="noindex" />
+      <AppShell>{props.children}</AppShell>
+    </>
   );
 }

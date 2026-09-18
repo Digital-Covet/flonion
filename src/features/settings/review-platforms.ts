@@ -1,65 +1,57 @@
-export interface ReviewPlatform {
-  slug: string;
-  label: string;
-  placeholder: string;
-  color: string;
-  isCustom?: boolean;
-}
-
-export const REVIEW_PLATFORMS: ReviewPlatform[] = [
+/**
+ * Review platforms a business can send customers to. Shared by the onboarding
+ * wizard, POST /api/business (link validation) and /api/reviews/track (which
+ * only counts redirects to a known slug).
+ */
+export const REVIEW_PLATFORMS = [
   {
     slug: "google",
     label: "Google",
-    placeholder: "https://search.google.com/local/writereview?placeid=...",
-    color: "#4285F4",
+    placeholder: "https://g.page/r/…/review",
+    help: "Open your Google Business Profile, choose “Ask for reviews”, and copy the link it gives you.",
   },
   {
     slug: "justdial",
     label: "JustDial",
-    placeholder: "https://www.justdial.com/...",
-    color: "#F57224",
-  },
-  {
-    slug: "yelp",
-    label: "Yelp",
-    placeholder: "https://www.yelp.com/writeareview/biz/...",
-    color: "#FF1A1A",
+    placeholder: "https://www.justdial.com/…",
+    help: "Search for your business on justdial.com, open your listing, and copy the address from the browser bar.",
   },
   {
     slug: "facebook",
     label: "Facebook",
-    placeholder: "https://www.facebook.com/.../reviews",
-    color: "#1877F2",
+    placeholder: "https://www.facebook.com/yourpage/reviews",
+    help: "Open your Facebook Page, go to the Reviews tab, and copy the page address.",
   },
   {
     slug: "tripadvisor",
-    label: "TripAdvisor",
-    placeholder: "https://www.tripadvisor.com/...",
-    color: "#34E0A1",
+    label: "Tripadvisor",
+    placeholder: "https://www.tripadvisor.in/…",
+    help: "Open your listing on Tripadvisor, choose “Write a review”, and copy the address of that page.",
   },
   {
-    slug: "other",
-    label: "Other",
-    placeholder: "https://...",
-    color: "#6B7280",
-    isCustom: true,
+    slug: "yelp",
+    label: "Yelp",
+    placeholder: "https://www.yelp.com/writeareview/biz/…",
+    help: "Open your business page on Yelp, choose “Write a review”, and copy the address of that page.",
   },
-];
+] as const;
 
-export function getPlatformBySlug(slug: string): ReviewPlatform | undefined {
-  return REVIEW_PLATFORMS.find((p) => p.slug === slug);
+export type ReviewPlatformSlug = (typeof REVIEW_PLATFORMS)[number]["slug"];
+
+export type ReviewLinksMap = Partial<Record<ReviewPlatformSlug, string>>;
+
+export function isReviewPlatformSlug(
+  value: string,
+): value is ReviewPlatformSlug {
+  return REVIEW_PLATFORMS.some((p) => p.slug === value);
 }
 
-export const CUSTOM_LABEL_KEY = "_customLabel";
-
+/** Display name for a slug; `custom` overrides the built-in labels. */
 export function getPlatformLabel(
   slug: string,
-  reviewLinks: ReviewLinksMap,
+  custom: Record<string, string>,
 ): string {
-  if (slug === "other" && reviewLinks[CUSTOM_LABEL_KEY]) {
-    return reviewLinks[CUSTOM_LABEL_KEY];
-  }
-  return getPlatformBySlug(slug)?.label ?? slug;
+  return (
+    custom[slug] ?? REVIEW_PLATFORMS.find((p) => p.slug === slug)?.label ?? slug
+  );
 }
-
-export type ReviewLinksMap = Record<string, string>;

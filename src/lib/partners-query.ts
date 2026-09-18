@@ -4,7 +4,14 @@ import {
   matchBusinessToCategory,
 } from "~/constants/categories";
 import { prisma } from "~/db/prisma";
-import type { SortKey } from "~/types/marketplace";
+import type {
+  Partner,
+  PartnersQuery,
+  PartnersResult,
+  SortKey,
+} from "~/types/marketplace";
+
+export type { Partner, PartnersQuery, PartnersResult, SortKey };
 
 /**
  * Marketplace partner search.
@@ -26,33 +33,6 @@ export const VALID_SORT_KEYS = new Set<SortKey>([
   "alpha-asc",
   "alpha-desc",
 ]);
-
-export interface Partner {
-  id: string;
-  initial: string;
-  name: string;
-  username: string | null;
-  logo: string | null;
-  rating: number;
-  reviewCount: number;
-  description: string;
-  category?: string;
-  location: string | null;
-  phone: string | null;
-  tags: string[];
-  isNew: boolean;
-  buttonType: "meeting" | "request";
-}
-
-export interface PartnersQuery {
-  categories: string[];
-  search: string;
-  minRating: number | null;
-  maxRating: number | null;
-  sort: SortKey;
-  page: number;
-  pageSize: number;
-}
 
 type BusinessRow = {
   id: string;
@@ -161,14 +141,6 @@ function sortToOrderBy(sort: SortKey): Record<string, unknown>[] {
         { id: "asc" },
       ];
   }
-}
-
-export interface PartnersResult {
-  partners: Partner[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-  categories: string[];
 }
 
 export async function getPartners(

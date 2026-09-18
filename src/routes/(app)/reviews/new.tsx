@@ -1,887 +1,853 @@
-import { Field } from "@ark-ui/solid/field";
-import { RatingGroup } from "@ark-ui/solid/rating-group";
-import { Tabs } from "@ark-ui/solid/tabs";
 import { Title } from "@solidjs/meta";
-import LoaderCircle from "lucide-solid/icons/loader-circle";
-import MessageSquare from "lucide-solid/icons/message-square";
-import Pencil from "lucide-solid/icons/pencil";
-import Printer from "lucide-solid/icons/printer";
-import QrCode from "lucide-solid/icons/qr-code";
-import Send from "lucide-solid/icons/send";
-import Sparkles from "lucide-solid/icons/sparkles";
-import Star from "lucide-solid/icons/star";
-import X from "lucide-solid/icons/x";
-import QRCode from "qrcode";
 import {
+  IconAlertTriangle,
+  IconCheck,
+  IconDownload,
+  IconPlus,
+  IconPrinter,
+  IconRefresh,
+  IconShare,
+  IconSparkles,
+} from "@tabler/icons-solidjs";
+import {
+  batch,
   createEffect,
-  createMemo,
   createSignal,
-  For,
+  Match,
+  on,
   onCleanup,
   onMount,
   Show,
+  Switch,
 } from "solid-js";
-import type { Rating, ReviewSuggestion } from "@/features/reviews/review-types";
-import { QRCodeDisplay } from "~/components/review/qr-code-display";
-import { CopyButton } from "~/components/ui/copy-button";
-import { notify } from "~/components/ui/toast";
-import { REVIEW_PLATFORMS } from "~/features/settings/review-platforms";
-import { useSettings } from "~/stores/settings-store";
+import { useApp } from "~/components/app/context";
+import { FieldError, inputBase, labelClass } from "~/components/auth/AuthShell";
+import { settled } from "~/components/dashboard/data";
+import { Skeleton } from "~/components/dashboard/ui";
+import { QrTicket } from "~/components/landing/brand";
+import { btnSecondary, Notice, Spinner } from "~/components/onboarding/ui";
+import {
+  ActionButton,
+  CooldownRing,
+  CopyButton,
+  downloadQrPng,
+  KEYWORDS_CHARS_MAX,
+  KeywordField,
+  NAME_MAX,
+  PhonePreview,
+  PROMPT_DEFAULT,
+  PROMPT_MAX,
+  printQrSheet,
+  qrLink,
+  readPrompt,
+  requestSuggestions,
+  reviewLink,
+  SuggestionCards,
+  SuggestionSkeletons,
+  saveRequest,
+  splitKeywords,
+  TEXT_MAX,
+  writePrompt,
+} from "~/components/reviews/composer";
+import { formatWait, Segmented } from "~/components/reviews/inbox";
+import { cn } from "~/lib/cn";
 
-const tones = ["Simple", "Professional", "Casual"] as const;
-const PLATFORMS_KEY = "flonion:review-platforms:v1";
-const RATE_LIMIT_COOLDOWN = 30;
-const SUCCESS_COOLDOWN = 5;
+type Field = "name" | "text" | "keywords";
 
-function loadPlatforms(): string[] {
-  try {
-    const raw = localStorage.getItem(PLATFORMS_KEY);
-    if (!raw) return ["google"];
-    const parsed = JSON.parse(raw) as string[];
-    const known = new Set(REVIEW_PLATFORMS.map((p) => p.slug));
-    const filtered = parsed.filter((s) => known.has(s));
-    return filtered.length > 0 ? filtered : ["google"];
-  } catch {
-    return ["google"];
-  }
-}
+type AiState = {
+  status: "idle" | "loading" | "error";
+  suggestions: string[];
+  error?: string;
+  retryAt?: number;
+  cooldownMs?: number;
+};
 
-function splitKeywords(raw: string): string[] {
-  return raw
-    .split(/[,;\n]+/)
-    .map((k) => k.trim())
-    .filter(Boolean)
-    .slice(0, 10);
-}
+const EMPTY_AI: AiState = { status: "idle", suggestions: [] };
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+/** Edits save to the request this long after the last keystroke. */
+const SAVE_DELAY_MS = 700;
+
+type RequestState =
+  | { kind: "creating" }
+  | { kind: "ready"; id: string }
+  | { kind: "failed"; message: string };
+
+type SaveState = "idle" | "pending" | "saving" | "saved" | "invalid" | "error";
 
 export default function ReviewComposerPage() {
-  const settings = useSettings();
+  const { business, refetchBusiness } = useApp();
+  const info = () => settled(business);
 
-  // DS §6: pre-selected rating — the owner suggests a rating, the customer
-  // can always change it before submitting.
-  const [rating, setRating] = createSignal<Rating>(5);
+  // ── Form
+  const [customerName, setCustomerName] = createSignal("");
   const [text, setText] = createSignal("");
-  const [keywordInput, setKeywordInput] = createSignal("");
   const [keywords, setKeywords] = createSignal<string[]>([]);
-  const [platforms, setPlatforms] = createSignal<string[]>(["google"]);
+  const [keywordsTouched, setKeywordsTouched] = createSignal(false);
+  const [errors, setErrors] = createSignal<Partial<Record<Field, string>>>({});
 
-  const [suggestions, setSuggestions] = createSignal<ReviewSuggestion[]>([]);
-  const [pickedId, setPickedId] = createSignal<string | null>(null);
-  const [aiLoading, setAiLoading] = createSignal(false);
-  const [aiError, setAiError] = createSignal("");
-  const [cooldownSecs, setCooldownSecs] = createSignal(0);
+  // Keywords are pre-filled from settings once, unless the owner already edited them.
+  createEffect(
+    on(info, (b) => {
+      if (b && !keywordsTouched()) {
+        setKeywords(splitKeywords(b.keywords ?? ""));
+        // The request was created before settings arrived; store them on it.
+        if (splitKeywords(b.keywords ?? "").length) scheduleSave();
+      }
+    }),
+  );
 
-  const [shareUrl, setShareUrl] = createSignal<string | null>(null);
-  const [creating, setCreating] = createSignal(false);
-  const [createError, setCreateError] = createSignal("");
-  const [scanCount, setScanCount] = createSignal<number | null>(null);
-  const [statusMessage, setStatusMessage] = createSignal("");
-  const [downloadingSvg, setDownloadingSvg] = createSignal(false);
+  function changeKeywords(next: string[]) {
+    setKeywordsTouched(true);
+    setKeywords(next);
+    setErrors((e) => ({ ...e, keywords: undefined }));
+    scheduleSave();
+  }
 
-  let previewHeadingRef: HTMLHeadingElement | undefined;
-  let cooldownTimer: ReturnType<typeof setInterval> | undefined;
+  // ── Mobile: form and QR/preview share one column behind a toggle
+  const [view, setView] = createSignal<"form" | "preview">("form");
 
-  onMount(() => {
-    setPlatforms(loadPlatforms());
-    setKeywords(splitKeywords(settings.keywords()));
-    refreshScanCount();
+  // ── The request: created as soon as the page loads, so the QR is ready at once
+  const [request, setRequest] = createSignal<RequestState>({
+    kind: "creating",
+  });
+  const [saveState, setSaveState] = createSignal<SaveState>("idle");
+  const requestId = () => {
+    const r = request();
+    return r.kind === "ready" ? r.id : undefined;
+  };
+
+  function validate() {
+    const next: Partial<Record<Field, string>> = {};
+    if (customerName().trim().length > NAME_MAX)
+      next.name = "Keep the name under 100 characters.";
+    if (text().length > TEXT_MAX)
+      next.text = "Keep the suggestion under 5,000 characters.";
+    if (keywords().join(", ").length > KEYWORDS_CHARS_MAX)
+      next.keywords = "Use fewer or shorter keywords.";
+    return next;
+  }
+
+  const hasErrors = (e: Partial<Record<Field, string>>) =>
+    Boolean(e.name || e.text || e.keywords);
+
+  const values = () => ({
+    customerName: customerName(),
+    text: text(),
+    keywords: keywords(),
   });
 
-  createEffect(() => {
-    try {
-      localStorage.setItem(PLATFORMS_KEY, JSON.stringify(platforms()));
-    } catch {
-      // Private mode — toggles simply won't persist.
-    }
-  });
-
-  onCleanup(() => clearInterval(cooldownTimer));
-
-  const startCooldown = (secs: number) => {
-    clearInterval(cooldownTimer);
-    setCooldownSecs(secs);
-    cooldownTimer = setInterval(() => {
-      setCooldownSecs((s) => {
-        if (s <= 1) {
-          clearInterval(cooldownTimer);
-          return 0;
-        }
-        return s - 1;
+  async function createNew() {
+    setRequest({ kind: "creating" });
+    setSaveState("idle");
+    const result = await saveRequest(values());
+    if (result.kind === "ok") {
+      setRequest({ kind: "ready", id: result.reviewId });
+      setSaveState("saved");
+      announce("Your review link and QR code are ready.");
+      // Anything typed while the request was being created is saved now.
+      if (dirty) void flush();
+    } else if (result.kind === "unauthorized") {
+      window.location.assign("/login?callbackURL=/reviews/new");
+    } else {
+      setRequest({
+        kind: "failed",
+        message:
+          result.kind === "invalid"
+            ? result.message
+            : "We couldn't create your review link.",
       });
-    }, 1000);
-  };
-
-  const refreshScanCount = async () => {
-    try {
-      const res = await fetch("/api/reviews/analytics");
-      if (!res.ok) return;
-      const data = await res.json();
-      if (typeof data.totalQrScans === "number")
-        setScanCount(data.totalQrScans);
-    } catch {
-      // Supplementary hint; the page works without it.
     }
-  };
+  }
 
-  const qrUrl = createMemo(() => {
-    const identifier = settings.username() || settings.businessId();
-    if (identifier && typeof window !== "undefined")
-      return `${window.location.origin}/qr/${identifier}`;
-    return shareUrl();
-  });
+  let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  let dirty = false;
+  let saving: Promise<void> | undefined;
+  onCleanup(() => clearTimeout(saveTimer));
 
-  const togglePlatform = (slug: string) => {
-    setPlatforms((prev) =>
-      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
-    );
-  };
+  function scheduleSave() {
+    dirty = true;
+    setSaveState("pending");
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => void flush(), SAVE_DELAY_MS);
+  }
 
-  const addKeyword = () => {
-    const value = keywordInput()
-      .trim()
-      .replace(/[,;]+$/, "");
-    if (!value || keywords().length >= 10) return;
-    if (keywords().some((k) => k.toLowerCase() === value.toLowerCase())) {
-      setKeywordInput("");
+  async function flush(): Promise<void> {
+    clearTimeout(saveTimer);
+    const id = requestId();
+    if (!id || !dirty) return;
+    if (saving) {
+      await saving;
+      return flush();
+    }
+
+    const invalid = validate();
+    setErrors(invalid);
+    if (hasErrors(invalid)) {
+      setSaveState("invalid");
       return;
     }
-    setKeywords((prev) => [...prev, value]);
-    setKeywordInput("");
-  };
 
-  const removeKeyword = (value: string) => {
-    setKeywords((prev) => prev.filter((k) => k !== value));
-  };
-
-  const fetchSuggestions = async () => {
-    if (aiLoading() || cooldownSecs() > 0) return;
-    setAiLoading(true);
-    setAiError("");
-
-    try {
-      const response = await fetch("/api/ai/suggest-review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          draftText: text().trim(),
-          starRating: rating(),
-          keywords: keywords().join(", "),
-          businessName: settings.businessName(),
-        }),
-      });
-
-      if (response.status === 429) {
-        const retryAfter = Number(response.headers.get("Retry-After"));
-        const secs =
-          Number.isFinite(retryAfter) && retryAfter > 0
-            ? retryAfter
-            : RATE_LIMIT_COOLDOWN;
-        startCooldown(secs);
-        setAiError(
-          `AI limit reached — your draft is preserved. Try again in ${secs}s.`,
-        );
-        notify("warning", "AI limit reached", "Your draft is preserved.");
-        return;
+    dirty = false;
+    setSaveState("saving");
+    saving = (async () => {
+      const result = await saveRequest({ id, ...values() });
+      if (result.kind === "ok") {
+        setSaveState(dirty ? "pending" : "saved");
+      } else if (result.kind === "unauthorized") {
+        window.location.assign("/login?callbackURL=/reviews/new");
+      } else if (result.kind === "invalid" && result.field) {
+        dirty = true;
+        setErrors({ [result.field]: result.message });
+        setSaveState("invalid");
+      } else {
+        dirty = true;
+        setSaveState("error");
       }
+    })();
+    await saving;
+    saving = undefined;
+  }
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => null);
-        throw new Error(err?.error || `Request failed (${response.status})`);
-      }
+  onMount(() => void createNew());
 
-      const data = await response.json();
-      const texts: string[] = data.suggestedReviews;
-      if (!Array.isArray(texts) || texts.length === 0)
-        throw new Error("No suggestions returned from AI service.");
+  async function createAnother() {
+    await flush();
+    batch(() => {
+      setCustomerName("");
+      setText("");
+      setErrors({});
+      setAi((s) => ({
+        ...EMPTY_AI,
+        retryAt: s.retryAt,
+        cooldownMs: s.cooldownMs,
+      }));
+    });
+    dirty = false;
+    await createNew();
+    document.getElementById("rn-name")?.focus();
+  }
 
-      setSuggestions(
-        texts.slice(0, 3).map((t, i) => ({
-          id: `ai-${Date.now()}-${i}`,
-          tone: tones[i] ?? "Professional",
-          text: t,
-          recommended: i === 0,
-        })),
-      );
-      setPickedId(null);
-      setStatusMessage("3 AI drafts ready — edit before posting.");
-      startCooldown(SUCCESS_COOLDOWN);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setAiError(`AI service unavailable: ${message} Your draft is preserved.`);
-      notify("error", "AI service unavailable", "Your draft is preserved.");
-    } finally {
-      setAiLoading(false);
-    }
-  };
+  // ── AI suggestions
+  const [ai, setAi] = createSignal<AiState>(EMPTY_AI);
+  const [now, setNow] = createSignal(Date.now());
+  const waitMs = () => Math.max(0, (ai().retryAt ?? 0) - now());
+  const coolingDown = () => waitMs() > 0;
 
-  const applySuggestion = (suggestion: ReviewSuggestion) => {
-    setText(suggestion.text);
-    setPickedId(suggestion.id);
-    setStatusMessage(`${suggestion.tone} AI draft applied — edit as needed.`);
-  };
-
-  const createShareLink = async () => {
-    if (creating()) return;
-    setCreating(true);
-    setCreateError("");
-    try {
-      const response = await fetch("/api/reviews/share", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: text().trim(),
-          rating: rating(),
-          keywords: keywords().join(", "),
-          platforms: platforms(),
-        }),
-      });
-      if (!response.ok) {
-        const err = await response.json().catch(() => null);
-        throw new Error(err?.error || "Failed to create share link");
-      }
-      const { url } = await response.json();
-      const fullUrl = `${window.location.origin}${url}`;
-      setShareUrl(fullUrl);
-      setStatusMessage("Share link and QR ready.");
-      notify("success", "Link ready", "Share link copied to clipboard.");
-      try {
-        await navigator.clipboard.writeText(qrUrl() ?? fullUrl);
-      } catch {
-        // Clipboard unavailable — the Copy button remains.
-      }
-      refreshScanCount();
-      previewHeadingRef?.focus();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setCreateError(`Could not generate share link: ${message}`);
-      setStatusMessage("Could not generate share link.");
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const whatsappHref = createMemo(() => {
-    const url = qrUrl();
-    if (!url) return undefined;
-    const message = `Hi! We'd love your feedback on ${settings.businessName() || "our business"}. Tap to leave a review:`;
-    return `https://wa.me/?text=${encodeURIComponent(`${message} ${url}`)}`;
+  createEffect(() => {
+    const until = ai().retryAt;
+    if (!until || until <= Date.now()) return;
+    setNow(Date.now());
+    const timer = setInterval(() => {
+      setNow(Date.now());
+      if (Date.now() >= until) clearInterval(timer);
+    }, 1000);
+    onCleanup(() => clearInterval(timer));
   });
 
-  const downloadSvg = async () => {
-    const url = qrUrl();
-    if (!url || downloadingSvg()) return;
-    setDownloadingSvg(true);
-    try {
-      const svg = await QRCode.toString(url, {
-        type: "svg",
-        margin: 2,
-        errorCorrectionLevel: "H",
-        color: { dark: "#1a1a2e", light: "#ffffff" },
-      });
-      const blob = new Blob([svg], { type: "image/svg+xml" });
-      const objectUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = objectUrl;
-      a.download = `qr-code-${settings.businessName() || "review"}.svg`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(objectUrl);
-      notify("success", "QR downloaded", "SVG saved for print.");
-    } catch {
-      notify("error", "Download failed", "Could not generate the SVG file.");
-    } finally {
-      setDownloadingSvg(false);
+  async function suggest() {
+    if (ai().status === "loading" || coolingDown()) return;
+    setAi((s) => ({ ...s, status: "loading", error: undefined }));
+    announce("Writing suggestions…");
+    const result = await requestSuggestions({
+      text: text(),
+      keywords: keywords(),
+      businessName: info()?.businessName,
+    });
+    if (result.kind === "ok") {
+      setAi({ status: "idle", suggestions: result.suggestions });
+      announce(
+        `${result.suggestions.length} AI suggestions ready. Pick one to use or edit.`,
+      );
+    } else if (result.kind === "rate-limited") {
+      setAi((s) => ({
+        ...s,
+        status: "idle",
+        retryAt: result.retryAt,
+        cooldownMs: result.retryAt - Date.now(),
+      }));
+      announce("Suggestion limit reached. Try again later.");
+    } else {
+      setAi((s) => ({ ...s, status: "error", error: result.message }));
     }
-  };
+  }
 
-  const printTableStand = async () => {
-    const url = qrUrl();
-    if (!url) return;
-    try {
-      const dataUrl = await QRCode.toDataURL(url, {
-        width: 700,
-        margin: 2,
-        errorCorrectionLevel: "H",
-        color: { dark: "#1a1a2e", light: "#ffffff" },
-      });
-      const win = window.open("", "_blank", "width=600,height=800");
-      if (!win) {
-        notify("error", "Pop-up blocked", "Allow pop-ups to print the stand.");
-        return;
-      }
-      // The window inherits this app's origin, so interpolated values must be
-      // escaped or a business name could run script here.
-      const name = escapeHtml(settings.businessName() ?? "");
-      const safeUrl = escapeHtml(url);
-      win.document.write(`<!doctype html><html><head><title>Table stand — ${name}</title>
-        <style>@page{size:A6 portrait;margin:10mm}body{font-family:system-ui,sans-serif;text-align:center;color:#1a1a2e;margin:0;padding:8mm}img{width:70mm;height:70mm}h1{font-size:16pt;margin:6mm 0 2mm}p{font-size:10pt;color:#57534e;margin:0 0 4mm}.url{font-family:monospace;font-size:7pt;word-break:break-all}</style>
-        </head><body><h1>${name || "Leave us a review"}</h1>
-        <p>Scan to leave a review</p><img src="${dataUrl}" alt="QR code linking to ${safeUrl}" />
-        <p class="url">${safeUrl}</p><script>onload=()=>{print()}</script></body></html>`);
-      win.document.close();
-    } catch {
-      notify("error", "Print failed", "Could not prepare the table stand.");
+  let textarea: HTMLTextAreaElement | undefined;
+
+  function applySuggestion(value: string, edit: boolean) {
+    setText(value);
+    setErrors((e) => ({ ...e, text: undefined }));
+    scheduleSave();
+    announce(
+      edit
+        ? "Suggestion added to the text box for editing."
+        : "Suggestion added.",
+    );
+    if (edit && textarea) {
+      textarea.focus();
+      textarea.setSelectionRange(value.length, value.length);
     }
-  };
+  }
 
-  const formCard = (
-    <section
-      aria-labelledby="composer-heading"
-      class="rounded-card border border-border bg-card p-5 shadow-md sm:p-6"
-    >
-      <div class="flex items-center gap-3">
-        <Show when={settings.logo()}>
-          <img
-            src={settings.logo()!}
-            alt=""
-            class="size-10 shrink-0 rounded-control object-contain"
-          />
-        </Show>
-        <div class="min-w-0">
-          <h2
-            id="composer-heading"
-            class="font-heading text-xl font-semibold text-foreground"
-          >
-            Review request
-          </h2>
-          <p class="truncate text-sm text-muted-foreground">
-            {settings.businessName() || "Your business"}
-          </p>
-        </div>
-      </div>
+  // Auto-grow the suggestion box.
+  createEffect(() => {
+    text();
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight + 2}px`;
+  });
 
-      {/* Rating — pre-selected per spec, customer can change it later. */}
-      <fieldset class="mt-6">
-        <legend class="sr-only">Suggested rating</legend>
-        <RatingGroup.Root
-          value={rating()}
-          onValueChange={(details) => setRating(details.value as Rating)}
-          count={5}
-        >
-          <div class="flex items-center justify-between gap-3">
-            <RatingGroup.Label class="text-sm font-medium text-foreground">
-              Suggested rating
-            </RatingGroup.Label>
-            <span
-              class="tnum text-sm font-medium text-star-text"
-              aria-live="polite"
-            >
-              {rating()}.0
-            </span>
-          </div>
-          <RatingGroup.Control class="mt-2 flex items-center gap-1">
-            <RatingGroup.Context>
-              {(api) => (
-                <For each={api().items}>
-                  {(item) => (
-                    <RatingGroup.Item
-                      index={item}
-                      aria-label={`${item} star${item === 1 ? "" : "s"}`}
-                      class="inline-flex size-11 items-center justify-center rounded-control transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                    >
-                      <RatingGroup.ItemContext>
-                        {(itemState) => (
-                          <Star
-                            class="size-7 text-star"
-                            fill={
-                              itemState().highlighted ? "currentColor" : "none"
-                            }
-                            aria-hidden="true"
-                          />
-                        )}
-                      </RatingGroup.ItemContext>
-                    </RatingGroup.Item>
-                  )}
-                </For>
-              )}
-            </RatingGroup.Context>
-            <RatingGroup.HiddenInput />
-          </RatingGroup.Control>
-        </RatingGroup.Root>
-        <p class="mt-1.5 text-xs text-muted-foreground italic">
-          Your customer can change this before submitting.
-        </p>
-      </fieldset>
+  // ── Live region
+  const [message, setMessage] = createSignal("");
+  function announce(value: string) {
+    setMessage("");
+    queueMicrotask(() => setMessage(value));
+  }
 
-      {/* Optional starter text */}
-      <Field.Root class="mt-5">
-        <Field.Label class="text-sm font-medium text-foreground">
-          Starter message{" "}
-          <span class="font-normal text-muted-foreground">(optional)</span>
-        </Field.Label>
-        <Field.Textarea
-          id="starter-text"
-          value={text()}
-          onInput={(e) => setText((e.target as HTMLTextAreaElement).value)}
-          placeholder={`Hi! We'd love to hear about your experience with ${settings.businessName() || "us"}...`}
-          rows={4}
-          class="mt-2 w-full resize-y rounded-control border border-input bg-background px-3 py-3 text-base leading-6 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-        />
-        <Field.HelperText class="mt-1.5 text-xs text-muted-foreground">
-          Personalise it, or leave it blank and let AI draft from your keywords.
-        </Field.HelperText>
-      </Field.Root>
-
-      {/* Keywords as chips */}
-      <div class="mt-5">
-        <label for="keywords-input" class="text-sm font-medium text-foreground">
-          Keywords{" "}
-          <span class="font-normal text-muted-foreground">(optional)</span>
-        </label>
-        <div class="mt-2 flex gap-2">
-          <input
-            id="keywords-input"
-            type="text"
-            value={keywordInput()}
-            onInput={(e) =>
-              setKeywordInput((e.target as HTMLInputElement).value)
-            }
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addKeyword();
-              }
-            }}
-            placeholder="e.g. thali, family restaurant"
-            disabled={keywords().length >= 10}
-            class="h-11 min-w-0 flex-1 rounded-control border border-input bg-background px-3 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
-          />
-          <button
-            type="button"
-            onClick={addKeyword}
-            disabled={!keywordInput().trim() || keywords().length >= 10}
-            class="inline-flex h-11 shrink-0 items-center rounded-control border border-border bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Add
-          </button>
-        </div>
-        <Show when={keywords().length > 0}>
-          <ul class="mt-2 flex flex-wrap gap-2" aria-label="Keywords">
-            <For each={keywords()}>
-              {(keyword) => (
-                <li class="inline-flex h-9 items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 py-1 pl-3 pr-1.5 text-sm font-medium text-primary">
-                  {keyword}
-                  <button
-                    type="button"
-                    onClick={() => removeKeyword(keyword)}
-                    aria-label={`Remove keyword ${keyword}`}
-                    class="inline-flex size-7 items-center justify-center rounded-full transition-colors hover:bg-primary/15"
-                  >
-                    <X class="size-3.5" aria-hidden="true" />
-                  </button>
-                </li>
-              )}
-            </For>
-          </ul>
-        </Show>
-      </div>
-
-      {/* Platforms */}
-      <fieldset class="mt-5">
-        <legend class="text-sm font-medium text-foreground">
-          Review platforms
-        </legend>
-        <p class="mt-0.5 text-xs text-muted-foreground">
-          Customers are redirected here after submitting.
-        </p>
-        <div class="mt-2 flex flex-wrap gap-2">
-          <For each={REVIEW_PLATFORMS.filter((p) => p.slug !== "other")}>
-            {(platform) => (
-              <button
-                type="button"
-                aria-pressed={platforms().includes(platform.slug)}
-                onClick={() => togglePlatform(platform.slug)}
-                class="inline-flex min-h-11 items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                classList={{
-                  "border-primary bg-primary/10 text-primary":
-                    platforms().includes(platform.slug),
-                  "border-border bg-background text-muted-foreground hover:bg-muted":
-                    !platforms().includes(platform.slug),
-                }}
-              >
-                <span
-                  class="size-2 rounded-full"
-                  style={{ background: platform.color }}
-                  aria-hidden="true"
-                />
-                {platform.label}
-              </button>
-            )}
-          </For>
-        </div>
-      </fieldset>
-
-      {/* Actions */}
-      <div class="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row">
-        <button
-          type="button"
-          onClick={fetchSuggestions}
-          disabled={aiLoading() || cooldownSecs() > 0}
-          class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-control border border-border bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Show
-            when={!aiLoading()}
-            fallback={
-              <LoaderCircle class="size-4 animate-spin" aria-hidden="true" />
-            }
-          >
-            <Sparkles class="size-4" aria-hidden="true" />
-          </Show>
-          {aiLoading()
-            ? "Writing drafts…"
-            : cooldownSecs() > 0
-              ? `Try again in ${cooldownSecs()}s`
-              : text().trim()
-                ? "Improve with AI"
-                : "Draft with AI"}
-        </button>
-        <button
-          type="button"
-          onClick={createShareLink}
-          disabled={creating()}
-          class="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-control bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Show
-            when={!creating()}
-            fallback={
-              <LoaderCircle class="size-4 animate-spin" aria-hidden="true" />
-            }
-          >
-            <QrCode class="size-4" aria-hidden="true" />
-          </Show>
-          {creating()
-            ? "Creating…"
-            : shareUrl()
-              ? "Recreate link & QR"
-              : "Create link & QR"}
-        </button>
-      </div>
-      <Show when={createError()}>
-        <p role="alert" class="mt-3 text-sm text-destructive">
-          {createError()}
-        </p>
-      </Show>
-
-      {/* AI Draft Reveal — DS §4 */}
-      <section
-        aria-labelledby="ai-drafts-heading"
-        aria-busy={aiLoading()}
-        class="mt-6"
-      >
-        <h3
-          id="ai-drafts-heading"
-          class="flex flex-wrap items-center gap-2 text-base font-medium text-foreground"
-        >
-          <Sparkles size={18} aria-hidden="true" class="text-primary" />
-          AI drafts
-          <span class="rounded-full bg-warning-muted px-2 py-0.5 text-xs font-medium text-warning">
-            AI draft · edit before posting
-          </span>
-        </h3>
-
-        <Show
-          when={!aiLoading()}
-          fallback={
-            <div class="mt-3 grid gap-3" role="status">
-              <span class="sr-only">Writing drafts…</span>
-              <For each={[0, 1, 2]}>
-                {() => (
-                  <div class="skeleton h-24 rounded-card border border-border bg-muted" />
-                )}
-              </For>
-            </div>
-          }
-        >
-          <Show
-            when={suggestions().length > 0}
-            fallback={
-              <Show when={!aiError()}>
-                <p class="mt-3 rounded-card border border-dashed border-border bg-muted/40 px-4 py-5 text-center text-sm text-muted-foreground">
-                  Add a starter message or keywords, then choose{" "}
-                  <span class="font-medium text-foreground">
-                    {text().trim() ? "Improve with AI" : "Draft with AI"}
-                  </span>{" "}
-                  to generate three editable drafts.
-                </p>
-              </Show>
-            }
-          >
-            <ul class="mt-3 grid gap-3" aria-live="polite">
-              <For each={suggestions()}>
-                {(suggestion, i) => (
-                  <li
-                    class="e4-card-enter"
-                    style={{ "animation-delay": `${i() * 60}ms` }}
-                  >
-                    <div
-                      class="rounded-card border bg-card p-4 transition-colors"
-                      classList={{
-                        "border-primary": pickedId() === suggestion.id,
-                        "border-border hover:border-primary/60":
-                          pickedId() !== suggestion.id,
-                      }}
-                      style={
-                        pickedId() !== null && pickedId() !== suggestion.id
-                          ? { opacity: "0.6" }
-                          : {}
-                      }
-                    >
-                      <div class="flex items-center gap-2">
-                        <MessageSquare
-                          class="size-3.5 text-secondary"
-                          aria-hidden="true"
-                        />
-                        <span class="text-xs font-medium uppercase tracking-wider text-secondary">
-                          {suggestion.tone}
-                        </span>
-                        <Show when={suggestion.recommended}>
-                          <span class="inline-flex items-center gap-1 rounded-full bg-success-muted px-2 py-0.5 text-xs font-medium text-success">
-                            <Star
-                              class="size-3"
-                              aria-hidden="true"
-                              fill="currentColor"
-                            />
-                            Recommended
-                          </span>
-                        </Show>
-                      </div>
-                      <p class="mt-2 text-sm leading-6 text-foreground">
-                        {suggestion.text}
-                      </p>
-                      <button
-                        type="button"
-                        aria-pressed={pickedId() === suggestion.id}
-                        onClick={() => applySuggestion(suggestion)}
-                        class="mt-3 inline-flex h-11 items-center gap-1.5 rounded-control bg-primary/10 px-3 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
-                      >
-                        <Pencil class="size-3.5" aria-hidden="true" />
-                        {pickedId() === suggestion.id
-                          ? "Applied — edit above"
-                          : "Use this version"}
-                      </button>
-                    </div>
-                  </li>
-                )}
-              </For>
-            </ul>
-          </Show>
-        </Show>
-        <Show when={aiError()}>
-          <p role="alert" class="mt-3 text-sm text-destructive">
-            {aiError()}
-          </p>
-        </Show>
-      </section>
-    </section>
-  );
-
-  const previewCard = (
-    <section aria-labelledby="preview-heading" class="lg:sticky lg:top-6">
-      <h2
-        id="preview-heading"
-        ref={previewHeadingRef}
-        tabIndex={-1}
-        class="font-heading text-lg font-semibold text-foreground focus:outline-none"
-      >
-        Live preview
-      </h2>
-      <div class="mt-3">
-        <Show
-          when={shareUrl()}
-          fallback={
-            <div class="grid gap-3 rounded-card border border-dashed border-border bg-card p-6 text-center">
-              <QrCode
-                class="mx-auto size-10 text-muted-foreground/40"
-                aria-hidden="true"
-              />
-              <div>
-                <p class="font-heading text-lg font-medium text-foreground">
-                  No link yet
-                </p>
-                <ol class="mx-auto mt-2 max-w-55 space-y-1 text-left text-sm text-muted-foreground">
-                  <li>1. Pick a rating and platforms</li>
-                  <li>2. Press “Create link &amp; QR”</li>
-                  <li>3. Print the QR for your counter</li>
-                </ol>
-              </div>
-              <button
-                type="button"
-                onClick={createShareLink}
-                disabled={creating()}
-                class="inline-flex h-11 items-center justify-center gap-2 rounded-control bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
-              >
-                <Show
-                  when={!creating()}
-                  fallback={
-                    <LoaderCircle
-                      class="size-4 animate-spin"
-                      aria-hidden="true"
-                    />
-                  }
-                >
-                  <QrCode class="size-4" aria-hidden="true" />
-                </Show>
-                {creating() ? "Creating…" : "Generate share link"}
-              </button>
-            </div>
-          }
-        >
-          <div class="e2-enter grid gap-3">
-            <QRCodeDisplay
-              url={shareUrl()}
-              logo={settings.logo()}
-              businessName={settings.businessName()}
-              businessUsername={settings.username()}
-              businessId={settings.businessId()}
-            />
-            <div class="rounded-card border border-border bg-card p-4 shadow-sm">
-              <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Canonical URL
-              </p>
-              <p class="tnum mt-1 truncate font-mono text-xs text-foreground">
-                {qrUrl()}
-              </p>
-              <div class="mt-3 grid gap-2">
-                <CopyButton value={() => qrUrl() ?? ""} class="w-full" />
-                <Show when={whatsappHref()}>
-                  <a
-                    href={whatsappHref()}
-                    target="_blank"
-                    rel="noreferrer"
-                    class="inline-flex h-11 items-center justify-center gap-2 rounded-control bg-success-muted px-4 text-sm font-medium text-success transition-opacity hover:opacity-90"
-                  >
-                    <Send class="size-4" aria-hidden="true" />
-                    Share to WhatsApp
-                  </a>
-                </Show>
-                <div class="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={downloadSvg}
-                    disabled={downloadingSvg()}
-                    class="inline-flex h-11 items-center justify-center gap-1.5 rounded-control border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
-                  >
-                    <Show
-                      when={!downloadingSvg()}
-                      fallback={
-                        <LoaderCircle
-                          class="size-4 animate-spin"
-                          aria-hidden="true"
-                        />
-                      }
-                    >
-                      <Pencil class="size-4" aria-hidden="true" />
-                    </Show>
-                    SVG
-                  </button>
-                  <button
-                    type="button"
-                    onClick={printTableStand}
-                    class="inline-flex h-11 items-center justify-center gap-1.5 rounded-control border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-                  >
-                    <Printer class="size-4" aria-hidden="true" />
-                    A6 stand
-                  </button>
-                </div>
-              </div>
-              <Show when={scanCount() !== null}>
-                <p class="tnum mt-3 text-xs text-muted-foreground">
-                  {scanCount()} QR {scanCount() === 1 ? "scan" : "scans"} so far
-                </p>
-              </Show>
-            </div>
-          </div>
-        </Show>
-      </div>
-    </section>
-  );
+  // ── QR ticket prompt: kept across "Create another" and remembered per browser
+  const [prompt, setPrompt] = createSignal(PROMPT_DEFAULT);
+  onMount(() => setPrompt(readPrompt()));
+  function changePrompt(value: string) {
+    setPrompt(value);
+    writePrompt(value);
+  }
 
   return (
-    <div class="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
-      <Title>Ask for a Review — Flonion</Title>
-      <nav aria-label="Breadcrumb" class="mb-2 text-sm text-muted-foreground">
-        <ol class="flex items-center gap-1.5">
-          <li>
-            <a
-              href="/reviews/inbox"
-              class="transition-colors hover:text-foreground"
-            >
-              Reviews
-            </a>
-          </li>
-          <li aria-hidden="true">/</li>
-          <li aria-current="page" class="font-medium text-foreground">
-            Ask for a Review
-          </li>
-        </ol>
-      </nav>
+    <>
+      <Title>New review request · Flonion</Title>
 
-      <div class="mb-6 max-w-2xl">
-        <h1 class="font-heading text-3xl font-semibold text-foreground">
-          Ask for a Review
-        </h1>
-        <p class="mt-1 text-sm text-muted-foreground">
-          Create a shareable link and QR code in under a minute — print it,
-          stick it on the counter, done.
+      <p aria-live="polite" class="sr-only">
+        {message()}
+      </p>
+
+      <div class="flex flex-col gap-5">
+        <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div class="min-w-0">
+            <h1 class="font-display text-xl font-semibold text-text md:text-2xl">
+              New review request
+            </h1>
+            <p class="mt-1 max-w-[60ch] text-base text-text-muted">
+              Your link and QR code are ready to share. Add details below and
+              they save automatically.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void createAnother()}
+            disabled={request().kind === "creating"}
+            class={cn(
+              btnSecondary,
+              "shrink-0 self-start sm:self-auto disabled:cursor-progress disabled:opacity-70",
+            )}
+          >
+            <IconPlus aria-hidden="true" class="size-5" />
+            Create another
+          </button>
+        </header>
+
+        <Show when={business.state === "errored"}>
+          <Notice tone="error">
+            We couldn't load your business details. Your link still works.{" "}
+            <button
+              type="button"
+              onClick={() => refetchBusiness()}
+              class="font-medium underline underline-offset-4"
+            >
+              Try again
+            </button>
+          </Notice>
+        </Show>
+
+        <Segmented
+          legend="Show"
+          name="composer-view"
+          options={[
+            { value: "form", label: "Details" },
+            { value: "preview", label: "QR & preview" },
+          ]}
+          value={view()}
+          onChange={setView}
+          class="lg:hidden"
+        />
+
+        <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+          <form
+            novalidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              void flush();
+            }}
+            aria-label="Review request details"
+            class={cn(
+              "rounded-lg border border-border bg-surface p-4 md:p-6 lg:col-span-7",
+              view() === "preview" && "max-lg:hidden",
+            )}
+          >
+            <div class="flex flex-col gap-5">
+              {/* Customer name */}
+              <div class="flex flex-col gap-1.5">
+                <label for="rn-name" class={labelClass}>
+                  Customer name{" "}
+                  <span class="font-normal text-text-muted">(optional)</span>
+                </label>
+                <input
+                  id="rn-name"
+                  type="text"
+                  autocomplete="off"
+                  maxLength={NAME_MAX}
+                  placeholder="Priya Sharma"
+                  value={customerName()}
+                  onInput={(e) => {
+                    setCustomerName(e.currentTarget.value);
+                    setErrors((x) => ({ ...x, name: undefined }));
+                    scheduleSave();
+                  }}
+                  aria-invalid={errors().name ? "true" : undefined}
+                  aria-describedby={cn(
+                    "rn-name-hint",
+                    errors().name && "rn-name-error",
+                  )}
+                  class={inputBase}
+                />
+                <p id="rn-name-hint" class="text-sm text-text-muted">
+                  Used to greet them on the review page. Leave it empty for a
+                  counter QR everyone can scan.
+                </p>
+                <FieldError id="rn-name-error" message={errors().name} />
+              </div>
+
+              <KeywordField
+                id="rn-keywords"
+                keywords={keywords()}
+                onChange={changeKeywords}
+                error={errors().keywords}
+              />
+
+              {/* Suggested text */}
+              <div class="flex flex-col gap-1.5">
+                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                  <label for="rn-text" class={labelClass}>
+                    Suggested text{" "}
+                    <span class="font-normal text-text-muted">(optional)</span>
+                  </label>
+                  <span
+                    class={cn(
+                      "font-mono text-xs tabular-nums",
+                      text().length > TEXT_MAX
+                        ? "text-error"
+                        : "text-text-muted",
+                    )}
+                  >
+                    {text().length.toLocaleString()} /{" "}
+                    {TEXT_MAX.toLocaleString()}
+                  </span>
+                </div>
+                <textarea
+                  ref={textarea}
+                  id="rn-text"
+                  rows={4}
+                  value={text()}
+                  onInput={(e) => {
+                    setText(e.currentTarget.value);
+                    setErrors((x) => ({ ...x, text: undefined }));
+                    scheduleSave();
+                  }}
+                  placeholder="A few words about what makes a visit here good. Customers can change all of it."
+                  aria-invalid={errors().text ? "true" : undefined}
+                  aria-describedby={cn(
+                    "rn-text-hint",
+                    errors().text && "rn-text-error",
+                  )}
+                  class={cn(
+                    inputBase,
+                    "max-h-[50dvh] min-h-[112px] resize-none py-2.5",
+                  )}
+                />
+                <p id="rn-text-hint" class="text-sm text-text-muted">
+                  Suggestion shown to customer as a starting point. They can
+                  edit or delete it before posting.
+                </p>
+                <FieldError id="rn-text-error" message={errors().text} />
+              </div>
+
+              {/* AI suggestions */}
+              <section
+                aria-labelledby="rn-ai-heading"
+                class="flex flex-col gap-3 rounded-lg bg-primary-soft/50 p-4"
+              >
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div class="min-w-0">
+                    <h2
+                      id="rn-ai-heading"
+                      class="font-display text-base font-semibold text-text"
+                    >
+                      Need a starting point?
+                    </h2>
+                    <p class="text-sm text-text-muted">
+                      AI writes three versions from your text and keywords.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={suggest}
+                    disabled={ai().status === "loading" || coolingDown()}
+                    class={cn(
+                      btnSecondary,
+                      "w-full bg-surface sm:w-auto disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-surface",
+                    )}
+                  >
+                    <Switch
+                      fallback={
+                        <IconSparkles
+                          aria-hidden="true"
+                          class="size-5 text-primary"
+                        />
+                      }
+                    >
+                      <Match when={ai().status === "loading"}>
+                        <Spinner />
+                      </Match>
+                      <Match when={coolingDown()}>
+                        <CooldownRing
+                          waitMs={waitMs()}
+                          totalMs={ai().cooldownMs ?? 0}
+                        />
+                      </Match>
+                    </Switch>
+                    <Switch
+                      fallback={
+                        ai().suggestions.length
+                          ? "Suggest again"
+                          : "Suggest with AI"
+                      }
+                    >
+                      <Match when={ai().status === "loading"}>Writing…</Match>
+                      <Match when={coolingDown()}>
+                        <span>
+                          Try again in{" "}
+                          <span class="font-mono tabular-nums">
+                            {formatWait(waitMs())}
+                          </span>
+                        </span>
+                      </Match>
+                    </Switch>
+                  </button>
+                </div>
+
+                <Show when={ai().status === "error" && ai().error}>
+                  {(msg) => (
+                    <Notice tone="error">
+                      {msg()} Your text is unchanged.
+                    </Notice>
+                  )}
+                </Show>
+
+                <Switch>
+                  <Match when={ai().status === "loading"}>
+                    <SuggestionSkeletons />
+                  </Match>
+                  <Match when={ai().suggestions.length > 0}>
+                    <Show when={ai().suggestions} keyed>
+                      {(list) => (
+                        <SuggestionCards
+                          suggestions={list}
+                          onUse={(v) => applySuggestion(v, false)}
+                          onEdit={(v) => applySuggestion(v, true)}
+                        />
+                      )}
+                    </Show>
+                  </Match>
+                </Switch>
+              </section>
+
+              <Notice tone="info">
+                Customers always choose their own star rating, and every rating
+                sees the same places to post.
+              </Notice>
+            </div>
+
+            <div class="mt-6 flex min-h-11 items-center border-t border-border pt-4">
+              <SaveStatus state={saveState()} onRetry={() => void flush()} />
+            </div>
+          </form>
+
+          <aside
+            aria-labelledby="rn-preview-heading"
+            class={cn(
+              "flex flex-col gap-4 lg:sticky lg:top-24 lg:col-span-5",
+              view() === "form" && "max-lg:hidden",
+            )}
+          >
+            <div class="flex items-baseline justify-between gap-2">
+              <h2
+                id="rn-preview-heading"
+                class="font-display text-base font-semibold text-text"
+              >
+                What your customer sees
+              </h2>
+              <span class="text-xs text-text-muted">Live preview</span>
+            </div>
+
+            <Switch>
+              <Match when={request().kind === "creating"}>
+                <ShareSkeleton />
+              </Match>
+              <Match
+                when={(() => {
+                  const r = request();
+                  return r.kind === "failed" ? r : undefined;
+                })()}
+              >
+                {(failed) => (
+                  <Notice tone="error">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <span>{failed().message}</span>
+                      <button
+                        type="button"
+                        onClick={() => void createNew()}
+                        class={cn(btnSecondary, "min-h-9 px-3 text-sm")}
+                      >
+                        <IconRefresh aria-hidden="true" class="size-4" />
+                        Try again
+                      </button>
+                    </div>
+                  </Notice>
+                )}
+              </Match>
+              <Match when={requestId()} keyed>
+                {(id) => (
+                  <RequestShare
+                    id={id}
+                    businessName={info()?.businessName || "Your business"}
+                    prompt={prompt()}
+                    onPrompt={changePrompt}
+                    announce={announce}
+                  />
+                )}
+              </Match>
+            </Switch>
+
+            <PhonePreview
+              business={info()}
+              customerName={customerName()}
+              text={text()}
+            />
+          </aside>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function SaveStatus(props: { state: SaveState; onRetry: () => void }) {
+  return (
+    <p role="status" class="flex items-center gap-2 text-sm text-text-muted">
+      <Switch>
+        <Match when={props.state === "pending" || props.state === "saving"}>
+          <Spinner class="size-4" />
+          Saving…
+        </Match>
+        <Match when={props.state === "saved"}>
+          <IconCheck aria-hidden="true" class="size-4 text-success" />
+          All changes saved to this link
+        </Match>
+        <Match when={props.state === "invalid"}>
+          <IconAlertTriangle aria-hidden="true" class="size-4 text-warning" />
+          Fix the highlighted field to save
+        </Match>
+        <Match when={props.state === "error"}>
+          <IconAlertTriangle aria-hidden="true" class="size-4 text-error" />
+          <span class="text-text">Couldn't save your changes.</span>
+          <button
+            type="button"
+            onClick={() => props.onRetry()}
+            class="min-h-11 font-medium text-primary underline underline-offset-4"
+          >
+            Retry
+          </button>
+        </Match>
+      </Switch>
+    </p>
+  );
+}
+
+/** Same footprint as the ready ticket, so the preview doesn't jump. */
+function ShareSkeleton() {
+  return (
+    <div
+      aria-busy="true"
+      class="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4"
+    >
+      <span class="sr-only">Creating your review link…</span>
+      <div class="flex items-center gap-4">
+        <Skeleton class="size-28 shrink-0" />
+        <div class="flex flex-1 flex-col gap-2">
+          <Skeleton class="h-5 w-3/4" />
+          <Skeleton class="h-4 w-1/2" />
+        </div>
+      </div>
+      <Skeleton class="h-11 w-full" />
+      <div class="grid grid-cols-2 gap-2">
+        <Skeleton class="h-11" />
+        <Skeleton class="h-11" />
+      </div>
+    </div>
+  );
+}
+
+function RequestShare(props: {
+  id: string;
+  businessName: string;
+  prompt: string;
+  onPrompt: (value: string) => void;
+  announce: (message: string) => void;
+}) {
+  // An emptied field falls back to the default on the ticket and sheet.
+  const shownPrompt = () => props.prompt.trim() || PROMPT_DEFAULT;
+  const [link, setLink] = createSignal("");
+  const [qr, setQr] = createSignal("");
+  const [problem, setProblem] = createSignal<string>();
+  const [canShare, setCanShare] = createSignal(false);
+  let linkField: HTMLInputElement | undefined;
+
+  onMount(() => {
+    setLink(reviewLink(props.id));
+    setQr(qrLink(props.id));
+    setCanShare(typeof navigator.share === "function");
+  });
+
+  async function download() {
+    try {
+      await downloadQrPng(qr(), `flonion-review-qr-${props.id}.png`);
+      setProblem(undefined);
+      props.announce("QR code downloaded");
+    } catch {
+      setProblem("We couldn't create the PNG. Try again, or print the sheet.");
+    }
+  }
+
+  async function print() {
+    const opened = await printQrSheet({
+      url: qr(),
+      link: link(),
+      business: props.businessName,
+      prompt: shownPrompt(),
+    }).catch(() => false);
+    setProblem(
+      opened
+        ? undefined
+        : "Your browser blocked the print window. Allow pop-ups for Flonion and try again.",
+    );
+  }
+
+  async function share() {
+    try {
+      await navigator.share({
+        title: `Review ${props.businessName}`,
+        text: `We'd love to hear about your visit to ${props.businessName}.`,
+        url: link(),
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setProblem("Sharing didn't work here. Copy the link instead.");
+    }
+  }
+
+  return (
+    <div class="flex flex-col gap-3 animate-in fade-in-0 duration-[var(--duration-fast)] motion-safe:zoom-in-95">
+      <Show when={qr()}>
+        <QrTicket
+          business={props.businessName}
+          prompt={shownPrompt()}
+          url={qr()}
+        />
+      </Show>
+
+      <div class="flex flex-col gap-1.5">
+        <div class="flex items-baseline justify-between gap-2">
+          <label for="rn-prompt" class={labelClass}>
+            Text on the QR
+          </label>
+          <span class="font-mono text-xs text-text-muted tabular-nums">
+            {props.prompt.length} / {PROMPT_MAX}
+          </span>
+        </div>
+        <input
+          id="rn-prompt"
+          type="text"
+          autocomplete="off"
+          maxLength={PROMPT_MAX}
+          placeholder={PROMPT_DEFAULT}
+          value={props.prompt}
+          onInput={(e) => props.onPrompt(e.currentTarget.value)}
+          aria-describedby="rn-prompt-hint"
+          class={inputBase}
+        />
+        <p id="rn-prompt-hint" class="text-xs text-text-muted">
+          Shown under your business name on the ticket and printed sheet.
         </p>
       </div>
 
-      {/* Mobile: Form / Preview tabs. Desktop: side-by-side 7/5. */}
-      <div class="lg:hidden">
-        <Tabs.Root defaultValue="form" class="w-full">
-          <Tabs.List
-            aria-label="Composer sections"
-            class="grid grid-cols-2 gap-1 rounded-card border border-border bg-muted/50 p-1"
+      <div class="flex flex-col gap-1.5">
+        <label for="rn-link" class={labelClass}>
+          Review link
+        </label>
+        <input
+          ref={linkField}
+          id="rn-link"
+          type="text"
+          readOnly
+          value={link()}
+          onFocus={(e) => e.currentTarget.select()}
+          aria-describedby="rn-link-hint"
+          class={cn(inputBase, "font-mono text-sm")}
+        />
+        <p id="rn-link-hint" class="text-xs text-text-muted">
+          The QR opens <span class="font-mono break-all">{qr()}</span>
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <CopyButton
+          value={link()}
+          label="Copy link"
+          copiedMessage="Link copied"
+          announce={props.announce}
+          onFailed={() => {
+            setProblem(
+              "We couldn't copy automatically. The link is selected, so copy it with your keyboard or long-press.",
+            );
+            linkField?.focus();
+          }}
+          class="w-full px-3 text-sm"
+        />
+        <Show when={canShare()}>
+          <ActionButton
+            icon={IconShare}
+            onClick={share}
+            class="w-full px-3 text-sm"
           >
-            <Tabs.Trigger
-              value="form"
-              class="inline-flex h-11 items-center justify-center gap-2 rounded-control text-sm font-medium text-muted-foreground transition-colors data-[selected]:bg-card data-[selected]:text-foreground data-[selected]:shadow-sm data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-            >
-              <Pencil class="size-4" aria-hidden="true" />
-              Compose
-            </Tabs.Trigger>
-            <Tabs.Trigger
-              value="preview"
-              class="inline-flex h-11 items-center justify-center gap-2 rounded-control text-sm font-medium text-muted-foreground transition-colors data-[selected]:bg-card data-[selected]:text-foreground data-[selected]:shadow-sm data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-sm"
-            >
-              <QrCode class="size-4" aria-hidden="true" />
-              Preview
-              <Show when={shareUrl()}>
-                <span
-                  class="inline-flex size-2 rounded-full bg-success"
-                  aria-label="Link ready"
-                  role="img"
-                />
-              </Show>
-            </Tabs.Trigger>
-          </Tabs.List>
-          <Tabs.Content value="form" class="e1-enter mt-4">
-            {formCard}
-          </Tabs.Content>
-          <Tabs.Content value="preview" class="e1-enter mt-4">
-            {previewCard}
-          </Tabs.Content>
-        </Tabs.Root>
+            Share
+          </ActionButton>
+        </Show>
+        <ActionButton
+          icon={IconDownload}
+          onClick={download}
+          class="w-full px-3 text-sm"
+        >
+          Download QR (PNG)
+        </ActionButton>
+        <ActionButton
+          icon={IconPrinter}
+          onClick={print}
+          class="w-full px-3 text-sm"
+        >
+          Print QR sheet
+        </ActionButton>
       </div>
 
-      <div class="hidden gap-6 lg:grid lg:grid-cols-12">
-        <div class="min-w-0 lg:col-span-7">{formCard}</div>
-        <div class="min-w-0 lg:col-span-5">{previewCard}</div>
-      </div>
-
-      <div aria-live="polite" aria-atomic="true" class="sr-only">
-        {statusMessage()}
-      </div>
+      <Show when={problem()}>
+        {(msg) => <Notice tone="error">{msg()}</Notice>}
+      </Show>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { prisma } from "~/db/prisma";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 
 const MAX_RANGE_DAYS = 90;
+const VALID_DAYS = new Set([0, 1, 2, 3, 4, 5, 6]);
 
 function parseTime(time: string): number {
   const [h, m] = time.split(":").map(Number);
@@ -15,8 +16,12 @@ function formatTime(totalMinutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+/**
+ * Slot dates are stored as midnight UTC, so the weekday has to be read in UTC
+ * too — `getDay()` would name the day before on a server west of UTC.
+ */
 function getDayOfWeek(date: Date): number {
-  return date.getDay();
+  return date.getUTCDay();
 }
 
 export async function POST(event: APIEvent) {
@@ -27,13 +32,33 @@ export async function POST(event: APIEvent) {
 
   try {
     const body = await event.request.json();
-    const { startDate, endDate } = body;
+    const { startDate, endDate, days } = body;
 
     if (typeof startDate !== "string" || typeof endDate !== "string") {
       return Response.json(
         { error: "startDate and endDate are required" },
         { status: 400 },
       );
+    }
+
+    /**
+     * Optional day picker. Absent means "the business's working days", which
+     * is what this endpoint has always done; a list opens exactly those
+     * weekdays, so a one-off Saturday needs no change to the saved settings.
+     */
+    let chosenDays: number[] | null = null;
+    if (days !== undefined) {
+      if (
+        !Array.isArray(days) ||
+        days.length === 0 ||
+        !days.every((d: unknown) => typeof d === "number" && VALID_DAYS.has(d))
+      ) {
+        return Response.json(
+          { error: "days must be a non-empty array of day numbers (0-6)" },
+          { status: 400 },
+        );
+      }
+      chosenDays = [...new Set(days as number[])];
     }
 
     const rangeStart = new Date(startDate);
@@ -96,41 +121,50 @@ export async function POST(event: APIEvent) {
       );
     }
 
-    // Delete unbooked slots in the target range
+    const targetDays = chosenDays ?? workingDays;
+
+    // The days this run will fill, as the midnight-UTC instants slots are
+    // stored at.
+    const targetDates: Date[] = [];
+    const current = new Date(rangeStart);
+    while (current <= rangeEnd) {
+      if (targetDays.includes(getDayOfWeek(current))) {
+        targetDates.push(new Date(current));
+      }
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+
+    // Clearing is scoped to what is about to be rebuilt: picking Wednesday
+    // only must not wipe the free slots already open on Monday. Without a day
+    // picker the whole range is rebuilt, as this endpoint always did.
     await prisma.availabilitySlot.deleteMany({
       where: {
         businessId: business.id,
         isBooked: false,
-        date: { gte: rangeStart, lte: rangeEnd },
+        ...(chosenDays
+          ? { date: { in: targetDates } }
+          : { date: { gte: rangeStart, lte: rangeEnd } }),
       },
     });
 
-    // Generate new slots
     const newSlots: {
       businessId: string;
       date: Date;
       startTime: string;
       endTime: string;
     }[] = [];
-    const current = new Date(rangeStart);
 
-    while (current <= rangeEnd) {
-      const dayOfWeek = getDayOfWeek(current);
-
-      if (workingDays.includes(dayOfWeek)) {
-        let cursor = bookingStart;
-        while (cursor + duration <= bookingEnd) {
-          newSlots.push({
-            businessId: business.id,
-            date: new Date(current),
-            startTime: formatTime(cursor),
-            endTime: formatTime(cursor + duration),
-          });
-          cursor += duration;
-        }
+    for (const date of targetDates) {
+      let cursor = bookingStart;
+      while (cursor + duration <= bookingEnd) {
+        newSlots.push({
+          businessId: business.id,
+          date,
+          startTime: formatTime(cursor),
+          endTime: formatTime(cursor + duration),
+        });
+        cursor += duration;
       }
-
-      current.setDate(current.getDate() + 1);
     }
 
     if (newSlots.length > 0) {

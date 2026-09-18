@@ -30,6 +30,7 @@ export async function POST(event: APIEvent) {
       businessId,
       reviewerName,
       claimToken,
+      fresh,
     } = body;
 
     if (
@@ -83,8 +84,11 @@ export async function POST(event: APIEvent) {
         data: {
           text: typeof text === "string" ? text.trim() : "",
           rating: rating !== 0 ? rating : existing.rating,
+          // Owners edit the composer's optional customer name as they type.
           reviewerName: isOwner
-            ? session.user.name
+            ? typeof reviewerName === "string" && reviewerName.trim()
+              ? reviewerName.trim()
+              : session.user.name
             : typeof reviewerName === "string" && reviewerName.trim()
               ? reviewerName.trim()
               : (session?.user.name ?? "Anonymous"),
@@ -181,7 +185,9 @@ export async function POST(event: APIEvent) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!id) {
+    // Legacy callers get their latest link back; the composer sends
+    // `fresh: true` because every request it creates is a new link and QR.
+    if (!id && fresh !== true) {
       const existing = await prisma.sharedReview.findFirst({
         where: { userId: session.session.userId },
         orderBy: { createdAt: "desc" },
@@ -222,7 +228,12 @@ export async function POST(event: APIEvent) {
       data: {
         text: typeof text === "string" ? text.trim() : "",
         rating,
-        reviewerName: session.user.name,
+        // The composer's optional customer name; the customer can change it
+        // when they submit.
+        reviewerName:
+          typeof reviewerName === "string" && reviewerName.trim()
+            ? reviewerName.trim()
+            : session.user.name,
         keywords: typeof keywords === "string" ? keywords : null,
         userId: session.session.userId,
         businessId: reviewBusinessId,

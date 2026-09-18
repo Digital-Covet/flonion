@@ -103,7 +103,7 @@ Flonion is a full-stack business reputation workspace: a SolidStart tenant app w
 | Framework | SolidJS + SolidStart |
 | Build | Vite 8 + Nitro |
 | Styling | Tailwind CSS v4 |
-| UI Components | Ark UI (Solid), Lucide Icons |
+| UI Components | Ark UI (Solid), Tabler Icons |
 | Database | PostgreSQL via Prisma ORM |
 | Database Driver | node-postgres (`pg`) through `@prisma/adapter-pg` |
 | Auth | better-auth (email/password, 2FA, OTP, email verification) |

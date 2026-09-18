@@ -1,0 +1,38 @@
+[
+  {
+    "slot": "P2",
+    "use": "Landing industries strip: Restaurants & cafés",
+    "source": "https://unsplash.com/photos/a-room-with-tables-and-chairs--uAm7TYi6Gs",
+    "cdn": "https://images.unsplash.com/photo-1651761319093-3b471571a920",
+    "photographer": "Vishwanth Pindiboina",
+    "licence": "Unsplash License",
+    "retrieved": "2026-09-17"
+  },
+  {
+    "slot": "P2",
+    "use": "Landing industries strip: Salons & spas",
+    "source": "https://unsplash.com/photos/salon-chairs-with-mirrors-and-products-jsuWg7IXx1k",
+    "cdn": "https://images.unsplash.com/photo-1600948836101-f9ffda59d250",
+    "photographer": "Greg Trowman",
+    "licence": "Unsplash License",
+    "retrieved": "2026-09-17"
+  },
+  {
+    "slot": "P2",
+    "use": "Landing industries strip: Clinics",
+    "source": "https://unsplash.com/photos/blue-couch-beside-green-potted-plant-B_sK_xgzwVA",
+    "cdn": "https://images.unsplash.com/photo-1629909614456-6b1c5c94cecc",
+    "photographer": "Benyamin Bohlouli",
+    "licence": "Unsplash License",
+    "retrieved": "2026-09-17"
+  },
+  {
+    "slot": "P2",
+    "use": "Landing industries strip: Retail & kirana",
+    "source": "https://unsplash.com/photos/a-store-front-with-many-items-on-display-bAKYjjvAQIE",
+    "cdn": "https://images.unsplash.com/photo-1739066598279-1297113f5c6a",
+    "photographer": "Zoshua Colah",
+    "licence": "Unsplash License",
+    "retrieved": "2026-09-17"
+  }
+]

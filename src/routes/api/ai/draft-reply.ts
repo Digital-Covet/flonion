@@ -45,9 +45,11 @@ export async function POST(event: APIEvent) {
 
     const { comment, starRating, reviewerName, tone } = body;
 
-    if (!comment || typeof comment !== "string") {
+    // An empty comment is valid: Google allows rating-only reviews, and those
+    // deserve a reply too. The sentiment stage falls back to the star rating.
+    if (typeof comment !== "string" || comment.length > 4096) {
       return Response.json(
-        { error: "Missing required field: comment" },
+        { error: "comment must be a string of at most 4096 characters" },
         { status: 400 },
       );
     }

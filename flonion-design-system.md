@@ -3,7 +3,7 @@
 > **Assumptions**
 > - **Brand attributes (chosen by me, as requested):** *Trustworthy, Approachable, Sharp, Local-first.* Reviews are about reputation, so trust leads. Owners are often non-technical, so the product must feel approachable. "Sharp" keeps it from looking like a toy. "Local-first" reflects the QR-in-store and Google Business Profile focus.
 > - **Audience interpretation:** "Business owners" is read as **owners and managers of small-to-mid local businesses** (restaurants, clinics, salons, agencies, shops), several of them India-based given JustDial support and the ZeptoMail/DeepSeek stack. They use Flonion a few times a week rather than all day, often on a phone. A second audience is **their customers**, who land on the public review and booking pages once, usually on a phone right after scanning a QR code. The design must serve both.
-> - **Stack:** taken from the README: SolidStart 2 (Solid v1) + Vite 8, Tailwind CSS v4, Ark UI (Solid), Lucide icons, Jost + Rubik fonts. Every recommendation below is Solid-native; no React packages.
+> - **Stack:** taken from the README: SolidStart 2 (Solid v1) + Vite 8, Tailwind CSS v4, Ark UI (Solid), Tabler icons, Jost + Rubik fonts. Every recommendation below is Solid-native; no React packages.
 > - **Page inventory:** derived from the README's `routes/` tree and API tables. Pages not explicitly named there (404, 500) are marked *(inferred)*.
 > - **Operator console (`app/`, React Router):** out of scope. It is an internal tool with a different audience; it can reuse the tokens from Section 2.
 
@@ -158,7 +158,7 @@ Tier 3 is marked NO, so it has no elements here.
 | `tw-animate-css` | CSS-only enter/exit utilities for Ark UI `data-state` transitions (Tailwind v4) | Verified via skill reference (Tailwind v4 successor to `tailwindcss-animate`). |
 | Tailwind `motion-safe:` / `motion-reduce:` variants | CSS-level reduced-motion handling | Built into Tailwind. |
 | `@ark-ui/solid` | Accessible primitives (Dialog, Drawer, Tabs, RatingGroup, Toast, DatePicker) | Already in stack. |
-| `lucide-solid` | Icons, tree-shakeable | Already in stack (Lucide); confirm package name in `package.json`. |
+| `@tabler/icons-solidjs` | Icons, tree-shakeable | In stack; icons are named `Icon*` (e.g. `IconSparkles`). |
 | `@lottiefiles/dotlottie-solid` | dotLottie player for the three tier-2 moments | Verified: LottieFiles lists a first-party Solid SDK. Measure its WASM size before shipping. |
 | `chart.js` (vanilla, wrapped in `onMount`) | Analytics charts (visits, scans, redirects) | Judgment call; no Solid chart wrapper was verified. |
 | `@thisbeyond/solid-dnd` | Kanban drag-and-drop | **Not verified in this pass.** Check maintenance and SolidStart 2 compatibility before adopting. |
@@ -188,7 +188,7 @@ Tier 3 is marked NO, so it has no elements here.
 // src/components/review/AiDraftReveal.tsx
 import { For, Show, createSignal } from "solid-js";
 import { Motion, Presence } from "solid-motionone";
-import { Sparkles } from "lucide-solid";
+import { IconSparkles } from "@tabler/icons-solidjs";
 import { useReducedMotion } from "~/hooks/useReducedMotion";
 
 type Draft = { tone: "Simple" | "Professional" | "Casual"; text: string };
