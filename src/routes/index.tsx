@@ -1,4 +1,3 @@
-import { Meta, Title } from "@solidjs/meta";
 import { A } from "@solidjs/router";
 import {
   IconAlertTriangle,
@@ -37,6 +36,8 @@ import {
   btnSecondary,
   SiteHeader,
 } from "~/components/landing/SiteHeader";
+import { PageMeta } from "~/components/meta/PageMeta";
+import { homeGraph } from "~/components/meta/schema";
 
 const container = "mx-auto w-full max-w-[1200px] px-4 md:px-6";
 const section = "py-16 md:py-24";
@@ -81,10 +82,11 @@ export default function Landing() {
 
   return (
     <>
-      <Title>Flonion – More genuine reviews for local businesses</Title>
-      <Meta
-        name="description"
-        content="Flonion helps local businesses collect genuine Google reviews with QR codes, reply faster with AI drafts in your tone, and get found in local search."
+      <PageMeta
+        title="Flonion – More genuine reviews for local businesses"
+        description="Flonion helps local businesses collect genuine Google reviews with QR codes, reply faster with AI drafts in your tone, and get found in local search."
+        path="/"
+        jsonLd={homeGraph()}
       />
 
       <a
@@ -274,7 +276,7 @@ function HowItWorks() {
             <QrTicket
               business="Swaad Restaurant"
               prompt="Enjoyed your meal? Scan to leave a review."
-              url="https://flonion.com"
+              url="app.flonion.com"
               class="relative"
             />
             <p class="relative mt-6 flex items-center gap-2 text-sm text-text-muted">

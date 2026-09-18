@@ -1,4 +1,3 @@
-import { Meta, Title } from "@solidjs/meta";
 import { A, useNavigate, useSearchParams } from "@solidjs/router";
 import {
   IconAlertTriangle,
@@ -17,6 +16,7 @@ import {
   submitClass,
   textLink,
 } from "~/components/auth/AuthShell";
+import { PageMeta } from "~/components/meta/PageMeta";
 import { authClient } from "~/lib/auth-client";
 import {
   authErrorCode,
@@ -140,10 +140,11 @@ export default function LoginPage() {
 
   return (
     <>
-      <Title>Log in · Flonion</Title>
-      <Meta
-        name="description"
-        content="Log in to Flonion to collect reviews, draft replies, and grow your local business."
+      <PageMeta
+        title="Log in · Flonion"
+        description="Log in to Flonion to collect reviews, draft replies, and grow your local business."
+        path="/login"
+        noindex
       />
 
       <AuthShell

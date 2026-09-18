@@ -1,7 +1,7 @@
-import { Title } from "@solidjs/meta";
 import { createAsync, useParams } from "@solidjs/router";
 import { HttpStatusCode } from "@solidjs/start";
 import { Show } from "solid-js";
+import { PageMeta } from "~/components/meta/PageMeta";
 import { InactiveLink, PublicShell } from "~/components/reviews/public";
 import { legacyReviewTarget } from "~/lib/public-review";
 
@@ -20,7 +20,11 @@ export default function LegacyReviewLink() {
     <PublicShell>
       <Show when={resolved() !== undefined}>
         <HttpStatusCode code={404} />
-        <Title>Review link not active · Flonion</Title>
+        <PageMeta
+          title="Review link not active · Flonion"
+          path={`/review/${params.id}`}
+          noindex
+        />
         <InactiveLink />
       </Show>
     </PublicShell>

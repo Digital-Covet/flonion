@@ -501,20 +501,18 @@ export function NoLinksYet() {
 export function NoLinksInRange(props: { range: string; onClear: () => void }) {
   return (
     <EmptyState icon={IconChartBar} title="No links in this period">
-      <>
-        No review requests were created in {props.range}.{" "}
-        <button
-          type="button"
-          onClick={() => props.onClear()}
-          class={cn(
-            "rounded-sm font-medium text-primary underline underline-offset-4",
-            focusRing,
-          )}
-        >
-          Show all time
-        </button>
-        .
-      </>
+      No review requests were created in {props.range}.{" "}
+      <button
+        type="button"
+        onClick={() => props.onClear()}
+        class={cn(
+          "rounded-sm font-medium text-primary underline underline-offset-4",
+          focusRing,
+        )}
+      >
+        Show all time
+      </button>
+      .
     </EmptyState>
   );
 }

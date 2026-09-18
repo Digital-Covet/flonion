@@ -1,6 +1,6 @@
-import { Meta, Title } from "@solidjs/meta";
 import { useSearchParams } from "@solidjs/router";
 import { createSignal, Match, onMount, Show, Switch } from "solid-js";
+import { PageMeta } from "~/components/meta/PageMeta";
 import {
   BusinessWizard,
   loadDraft,
@@ -130,8 +130,7 @@ export default function OnboardingPage() {
 
   return (
     <>
-      <Title>Set up Flonion</Title>
-      <Meta name="robots" content="noindex" />
+      <PageMeta title="Set up Flonion" path="/onboarding" noindex />
 
       <OnboardingShell
         eyebrow="Welcome to Flonion"

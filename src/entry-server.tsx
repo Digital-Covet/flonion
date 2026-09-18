@@ -2,66 +2,35 @@ import "dotenv/config";
 // @refresh reload
 import { createHandler, StartServer } from "@solidjs/start/server";
 
+/**
+ * Document shell.
+ *
+ * Only tags `@solidjs/meta` cannot manage live here. Do NOT add `<title>` or
+ * SEO `<meta>` tags to this file: the Solid Meta docs warn that a normal
+ * `<title>` in `entry-server` overrides the provider, and route-level metas
+ * would simply be appended alongside them. Every page's metadata comes from
+ * `<PageMeta>` in `~/components/meta/PageMeta`.
+ */
 export default createHandler(() => (
   <StartServer
     document={({ assets, children, scripts }) => (
-      <html lang="en">
+      <html lang="en-IN">
         <head>
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <title>Flonion - Grow Your Business with Better Reviews</title>
           <meta
-            name="description"
-            content="Flonion helps local businesses in India collect more customer reviews, manage online reputation, and prepare for AI-powered marketing from one simple platform. Start growing your business today."
+            name="theme-color"
+            content="#faf8f5"
+            media="(prefers-color-scheme: light)"
           />
           <meta
-            name="keywords"
-            content="customer reviews, online reputation management, local business SEO, AI marketing, review management India, Google reviews, business growth, Flonion"
+            name="theme-color"
+            content="#120f17"
+            media="(prefers-color-scheme: dark)"
           />
-          <meta
-            property="og:title"
-            content="Flonion - Grow Your Business with Better Reviews"
-          />
-          <meta
-            property="og:description"
-            content="Flonion helps local businesses in India collect more customer reviews, manage online reputation, and prepare for AI-powered marketing from one simple platform. Start growing your business today."
-          />
-          <meta property="og:type" content="website" />
-          <meta property="og:site_name" content="Flonion" />
-          <meta property="og:image" content="/flonion.jpg" />
-          <meta name="twitter:card" content="summary_large_image" />
-          <meta
-            name="twitter:title"
-            content="Flonion - Grow Your Business with Better Reviews"
-          />
-          <meta
-            name="twitter:description"
-            content="Flonion helps local businesses in India collect more customer reviews, manage online reputation, and prepare for AI-powered marketing from one simple platform. Start growing your business today."
-          />
-          <meta name="twitter:image" content="/flonion.jpg" />
-          <link rel="icon" href="/favicon.svg" />
-          <script type="application/ld+json">
-            {JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "SoftwareApplication",
-              name: "Flonion",
-              description:
-                "Flonion helps local businesses in India collect more customer reviews, manage online reputation, and prepare for AI-powered marketing from one simple platform.",
-              url: "https://flonion.com",
-              applicationCategory: "BusinessApplication",
-              operatingSystem: "Web",
-              offers: {
-                "@type": "Offer",
-                price: "0",
-                priceCurrency: "INR",
-              },
-              aggregateRating: {
-                "@type": "AggregateRating",
-                ratingValue: "4.8",
-                ratingCount: "150",
-              },
-            })}
-          </script>
+          <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+          <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+          <link rel="manifest" href="/site.webmanifest" />
           {assets}
         </head>
         <body>

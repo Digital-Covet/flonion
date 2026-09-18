@@ -1,0 +1,13 @@
+# Flonion
+#
+# Only /api/ is blocked here. Everything that should stay out of the index
+# (the signed-in app, auth pages, review links) already sends a `noindex`
+# robots meta or X-Robots-Tag — and Google can only honour that if it is
+# allowed to crawl the page. Blocking those paths in robots.txt would hide
+# the noindex from crawlers, which is the wrong tool for index exclusion.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://app.flonion.com/sitemap.xml

@@ -1,8 +1,8 @@
 import { Accordion } from "@ark-ui/solid/accordion";
-import { A } from "@solidjs/router";
 import { IconChevronDown } from "@tabler/icons-solidjs";
 import { For } from "solid-js";
 import { SectionHeading } from "~/components/landing/brand";
+import { SUPPORT_EMAIL } from "~/lib/constants";
 
 const container = "mx-auto w-full max-w-[1200px] px-4 md:px-6";
 const section = "py-16 md:py-24";
@@ -26,12 +26,12 @@ export function Faq(props: { items: FaqItem[]; title?: string }) {
           />
           <p class="mt-4 text-text-muted">
             Something else on your mind?{" "}
-            <A
-              href="/feedback"
+            <a
+              href={`mailto:${SUPPORT_EMAIL}`}
               class="font-medium text-primary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               Send us a note
-            </A>
+            </a>
             .
           </p>
         </div>

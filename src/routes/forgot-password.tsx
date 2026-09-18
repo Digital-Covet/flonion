@@ -1,4 +1,3 @@
-import { Meta, Title } from "@solidjs/meta";
 import { A, useSearchParams } from "@solidjs/router";
 import {
   IconAlertTriangle,
@@ -24,6 +23,7 @@ import {
   submitClass,
   textLink,
 } from "~/components/auth/AuthShell";
+import { PageMeta } from "~/components/meta/PageMeta";
 import { authClient } from "~/lib/auth-client";
 import { isRateLimitError } from "~/lib/auth-errors";
 import { cn } from "~/lib/cn";
@@ -151,10 +151,11 @@ export default function ForgotPasswordPage() {
 
   return (
     <>
-      <Title>Reset your password · Flonion</Title>
-      <Meta
-        name="description"
-        content="Get a link to reset your Flonion password."
+      <PageMeta
+        title="Reset your password · Flonion"
+        description="Get a link to reset your Flonion password."
+        path="/forgot-password"
+        noindex
       />
 
       <AuthShell

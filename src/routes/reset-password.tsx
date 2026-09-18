@@ -1,4 +1,4 @@
-import { Meta, Title } from "@solidjs/meta";
+import { Meta } from "@solidjs/meta";
 import { A, Navigate, useNavigate, useSearchParams } from "@solidjs/router";
 import {
   IconAlertTriangle,
@@ -17,6 +17,7 @@ import {
   submitClass,
   textLink,
 } from "~/components/auth/AuthShell";
+import { PageMeta } from "~/components/meta/PageMeta";
 import { authClient } from "~/lib/auth-client";
 import { authErrorCode, isRateLimitError } from "~/lib/auth-errors";
 import { cn } from "~/lib/cn";
@@ -147,10 +148,11 @@ export default function ResetPasswordPage() {
 
   return (
     <>
-      <Title>Choose a new password · Flonion</Title>
-      <Meta
-        name="description"
-        content="Choose a new password for your Flonion account."
+      <PageMeta
+        title="Choose a new password · Flonion"
+        description="Choose a new password for your Flonion account."
+        path="/reset-password"
+        noindex
       />
       {/* The token is in the URL on first load; don't leak it to other sites. */}
       <Meta name="referrer" content="no-referrer" />

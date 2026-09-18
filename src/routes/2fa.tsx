@@ -1,5 +1,4 @@
 import { PinInput, usePinInput } from "@ark-ui/solid/pin-input";
-import { Meta, Title } from "@solidjs/meta";
 import { A, useNavigate } from "@solidjs/router";
 import {
   IconAlertTriangle,
@@ -30,6 +29,7 @@ import {
   submitClass,
   textLink,
 } from "~/components/auth/AuthShell";
+import { PageMeta } from "~/components/meta/PageMeta";
 import { authClient } from "~/lib/auth-client";
 import { authErrorCode, isRateLimitError } from "~/lib/auth-errors";
 import { cn } from "~/lib/cn";
@@ -327,13 +327,12 @@ export default function TwoFactorPage() {
 
   return (
     <>
-      <Title>Two-step verification · Flonion</Title>
-      <Meta
-        name="description"
-        content="Enter your two-step verification code to finish logging in to Flonion."
+      <PageMeta
+        title="Two-step verification · Flonion"
+        description="Enter your two-step verification code to finish logging in to Flonion."
+        path="/2fa"
+        noindex
       />
-      {/* Nothing here should be indexed or previewed by a crawler. */}
-      <Meta name="robots" content="noindex, nofollow" />
 
       <AuthShell
         skipTo="two-factor-form"

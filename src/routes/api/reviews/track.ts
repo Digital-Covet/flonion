@@ -4,7 +4,7 @@ import { prisma } from "@/db/prisma";
 import { REVIEW_PLATFORMS } from "~/features/settings/review-platforms";
 import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
 
-const PLATFORM_SLUGS = new Set(REVIEW_PLATFORMS.map((p) => p.slug));
+const PLATFORM_SLUGS = new Set<string>(REVIEW_PLATFORMS.map((p) => p.slug));
 
 // Public and unauthenticated, and every call is a DB write. Capped per IP so a
 // single caller cannot inflate a business's metrics or use it as write load.

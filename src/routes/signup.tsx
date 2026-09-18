@@ -1,4 +1,3 @@
-import { Meta, Title } from "@solidjs/meta";
 import { A, useSearchParams } from "@solidjs/router";
 import {
   IconAlertTriangle,
@@ -25,6 +24,7 @@ import {
   submitClass,
   textLink,
 } from "~/components/auth/AuthShell";
+import { PageMeta } from "~/components/meta/PageMeta";
 import { authClient } from "~/lib/auth-client";
 import { authErrorMessage, isRateLimitError } from "~/lib/auth-errors";
 import { cn } from "~/lib/cn";
@@ -203,10 +203,11 @@ export default function SignupPage() {
 
   return (
     <>
-      <Title>Create your account · Flonion</Title>
-      <Meta
-        name="description"
-        content="Create a free Flonion account to collect genuine reviews, draft replies with AI, and get found locally."
+      <PageMeta
+        title="Create your account · Flonion"
+        description="Create a free Flonion account to collect genuine reviews, draft replies with AI, and get found locally."
+        path="/signup"
+        noindex
       />
 
       <AuthShell

@@ -1,4 +1,3 @@
-import { Meta, Title } from "@solidjs/meta";
 import { A } from "@solidjs/router";
 import {
   IconArrowRight,
@@ -16,7 +15,9 @@ import {
   btnSecondary,
   SiteHeader,
 } from "~/components/landing/SiteHeader";
+import { PageMeta } from "~/components/meta/PageMeta";
 import { cn } from "~/lib/cn";
+import { SUPPORT_EMAIL } from "~/lib/constants";
 
 const container = "mx-auto w-full max-w-[1200px] px-4 md:px-6";
 const section = "py-16 md:py-24";
@@ -76,7 +77,7 @@ const PLANS: {
     tagline: "For chains, franchises and multi-location brands",
     price: null,
     cta: "Talk to us",
-    href: "/feedback",
+    href: `mailto:${SUPPORT_EMAIL}`,
     features: [
       "Everything in Business",
       "Multiple locations in one account",
@@ -227,10 +228,10 @@ export default function Pricing() {
 
   return (
     <>
-      <Title>Pricing – Flonion</Title>
-      <Meta
-        name="description"
-        content="Simple Flonion plans for local businesses: start free, then upgrade for unlimited review QR codes, more AI reply drafts and local SEO tools."
+      <PageMeta
+        title="Pricing – Flonion"
+        description="Simple Flonion plans for local businesses: start free, then upgrade for unlimited review QR codes, more AI reply drafts and local SEO tools."
+        path="/pricing"
       />
 
       <a

@@ -5,6 +5,7 @@ import { createSignal, For, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import InlineCombinationMark from "~/assets/inline-combination-mark";
 import { authClient } from "~/lib/auth-client";
+import { SITE_ORIGIN } from "~/lib/site";
 
 // `auth` links are only shown once the visitor is signed in.
 const NAV = [
@@ -23,9 +24,10 @@ export const btnPrimary =
 export const btnSecondary =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border-strong px-5 font-display text-base font-semibold text-text transition-colors duration-[var(--duration-fast)] hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
-// Auth lives on the app subdomain; these must be absolute, not router links.
-const LOGIN_URL = "https://app.flonion.com/login";
-const SIGNUP_URL = "https://app.flonion.com/signup";
+// The canonical host is `app.flonion.com`; keep the CTAs absolute so they
+// resolve there even when the page is served from an alias like `flonion.com`.
+const LOGIN_URL = `${SITE_ORIGIN}/login`;
+const SIGNUP_URL = `${SITE_ORIGIN}/signup`;
 
 export function SiteHeader() {
   const [open, setOpen] = createSignal(false);

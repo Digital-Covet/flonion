@@ -1,4 +1,3 @@
-import { Meta, Title } from "@solidjs/meta";
 import { createAsync, useParams } from "@solidjs/router";
 import { HttpStatusCode } from "@solidjs/start";
 import { IconExternalLink, IconSparkles } from "@tabler/icons-solidjs";
@@ -19,6 +18,7 @@ import {
   labelClass,
   textLink,
 } from "~/components/auth/AuthShell";
+import { PageMeta } from "~/components/meta/PageMeta";
 import {
   btnPrimary,
   btnSecondary,
@@ -246,24 +246,33 @@ export default function CompanyReviewPage() {
   onMount(() => onCleanup(useOsColorScheme()));
 
   return (
-    <>
-      <Meta name="robots" content="noindex" />
-      <PublicShell>
-        <Show when={review()} keyed>
-          {(value) =>
-            value.kind === "active" ? (
+    <PublicShell>
+      <Show when={review()} keyed>
+        {(value) =>
+          value.kind === "active" ? (
+            <>
+              <PageMeta
+                title={`Leave ${value.business.name} a review · Flonion`}
+                description={`Share your experience with ${value.business.name}. No account or app needed.`}
+                path={`/company/${params.username}/review`}
+                noindex
+              />
               <ReviewFlow business={value.business} />
-            ) : (
-              <>
-                <HttpStatusCode code={404} />
-                <Title>Review link not active · Flonion</Title>
-                <InactiveLink />
-              </>
-            )
-          }
-        </Show>
-      </PublicShell>
-    </>
+            </>
+          ) : (
+            <>
+              <HttpStatusCode code={404} />
+              <PageMeta
+                title="Review link not active · Flonion"
+                path={`/company/${params.username}/review`}
+                noindex
+              />
+              <InactiveLink />
+            </>
+          )
+        }
+      </Show>
+    </PublicShell>
   );
 }
 
@@ -538,8 +547,6 @@ function ReviewFlow(props: { business: PublicBusiness }) {
 
   return (
     <>
-      <Title>Review {business().name} · Flonion</Title>
-
       <p aria-live="polite" class="sr-only">
         {message()}
       </p>
