@@ -23,6 +23,10 @@ export const btnPrimary =
 export const btnSecondary =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border-strong px-5 font-display text-base font-semibold text-text transition-colors duration-[var(--duration-fast)] hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
+// Auth lives on the app subdomain; these must be absolute, not router links.
+const LOGIN_URL = "https://app.flonion.com/login";
+const SIGNUP_URL = "https://app.flonion.com/signup";
+
 export function SiteHeader() {
   const [open, setOpen] = createSignal(false);
   // Only the CTA is dynamic: SSR renders "Start free", and a signed-in
@@ -61,12 +65,12 @@ export function SiteHeader() {
             when={signedIn()}
             fallback={
               <>
-                <A href="/login" class={btnSecondary}>
+                <a href={LOGIN_URL} class={btnSecondary}>
                   Log in
-                </A>
-                <A href="/signup" class={btnPrimary}>
+                </a>
+                <a href={SIGNUP_URL} class={btnPrimary}>
                   Start free
-                </A>
+                </a>
               </>
             }
           >
@@ -120,12 +124,12 @@ export function SiteHeader() {
                     when={signedIn()}
                     fallback={
                       <>
-                        <A href="/signup" class={btnPrimary}>
+                        <a href={SIGNUP_URL} class={btnPrimary}>
                           Start free
-                        </A>
-                        <A href="/login" class={btnSecondary}>
+                        </a>
+                        <a href={LOGIN_URL} class={btnSecondary}>
                           Log in
-                        </A>
+                        </a>
                       </>
                     }
                   >
