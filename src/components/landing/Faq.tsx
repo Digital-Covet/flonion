@@ -17,7 +17,7 @@ export function Faq(props: { items: FaqItem[]; title?: string }) {
       aria-labelledby="faq-title"
       class={`${section} scroll-mt-16`}
     >
-      <div class={`${container} grid gap-10 lg:grid-cols-12`}>
+      <div class={`${container} grid grid-cols-1 gap-10 lg:grid-cols-12`}>
         <div class="lg:col-span-4">
           <SectionHeading
             id="faq-title"

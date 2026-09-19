@@ -124,20 +124,20 @@ function Hero() {
     >
       <OnionRings class="absolute top-1/2 right-[-12rem] hidden w-[46rem] -translate-y-1/2 lg:block" />
       <div
-        class={`${container} relative grid items-center gap-12 lg:grid-cols-12 lg:gap-8`}
+        class={`${container} relative grid grid-cols-1 items-center gap-10 sm:gap-12 lg:grid-cols-12 lg:gap-8`}
       >
-        <div class="lg:col-span-6">
+        <div class="min-w-0 lg:col-span-6">
           <p class="inline-flex items-center gap-2 rounded-full bg-primary-soft px-3 py-1 text-sm font-medium text-primary">
             <IconQrcode aria-hidden="true" class="size-4" />
             For restaurants, salons, clinics and shops
           </p>
           <h1
             id="hero-title"
-            class="mt-5 font-display text-3xl font-semibold text-balance text-text lg:text-4xl"
+            class="mt-4 font-display text-2xl font-semibold text-balance text-text sm:mt-5 sm:text-3xl lg:text-4xl"
           >
             Get more genuine reviews, reply in seconds, and get found nearby.
           </h1>
-          <p class="mt-5 max-w-xl text-lg text-pretty text-text-muted">
+          <p class="mt-4 max-w-xl text-base text-pretty text-text-muted sm:mt-5 sm:text-lg">
             Customers scan your QR, rate their visit and post on Google. Flonion
             drafts your replies and tells you what to fix on your profile.
           </p>
@@ -167,7 +167,7 @@ function Hero() {
             </For>
           </ul>
         </div>
-        <div class="lg:col-span-6">
+        <div class="min-w-0 lg:col-span-6">
           <HeroMock />
         </div>
       </div>
@@ -238,7 +238,7 @@ function HowItWorks() {
     >
       <div
         data-reveal
-        class={`${container} grid items-center gap-12 lg:grid-cols-12`}
+        class={`${container} grid grid-cols-1 items-center gap-12 lg:grid-cols-12`}
       >
         <div class="lg:col-span-6">
           <SectionHeading
@@ -274,6 +274,7 @@ function HowItWorks() {
           <div class="relative mx-auto grid max-w-md place-items-center overflow-hidden rounded-xl border border-border bg-surface px-6 py-14 sm:py-20">
             <OnionRings class="absolute inset-0 m-auto w-[130%] max-w-none" />
             <QrTicket
+              stack
               business="Swaad Restaurant"
               prompt="Enjoyed your meal? Scan to leave a review."
               url="app.flonion.com"
@@ -518,7 +519,7 @@ function LocalSeo() {
     >
       <div
         data-reveal
-        class={`${container} grid items-center gap-12 lg:grid-cols-12`}
+        class={`${container} grid grid-cols-1 items-center gap-12 lg:grid-cols-12`}
       >
         <div class="lg:col-span-5">
           <SectionHeading
@@ -652,7 +653,7 @@ function GenuineReviews() {
     <section aria-labelledby="genuine-title" class={section}>
       <div
         data-reveal
-        class={`${container} grid items-center gap-12 lg:grid-cols-12`}
+        class={`${container} grid grid-cols-1 items-center gap-12 lg:grid-cols-12`}
       >
         <div class="lg:col-span-7">
           <SectionHeading
