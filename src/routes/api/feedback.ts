@@ -1,14 +1,12 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "~/db/prisma";
+import {
+  FEEDBACK_EMAIL_MAX,
+  FEEDBACK_MESSAGE_MAX,
+  FEEDBACK_NAME_MAX,
+  isFeedbackCategory,
+} from "~/lib/feedback";
 import { getSessionFromHeaders } from "~/lib/server-auth";
-
-const CATEGORIES = [
-  "General",
-  "Bug Report",
-  "Feature Request",
-  "Improvement",
-  "Other",
-] as const;
 
 export async function POST(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
@@ -23,15 +21,18 @@ export async function POST(event: APIEvent) {
     if (typeof name !== "string" || !name.trim()) {
       return Response.json({ error: "Name is required" }, { status: 400 });
     }
+    if (name.trim().length > FEEDBACK_NAME_MAX) {
+      return Response.json({ error: "Name is too long" }, { status: 400 });
+    }
 
     if (typeof email !== "string" || !email.trim()) {
       return Response.json({ error: "Email is required" }, { status: 400 });
     }
+    if (email.trim().length > FEEDBACK_EMAIL_MAX) {
+      return Response.json({ error: "Email is too long" }, { status: 400 });
+    }
 
-    if (
-      typeof category !== "string" ||
-      !(CATEGORIES as readonly string[]).includes(category)
-    ) {
+    if (!isFeedbackCategory(category)) {
       return Response.json(
         { error: "Valid category is required" },
         { status: 400 },
@@ -48,6 +49,11 @@ export async function POST(event: APIEvent) {
 
     if (typeof message !== "string" || !message.trim()) {
       return Response.json({ error: "Message is required" }, { status: 400 });
+    }
+    // `maxlength` on the textarea is a hint to a browser, not a constraint on
+    // a request, so the ceiling is enforced here too.
+    if (message.trim().length > FEEDBACK_MESSAGE_MAX) {
+      return Response.json({ error: "Message is too long" }, { status: 400 });
     }
 
     const feedback = await prisma.feedback.create({

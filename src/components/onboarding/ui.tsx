@@ -401,6 +401,10 @@ export function SelectField(props: {
   disabled?: boolean;
   /** Allow clearing the choice by picking the selected item again. */
   deselectable?: boolean;
+  /** Marks the trigger invalid; pair it with a visible error message. */
+  invalid?: boolean;
+  /** Id of that error message, so the trigger announces it. */
+  describedBy?: string;
   class?: string;
 }) {
   // Rebuilt whenever the options change: a caller whose list arrives from a
@@ -426,10 +430,13 @@ export function SelectField(props: {
       </Select.Label>
       <Select.Control>
         <Select.Trigger
+          aria-invalid={props.invalid ? "true" : undefined}
+          aria-describedby={props.describedBy}
           class={cn(
             "flex min-h-11 w-full items-center justify-between gap-2 rounded-sm border border-border-strong bg-surface px-3 text-left text-base text-text transition-colors duration-[var(--duration-fast)]",
             "focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-primary",
             "data-[state=open]:border-primary data-[disabled]:cursor-not-allowed data-[disabled]:bg-background data-[disabled]:text-text-muted",
+            "aria-[invalid=true]:border-error",
           )}
         >
           <Select.ValueText
