@@ -21,7 +21,7 @@ import {
   settled,
 } from "~/components/dashboard/data";
 import { SkeletonRows, Widget, WidgetError } from "~/components/dashboard/ui";
-import { btnPrimary, btnSecondary, Notice } from "~/components/onboarding/ui";
+import { btnPrimarySm, btnSecondary, Notice } from "~/components/onboarding/ui";
 import { splitKeywords } from "~/components/reviews/composer";
 import {
   categories,
@@ -45,7 +45,6 @@ import {
   SignalsSkeleton,
   SignalsStrip,
 } from "~/components/seo/widgets";
-import { cn } from "~/lib/cn";
 
 const RETURN_TO = "/marketing/seo";
 const FOCUS_REFRESH_MS = 60_000;
@@ -221,20 +220,20 @@ export default function LocalSeoPage() {
 
         <Switch>
           <Match when={disconnected()}>
-            <Notice tone="warning">
-              <div class="flex flex-wrap items-center justify-between gap-2">
-                <span>
-                  Connect Google to score your reviews, replies and listing.
-                  Until then, the score covers your profile and keywords only.
-                </span>
+            <Notice
+              tone="warning"
+              action={
                 <a
                   href={`/api/google/auth?returnTo=${encodeURIComponent(RETURN_TO)}`}
-                  class={cn(btnPrimary, "min-h-9 px-3 text-sm")}
+                  class={btnPrimarySm}
                 >
                   <IconBrandGoogle aria-hidden="true" class="size-4" />
                   Connect Google
                 </a>
-              </div>
+              }
+            >
+              Connect Google to score your reviews, replies and listing. Until
+              then, the score covers your profile and keywords only.
             </Notice>
           </Match>
           <Match when={unmatched()}>

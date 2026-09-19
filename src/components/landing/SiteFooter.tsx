@@ -2,6 +2,7 @@ import { For } from "solid-js";
 import InlineCombinationMark from "~/assets/inline-combination-mark";
 import { authClient } from "~/lib/auth-client";
 import { SUPPORT_EMAIL } from "~/lib/constants";
+import { LOGIN_URL, SIGNUP_URL } from "./SiteHeader";
 
 const container = "mx-auto w-full max-w-[1200px] px-4 md:px-6";
 
@@ -18,8 +19,8 @@ const FOOTER_LINKS = [
   {
     heading: "Account",
     links: [
-      { href: "/signup", label: "Start free" },
-      { href: "/login", label: "Log in" },
+      { href: `${SIGNUP_URL}`, label: "Start free" },
+      { href: `${LOGIN_URL}`, label: "Log in" },
       { href: `mailto:${SUPPORT_EMAIL}`, label: "Send feedback" },
     ],
   },

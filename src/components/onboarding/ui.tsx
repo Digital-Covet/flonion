@@ -27,11 +27,16 @@ import { Portal } from "solid-js/web";
 import InlineCombinationMark from "~/assets/inline-combination-mark";
 import { focusRing, labelClass, textLink } from "~/components/auth/AuthShell";
 import { OnionRings } from "~/components/landing/brand";
-import { btnPrimary, btnSecondary } from "~/components/landing/SiteHeader";
+import {
+  btnPrimary,
+  btnPrimarySm,
+  btnSecondary,
+  btnSecondarySm,
+} from "~/components/landing/SiteHeader";
 import { authClient } from "~/lib/auth-client";
 import { cn } from "~/lib/cn";
 
-export { btnPrimary, btnSecondary };
+export { btnPrimary, btnPrimarySm, btnSecondary, btnSecondarySm };
 
 export const cardClass =
   "rounded-lg border border-border bg-surface p-5 shadow-[0_12px_32px_rgb(0_0_0/0.06)] sm:p-8";
@@ -233,6 +238,12 @@ export function Stepper(props: { current: number }) {
 export function Notice(props: {
   tone: "error" | "warning" | "success" | "info";
   children: JSX.Element;
+  /**
+   * Optional button. It sits beside the message from `sm` up and below it on
+   * a phone, so the icon always lines up with the first line of the message
+   * instead of being pushed up by the button's height.
+   */
+  action?: JSX.Element;
   class?: string;
 }) {
   return (
@@ -271,7 +282,12 @@ export function Notice(props: {
           <IconInfoCircle aria-hidden="true" class="mt-0.5 size-4 shrink-0" />
         </Match>
       </Switch>
-      <div class="min-w-0 flex-1">{props.children}</div>
+      <div class="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+        <div class="min-w-0">{props.children}</div>
+        <Show when={props.action}>
+          <div class="shrink-0 sm:self-center">{props.action}</div>
+        </Show>
+      </div>
     </div>
   );
 }

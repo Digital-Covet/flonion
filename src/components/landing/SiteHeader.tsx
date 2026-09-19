@@ -18,16 +18,32 @@ const NAV = [
 const navLink =
   "inline-flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-text-muted transition-colors duration-[var(--duration-fast)] hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
-export const btnPrimary =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 font-display text-base font-semibold text-primary-foreground transition-[filter,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:brightness-110 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+/*
+ * Buttons are a shell plus a skin plus a size. Keep the size in the constant
+ * you pick, never in an override: `cn` is a plain join, so appending
+ * `min-h-9 px-3` to `btnPrimary` loses to the `min-h-11 px-5` already in it —
+ * Tailwind emits the smaller value first, so the larger one wins the cascade.
+ */
+const btnBase =
+  "inline-flex items-center justify-center gap-2 rounded-md font-display font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+const btnPrimarySkin =
+  "bg-primary text-primary-foreground transition-[filter,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:brightness-110 active:scale-[0.98]";
+const btnSecondarySkin =
+  "border border-border-strong text-text transition-colors duration-[var(--duration-fast)] hover:bg-primary-soft";
 
-export const btnSecondary =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border-strong px-5 font-display text-base font-semibold text-text transition-colors duration-[var(--duration-fast)] hover:bg-primary-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+export const btnPrimary = `${btnBase} ${btnPrimarySkin} min-h-11 px-5 text-base`;
+
+export const btnSecondary = `${btnBase} ${btnSecondarySkin} min-h-11 px-5 text-base`;
+
+/** Compact size, for buttons inside notices, cards and table rows. */
+export const btnPrimarySm = `${btnBase} ${btnPrimarySkin} min-h-9 px-3 text-sm`;
+
+export const btnSecondarySm = `${btnBase} ${btnSecondarySkin} min-h-9 px-3 text-sm`;
 
 // The canonical host is `app.flonion.com`; keep the CTAs absolute so they
 // resolve there even when the page is served from an alias like `flonion.com`.
-const LOGIN_URL = `${SITE_ORIGIN}/login`;
-const SIGNUP_URL = `${SITE_ORIGIN}/signup`;
+export const LOGIN_URL = `${SITE_ORIGIN}/login`;
+export const SIGNUP_URL = `${SITE_ORIGIN}/signup`;
 
 export function SiteHeader() {
   const [open, setOpen] = createSignal(false);
