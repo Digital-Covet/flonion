@@ -446,8 +446,8 @@ const INDUSTRIES = [
     src: "https://images.unsplash.com/photo-1629909614456-6b1c5c94cecc",
   },
   {
-    label: "Retail & kirana",
-    src: "https://images.unsplash.com/photo-1739066598279-1297113f5c6a",
+    label: "Other Businesses",
+    src: "/indian-business.webp",
   },
 ];
 
