@@ -720,11 +720,12 @@ function RequestShare(props: {
 
   async function download() {
     try {
-      await downloadQrPng(
-        qr(),
-        `flonion-review-qr-${props.id}.png`,
-        props.logo,
-      );
+      await downloadQrPng({
+        url: qr(),
+        filename: `flonion-review-qr-${props.id}.png`,
+        prompt: shownPrompt(),
+        logo: props.logo,
+      });
       setProblem(undefined);
       props.announce("QR code downloaded");
     } catch {

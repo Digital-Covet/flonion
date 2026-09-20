@@ -21,7 +21,7 @@ import { Skeleton } from "~/components/dashboard/ui";
 import { AiMarker, RatingPill } from "~/components/landing/brand";
 import { btnPrimary, btnSecondary } from "~/components/onboarding/ui";
 import { cn } from "~/lib/cn";
-import { inlineQrLogo, qrPngDataUrl, qrSvgMarkup } from "~/lib/qr";
+import { inlineQrLogo, qrSheetPng, qrSvgMarkup } from "~/lib/qr";
 
 // ─── Limits (mirror /api/reviews/share) ──────────────────────────────────
 
@@ -582,15 +582,26 @@ export function CopyButton(props: {
 const escapeHtml = (s: string) =>
   s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-export async function downloadQrPng(
-  url: string,
-  filename: string,
-  logo?: string | null,
-) {
-  const dataUrl = await qrPngDataUrl(url, logo);
+/**
+ * Downloads the counter sheet, not a bare code: the QR with the business's
+ * logo, the line the owner wrote under it, and the Flonion strip. What comes
+ * out of the browser is what goes on the counter, with nothing left to
+ * assemble afterwards.
+ */
+export async function downloadQrPng(input: {
+  url: string;
+  filename: string;
+  prompt: string;
+  logo?: string | null;
+}) {
+  const dataUrl = await qrSheetPng({
+    value: input.url,
+    prompt: input.prompt,
+    logo: input.logo,
+  });
   const a = document.createElement("a");
   a.href = dataUrl;
-  a.download = filename;
+  a.download = input.filename;
   a.click();
 }
 

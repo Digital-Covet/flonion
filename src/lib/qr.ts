@@ -171,7 +171,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Logo could not be decoded"));
+    img.onerror = () => reject(new Error(`Could not load ${src}`));
     img.src = src;
   });
 }
@@ -210,31 +210,34 @@ function platePath(
 }
 
 /**
- * PNG data URI for the code. Falls back to a plain code whenever the logo
- * cannot be inlined, decoded or composited: an owner clicking download wants a
- * QR they can print today, not an error about their logo host.
+ * The code on its own canvas, logo and all. Falls back to a plain code whenever
+ * the logo cannot be inlined, decoded or composited: an owner clicking download
+ * wants a QR they can print today, not an error about their logo host.
  */
-export async function qrPngDataUrl(
+async function qrCanvas(
   value: string,
   logo?: string | null,
-): Promise<string> {
+): Promise<HTMLCanvasElement> {
   const inlined = await inlineQrLogo(logo);
-  const options = {
-    errorCorrectionLevel: inlined ? LEVEL_LOGO : LEVEL_PLAIN,
-    margin: QUIET_ZONE,
-    width: PNG_WIDTH,
-    color: { dark: QR_DARK, light: QR_LIGHT },
-  } as const;
-  const plain = () => QRCode.toDataURL(value, options);
-  if (!inlined) return plain();
+  const canvas = document.createElement("canvas");
+  const draw = (withLogo: boolean) =>
+    QRCode.toCanvas(canvas, value, {
+      errorCorrectionLevel: withLogo ? LEVEL_LOGO : LEVEL_PLAIN,
+      margin: QUIET_ZONE,
+      width: PNG_WIDTH,
+      color: { dark: QR_DARK, light: QR_LIGHT },
+    });
+
+  if (!inlined) {
+    await draw(false);
+    return canvas;
+  }
 
   try {
     const geo = qrGeometry(value, true);
-    if (!geo.plate) return plain();
-    const canvas = document.createElement("canvas");
-    await QRCode.toCanvas(canvas, value, options);
     const ctx = canvas.getContext("2d");
-    if (!ctx) return plain();
+    if (!geo.plate || !ctx) throw new Error("No plate to draw into");
+    await draw(true);
 
     // `toCanvas` picks a whole-pixel module size, so the bitmap can come out a
     // little under `width`. Scaling off the canvas keeps the plate on the grid.
@@ -245,8 +248,146 @@ export async function qrPngDataUrl(
     platePath(ctx, x * scale, y * scale, side * scale, radius * scale);
     ctx.fill();
     drawContained(ctx, img, box.x * scale, box.y * scale, box.side * scale);
-    return canvas.toDataURL("image/png");
+    return canvas;
   } catch {
-    return plain();
+    await draw(false);
+    return canvas;
   }
+}
+
+/** PNG data URI for the bare code, with the logo when there is one. */
+export async function qrPngDataUrl(
+  value: string,
+  logo?: string | null,
+): Promise<string> {
+  const canvas = await qrCanvas(value, logo);
+  return canvas.toDataURL("image/png");
+}
+
+// ─── Downloadable sheet ──────────────────────────────────────────────────
+
+/** Flonion's own strip, served from `public/`, so it is always same-origin. */
+const FOOTER_SRC = "/qr_footer.png";
+
+/** Gutter around the code, in the code's own pixels. */
+const SHEET_PAD = 64;
+const PROMPT_SIZE = 56;
+const PROMPT_LINE_HEIGHT = 74;
+/** The prompt is capped at 60 characters, which never needs a third line. */
+const PROMPT_MAX_LINES = 2;
+const PROMPT_GAP = 52;
+const FOOTER_GAP = 96;
+
+/**
+ * Canvas has no font fallback chain of its own: it measures whatever the
+ * document has already loaded, so an unloaded Jost silently measures as the
+ * system font and the text comes out the wrong width. Ask for it first, and
+ * carry on with the system stack if it never arrives.
+ */
+async function promptFont(): Promise<string> {
+  const stack = '"Jost Variable", "Jost", ui-sans-serif, system-ui, sans-serif';
+  const font = `600 ${PROMPT_SIZE}px ${stack}`;
+  try {
+    await document.fonts.load(`600 ${PROMPT_SIZE}px "Jost Variable"`);
+  } catch {}
+  return font;
+}
+
+/** Greedy wrap, and the last line takes an ellipsis rather than overflowing. */
+function wrapPrompt(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  width: number,
+): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(next).width > width) {
+      lines.push(line);
+      line = word;
+      if (lines.length === PROMPT_MAX_LINES) break;
+    } else {
+      line = next;
+    }
+  }
+  if (lines.length < PROMPT_MAX_LINES && line) lines.push(line);
+  const last = lines.length - 1;
+  while (last >= 0 && ctx.measureText(lines[last]).width > width) {
+    lines[last] = `${lines[last].slice(0, -2).trimEnd()}…`;
+  }
+  return lines;
+}
+
+/**
+ * The sheet an owner downloads and tapes to the counter: the code with their
+ * logo, the line they wrote under it, and Flonion's strip along the bottom.
+ *
+ * Every part after the code is optional at render time. A missing font or a
+ * footer that will not load costs the owner that part of the sheet, not the
+ * download, so each is drawn inside its own guard.
+ */
+export async function qrSheetPng(input: {
+  value: string;
+  prompt: string;
+  logo?: string | null;
+}): Promise<string> {
+  const code = await qrCanvas(input.value, input.logo);
+  const width = code.width + SHEET_PAD * 2;
+
+  const prompt = input.prompt.trim();
+  const font = prompt ? await promptFont() : "";
+  const footer = await loadImage(FOOTER_SRC).catch(() => null);
+  // The strip is full-bleed: it is a solid panel, and insetting it would leave
+  // a white margin the printed sheet reads as a mistake.
+  const footerHeight = footer?.naturalWidth
+    ? Math.round((width * footer.naturalHeight) / footer.naturalWidth)
+    : 0;
+
+  // Measured on a throwaway context: the sheet's own height depends on how
+  // many lines the prompt takes, so the canvas cannot be sized until it is.
+  const measure = document.createElement("canvas").getContext("2d");
+  let lines: string[] = [];
+  if (prompt && measure) {
+    measure.font = font;
+    lines = wrapPrompt(measure, prompt, code.width);
+  }
+
+  const textBlock = lines.length
+    ? PROMPT_GAP + lines.length * PROMPT_LINE_HEIGHT
+    : 0;
+  const footerBlock = footerHeight ? FOOTER_GAP + footerHeight : 0;
+  // The strip is its own bottom edge, so a gutter under it would only show as
+  // a white band the owner has to trim off.
+  const bottomPad = footerHeight ? 0 : SHEET_PAD;
+
+  const sheet = document.createElement("canvas");
+  sheet.width = width;
+  sheet.height = SHEET_PAD + code.height + textBlock + footerBlock + bottomPad;
+  const ctx = sheet.getContext("2d");
+  if (!ctx) return code.toDataURL("image/png");
+
+  ctx.fillStyle = QR_LIGHT;
+  ctx.fillRect(0, 0, sheet.width, sheet.height);
+  ctx.drawImage(code, SHEET_PAD, SHEET_PAD);
+
+  let y = SHEET_PAD + code.height;
+  if (lines.length) {
+    ctx.font = font;
+    ctx.fillStyle = QR_DARK;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    y += PROMPT_GAP;
+    for (const line of lines) {
+      ctx.fillText(line, width / 2, y + PROMPT_LINE_HEIGHT / 2);
+      y += PROMPT_LINE_HEIGHT;
+    }
+  }
+
+  if (footer && footerHeight) {
+    // Bottom edge, not `y`: the strip closes the sheet whatever sits above it.
+    ctx.drawImage(footer, 0, sheet.height - footerHeight, width, footerHeight);
+  }
+
+  return sheet.toDataURL("image/png");
 }
