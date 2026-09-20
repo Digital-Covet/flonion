@@ -17,10 +17,29 @@ const MAX_BUSINESS_NAME_LENGTH = 120;
 // Backstop for when per-IP limits are evaded: total tokens this endpoint may
 // spend per UTC day, read from the ai_usage ledger.
 const DEFAULT_DAILY_TOKEN_BUDGET = 2_000_000;
-const BUDGET_CACHE_MS = 60 * 1000;
+const BUDGET_CACHE_MS = 10 * 1000;
+
+/**
+ * What one call is assumed to cost while it is in flight.
+ *
+ * Ledger rows are written after the LLM returns, so spend in flight is
+ * invisible to the aggregate below: without a reservation a concurrent burst
+ * only has to clear the check once, and the overshoot scales with concurrency
+ * rather than with the budget. Reserving at admission and reconciling against
+ * the ledger on each refresh bounds it instead.
+ */
+const ESTIMATED_TOKENS_PER_CALL = 2_000;
 
 let budgetCache: { day: string; tokens: number; fetchedAt: number } | null =
   null;
+
+/** Admitted-but-unledgered spend since `budgetCache` was last filled. */
+let reservedSinceFetch = 0;
+
+/** Called once per request that passes the budget check. */
+function reserveDailyBudget() {
+  reservedSinceFetch += ESTIMATED_TOKENS_PER_CALL;
+}
 
 async function isDailyBudgetExhausted(): Promise<boolean> {
   const budget = Number(
@@ -48,8 +67,11 @@ async function isDailyBudgetExhausted(): Promise<boolean> {
         (totals._sum.promptTokens ?? 0) + (totals._sum.completionTokens ?? 0),
       fetchedAt: now.getTime(),
     };
+    // The aggregate now accounts for everything that finished, so the running
+    // reservation starts again from there.
+    reservedSinceFetch = 0;
   }
-  return budgetCache.tokens >= budget;
+  return budgetCache.tokens + reservedSinceFetch >= budget;
 }
 
 /**
@@ -137,6 +159,8 @@ export async function POST(event: APIEvent) {
         { status: 503 },
       );
     }
+
+    reserveDailyBudget();
 
     const apiKey = getApiKey();
     const start = Date.now();

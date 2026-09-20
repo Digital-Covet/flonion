@@ -1,7 +1,34 @@
 import type { APIEvent } from "@solidjs/start/server";
+import { z } from "zod";
 import { prisma } from "~/db/prisma";
 import { getCompanyServices } from "~/lib/company-profile";
+import {
+  MAX_BULK_ITEMS,
+  MAX_LONG_FIELD,
+  MAX_SHORT_FIELD,
+  oversizedFieldResponse,
+} from "~/lib/input-limits";
 import { getSessionFromHeaders } from "~/lib/server-auth";
+
+/**
+ * Bounds the array and each field, and enforces at runtime the shape the old
+ * `services.map((s: { icon: string, ... }) => ...)` only asserted. These rows
+ * are read back on every company profile render.
+ */
+const createServicesSchema = z.object({
+  businessId: z.string().min(1),
+  services: z
+    .array(
+      z.object({
+        icon: z.string().trim().max(MAX_SHORT_FIELD),
+        title: z.string().trim().max(MAX_SHORT_FIELD),
+        description: z.string().trim().max(MAX_LONG_FIELD),
+        position: z.number().int().min(0).max(10_000).optional(),
+      }),
+    )
+    .min(1)
+    .max(MAX_BULK_ITEMS),
+});
 
 export async function GET(event: APIEvent) {
   const url = new URL(event.request.url);
@@ -28,22 +55,18 @@ export async function POST(event: APIEvent) {
   }
 
   try {
-    const body = await event.request.json();
-    const { businessId, services } = body;
+    const parsed = createServicesSchema.safeParse(await event.request.json());
 
-    if (typeof businessId !== "string" || !businessId) {
+    if (!parsed.success) {
       return Response.json(
-        { error: "businessId is required" },
+        {
+          error: `Between 1 and ${MAX_BULK_ITEMS} valid services are required`,
+        },
         { status: 400 },
       );
     }
 
-    if (!Array.isArray(services) || services.length === 0) {
-      return Response.json(
-        { error: "At least one service is required" },
-        { status: 400 },
-      );
-    }
+    const { businessId, services } = parsed.data;
 
     const business = await prisma.business.findUnique({
       where: { id: businessId },
@@ -55,20 +78,13 @@ export async function POST(event: APIEvent) {
     }
 
     const created = await prisma.service.createMany({
-      data: services.map(
-        (s: {
-          icon: string;
-          title: string;
-          description: string;
-          position?: number;
-        }) => ({
-          businessId,
-          icon: s.icon,
-          title: s.title,
-          description: s.description,
-          position: s.position ?? 0,
-        }),
-      ),
+      data: services.map((s) => ({
+        businessId,
+        icon: s.icon,
+        title: s.title,
+        description: s.description,
+        position: s.position ?? 0,
+      })),
     });
 
     return Response.json({ created: created.count });
@@ -97,6 +113,13 @@ export async function PATCH(event: APIEvent) {
         { status: 400 },
       );
     }
+
+    const tooLong = oversizedFieldResponse([
+      { label: "Icon", value: data.icon, max: MAX_SHORT_FIELD },
+      { label: "Title", value: data.title, max: MAX_SHORT_FIELD },
+      { label: "Description", value: data.description, max: MAX_LONG_FIELD },
+    ]);
+    if (tooLong) return tooLong;
 
     const business = await prisma.business.findUnique({
       where: { id: businessId },

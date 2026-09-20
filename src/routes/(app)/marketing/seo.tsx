@@ -15,6 +15,7 @@ import {
 } from "solid-js";
 import { useApp } from "~/components/app/context";
 import {
+  clientBusiness,
   isLoading,
   loadGoogle,
   loadListing,
@@ -55,15 +56,15 @@ export default function LocalSeoPage() {
   // Reviews and the listing load independently: one slow Google call never
   // blocks the other, and the profile part of the page works without Google.
   const [google, { refetch: refetchGoogle }] = createResource(
-    () => settled(business),
+    clientBusiness(business),
     loadGoogle,
   );
   const [listing, { refetch: refetchListing }] = createResource(
-    () => settled(business),
+    clientBusiness(business),
     loadListing,
   );
 
-  const b = () => settled(business);
+  const b = () => business.latest;
   const g = () => settled(google);
   const l = () => settled(listing);
   const readyGoogle = () => {
@@ -205,19 +206,6 @@ export default function LocalSeoPage() {
           </div>
         </header>
 
-        <Show when={business.state === "errored"}>
-          <Notice tone="error">
-            We couldn't load your business details.{" "}
-            <button
-              type="button"
-              onClick={() => refetchBusiness()}
-              class="font-medium underline underline-offset-4"
-            >
-              Try again
-            </button>
-          </Notice>
-        </Show>
-
         <Switch>
           <Match when={disconnected()}>
             <Notice
@@ -265,9 +253,6 @@ export default function LocalSeoPage() {
             }
           >
             <Switch>
-              <Match when={business.state === "errored"}>
-                <WidgetError what="your score" onRetry={refetchBusiness} />
-              </Match>
               <Match when={!scoreReady()}>
                 <ScoreSkeleton />
               </Match>
@@ -295,12 +280,6 @@ export default function LocalSeoPage() {
             }
           >
             <Switch>
-              <Match when={business.state === "errored"}>
-                <WidgetError
-                  what="your action list"
-                  onRetry={refetchBusiness}
-                />
-              </Match>
               <Match when={!scoreReady()}>
                 <SkeletonRows rows={5} label="actions" />
               </Match>
@@ -350,9 +329,6 @@ export default function LocalSeoPage() {
             class="lg:col-span-7"
           >
             <Switch>
-              <Match when={business.state === "errored"}>
-                <WidgetError what="your keywords" onRetry={refetchBusiness} />
-              </Match>
               <Match when={!b() || isLoading(google)}>
                 <SkeletonRows rows={4} label="keywords" />
               </Match>

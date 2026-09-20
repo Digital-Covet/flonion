@@ -24,6 +24,7 @@ import {
 import { createStore } from "solid-js/store";
 import { useApp } from "~/components/app/context";
 import {
+  clientBusiness,
   isLoading,
   loadGoogle,
   loadGooglePage,
@@ -80,11 +81,11 @@ function isEditable(target: EventTarget | null) {
 }
 
 export default function ReviewInboxPage() {
-  const { business, refetchBusiness } = useApp();
+  const { business } = useApp();
   const [params, setParams] = useSearchParams();
 
   const [google, { refetch: refetchGoogle }] = createResource(
-    () => settled(business),
+    clientBusiness(business),
     loadGoogle,
   );
   const g = () => settled(google);
@@ -120,7 +121,7 @@ export default function ReviewInboxPage() {
   });
 
   async function loadMore() {
-    const b = settled(business);
+    const b = business.latest;
     const token = nextToken();
     if (!b || !token || loadingMore()) return;
     setLoadingMore(true);
@@ -277,9 +278,10 @@ export default function ReviewInboxPage() {
 
   // ── Derived page state
   const googleLoading = () =>
-    !settled(business) || isLoading(google) || google.state === "refreshing";
-  const failed = () =>
-    business.state === "errored" || google.state === "errored";
+    !business.latest || isLoading(google) || google.state === "refreshing";
+  // A failed business load throws from `.latest` into the page-level
+  // ErrorBoundary in AppShell, so only Google can fail inside this page.
+  const failed = () => google.state === "errored";
   const ready = () => Boolean(readyData());
   const hasAny = () => reviews().length > 0 || Boolean(nextToken());
   const showDetailOnly = () => narrow() && Boolean(selectedId());
@@ -342,19 +344,6 @@ export default function ReviewInboxPage() {
           </button>
         </header>
 
-        <Show when={business.state === "errored"}>
-          <Notice tone="error">
-            We couldn't load your business details.{" "}
-            <button
-              type="button"
-              onClick={() => refetchBusiness()}
-              class="font-medium underline underline-offset-4"
-            >
-              Try again
-            </button>
-          </Notice>
-        </Show>
-
         <Switch>
           {/* Google not connected, or its token expired */}
           <Match when={g()?.kind === "disconnected"}>
@@ -400,11 +389,7 @@ export default function ReviewInboxPage() {
             <div class={cn(panelClass, "p-4 md:p-5")}>
               <WidgetError
                 what="your reviews"
-                onRetry={() =>
-                  business.state === "errored"
-                    ? refetchBusiness()
-                    : refetchGoogle()
-                }
+                onRetry={() => refetchGoogle()}
               />
             </div>
           </Match>

@@ -1,7 +1,12 @@
 import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "@/db/prisma";
 import { getSessionFromHeaders } from "~/lib/server-auth";
+import { loadCampaignAnalytics } from "~/server/analytics-data";
 
+/**
+ * Kept for any client that still fetches this directly; the analytics page
+ * reads the same data through `getCampaignAnalytics()`. Both share
+ * `loadCampaignAnalytics` so the two responses cannot drift.
+ */
 export async function GET(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
 
@@ -9,74 +14,5 @@ export async function GET(event: APIEvent) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const reviews = await prisma.sharedReview.findMany({
-    where: { userId: session.session.userId },
-    include: { analytics: true },
-    orderBy: { createdAt: "desc" },
-  });
-
-  const currentUser = await prisma.user.findUnique({
-    where: { id: session.session.userId },
-    select: {
-      businessId: true,
-      business: { select: { id: true, qrScanCount: true } },
-      team: { select: { id: true, qrScanCount: true } },
-    },
-  });
-  const business = currentUser?.business ?? currentUser?.team ?? null;
-  const businessqRScanCount = business?.qrScanCount ?? 0;
-
-  const totalVisits = reviews.reduce(
-    (sum, r) => sum + (r.analytics?.visitCount ?? 0),
-    0,
-  );
-  const totalReviews = reviews.reduce(
-    (sum, r) => sum + (r.analytics?.reviewCount ?? 0),
-    0,
-  );
-  const totalQrScans =
-    reviews.reduce((sum, r) => sum + (r.analytics?.qrScanCount ?? 0), 0) +
-    businessqRScanCount;
-  const totalRedirects = reviews.reduce(
-    (sum, r) => sum + (r.analytics?.redirectCount ?? 0),
-    0,
-  );
-  const totalAiCopies = reviews.reduce(
-    (sum, r) => sum + (r.analytics?.aiCopyCount ?? 0),
-    0,
-  );
-
-  const totalPlatformRedirects: Record<string, number> = {};
-  for (const r of reviews) {
-    const pr = (r.analytics?.platformRedirects as Record<string, number>) || {};
-    for (const [key, val] of Object.entries(pr)) {
-      totalPlatformRedirects[key] = (totalPlatformRedirects[key] || 0) + val;
-    }
-  }
-
-  const breakdown = reviews.map((r) => ({
-    id: r.id,
-    text: r.text.slice(0, 60) + (r.text.length > 60 ? "..." : ""),
-    rating: r.rating,
-    reviewerName: r.reviewerName,
-    visits: r.analytics?.visitCount ?? 0,
-    reviews: r.analytics?.reviewCount ?? 0,
-    qrScans: r.analytics?.qrScanCount ?? 0,
-    redirects: r.analytics?.redirectCount ?? 0,
-    aiCopies: r.analytics?.aiCopyCount ?? 0,
-    platformRedirects:
-      (r.analytics?.platformRedirects as Record<string, number>) || {},
-    createdAt: r.createdAt.toISOString(),
-  }));
-
-  return Response.json({
-    totalVisits,
-    totalReviews,
-    totalQrScans,
-    totalRedirects,
-    totalAiCopies,
-    totalPlatformRedirects,
-    totalLinks: reviews.length,
-    reviews: breakdown,
-  });
+  return Response.json(await loadCampaignAnalytics(session.session.userId));
 }

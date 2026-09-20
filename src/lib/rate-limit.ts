@@ -36,30 +36,47 @@ function ensureCleanupRunning() {
  */
 const MAX_ENTRIES = 50_000;
 
-function trustedProxyHops(): number {
-  const hops = Number(process.env.TRUSTED_PROXY_HOPS ?? 1);
-  return Number.isInteger(hops) && hops >= 1 ? hops : 1;
-}
+/**
+ * The one header the edge proxy sets, and must *overwrite* on every inbound
+ * request. Never a chain: counting hops into `x-forwarded-for` only selects the
+ * real client when the deployed topology happens to match the count, and picks
+ * an attacker-chosen entry when it does not.
+ *
+ * `betterAuth` is configured with the same header name, so both rate limiters
+ * on this origin agree about who the client is.
+ */
+export const CLIENT_IP_HEADER = (
+  process.env.CLIENT_IP_HEADER ?? "x-real-ip"
+).toLowerCase();
+
+let warnedAboutMissingHeader = false;
 
 /**
  * Best-effort client address for rate-limit keys.
  *
- * Proxies append the address they received the connection from, so the
- * leftmost `x-forwarded-for` entries are whatever the client sent. The client
- * is the entry `TRUSTED_PROXY_HOPS` places from the right (default 1: a single
- * proxy in front of the app). Never use this for authorization -- only to
- * spread limits across callers.
+ * Returns `"unknown"` when the trusted header is absent or carries a chain,
+ * which buckets those callers together rather than handing each request a
+ * fresh bucket. Never use this for authorization -- only to spread limits
+ * across callers.
  */
 export function getClientIp(request: Request): string {
-  const chain = (request.headers.get("x-forwarded-for") ?? "")
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  return (
-    chain[chain.length - trustedProxyHops()] ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  const value = request.headers.get(CLIENT_IP_HEADER)?.trim();
+
+  // A comma means something upstream is appending rather than overwriting, so
+  // the value is not attributable to one client. Treat it as unknown instead
+  // of guessing which entry is real.
+  if (value && !value.includes(",")) return value;
+
+  if (!warnedAboutMissingHeader) {
+    warnedAboutMissingHeader = true;
+    console.warn(
+      `[rate-limit] No usable "${CLIENT_IP_HEADER}" header on an inbound request. ` +
+        "Per-IP limits collapse into a single shared bucket until the proxy sets it " +
+        "(or CLIENT_IP_HEADER names the header it does set).",
+    );
+  }
+
+  return "unknown";
 }
 
 function enforceStoreBound(now: number) {

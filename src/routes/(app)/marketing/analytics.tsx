@@ -1,21 +1,26 @@
 import { Title } from "@solidjs/meta";
-import { A, useSearchParams } from "@solidjs/router";
+import {
+  A,
+  createAsync,
+  type RouteDefinition,
+  revalidate,
+  useSearchParams,
+} from "@solidjs/router";
 import { IconPlus, IconRefresh } from "@tabler/icons-solidjs";
 import {
   createMemo,
-  createResource,
   createSignal,
+  ErrorBoundary,
   Match,
   onCleanup,
   onMount,
   Show,
+  Suspense,
   Switch,
 } from "solid-js";
 import {
-  type AnalyticsData,
   funnelOf,
   inRange,
-  loadCampaigns,
   platformRows,
   RANGE_LABELS,
   RANGE_OPTIONS,
@@ -42,26 +47,34 @@ import {
   TableSkeleton,
 } from "~/components/analytics/widgets";
 import { useApp } from "~/components/app/context";
-import { isLoading, settled } from "~/components/dashboard/data";
 import { Widget, WidgetError } from "~/components/dashboard/ui";
 import { btnPrimary, btnSecondary } from "~/components/onboarding/ui";
 import { Segmented } from "~/components/reviews/inbox";
-import { cn } from "~/lib/cn";
+import { getCampaignAnalytics } from "~/server/analytics";
+import { getBusiness } from "~/server/business";
 
 /** Campaign counts change while the owner is away, so a refocus refetches. */
 const FOCUS_REFRESH_MS = 60_000;
+
+/**
+ * Starts both loads as the route resolves, before the component renders, and
+ * again when a link to this page is hovered.
+ */
+export const route = {
+  preload: () => {
+    void getBusiness();
+    void getCampaignAnalytics();
+  },
+} satisfies RouteDefinition;
+
+const refresh = () => revalidate(getCampaignAnalytics.key);
 
 export default function AnalyticsPage() {
   const { business } = useApp();
   const [params, setParams] = useSearchParams();
 
-  // Analytics is its own call and doesn't wait on the business: the page works
-  // for a member whose business details are still loading.
-  const [data, { refetch }] = createResource<AnalyticsData>(loadCampaigns);
-
   const [message, setMessage] = createSignal("");
   const view = createMemo(() => viewFrom(params));
-  const d = () => settled(data);
 
   onMount(() => {
     let last = Date.now();
@@ -69,7 +82,7 @@ export default function AnalyticsPage() {
       if (document.visibilityState !== "visible") return;
       if (Date.now() - last < FOCUS_REFRESH_MS) return;
       last = Date.now();
-      refetch();
+      void refresh();
     };
     document.addEventListener("visibilitychange", onFocus);
     onCleanup(() => document.removeEventListener("visibilitychange", onFocus));
@@ -96,30 +109,6 @@ export default function AnalyticsPage() {
     queueMicrotask(() => setMessage(text));
   }
 
-  // ── Derived
-  const all = () => d()?.reviews ?? [];
-  const ranged = createMemo(() => inRange(all(), view().range));
-  const totals = createMemo(() => totalsOf(ranged()));
-  const funnel = createMemo(() => funnelOf(totals()));
-  const platforms = createMemo(() => platformRows(ranged()));
-  const rows = createMemo(() => sortRows(ranged(), view().sort, view().dir));
-
-  /**
-   * QR scans counted on the business itself (the printed sheet) rather than on
-   * one link. They have no creation date, so they only show for "all time".
-   */
-  const unattributedScans = () => {
-    const info = d();
-    if (!info || view().range !== "all") return 0;
-    const perLink = all().reduce((sum, r) => sum + r.qrScans, 0);
-    return Math.max(0, info.totalQrScans - perLink);
-  };
-
-  const hasLinks = () => all().length > 0;
-  const emptyInRange = () => hasLinks() && ranged().length === 0;
-  const failed = () => data.state === "errored";
-  const busy = () => isLoading(data);
-
   return (
     <>
       <Title>Analytics · Flonion</Title>
@@ -137,7 +126,7 @@ export default function AnalyticsPage() {
             <p class="mt-1 max-w-[60ch] text-base text-pretty text-text-muted">
               What happens after a customer of{" "}
               <span class="font-medium text-text">
-                {settled(business)?.businessName || "your business"}
+                {business.latest?.businessName || "your business"}
               </span>{" "}
               scans a QR code: who opens the page, who writes a review, and who
               posts it.
@@ -147,14 +136,10 @@ export default function AnalyticsPage() {
             <button
               type="button"
               onClick={() => {
-                refetch();
+                void refresh();
                 announce("Refreshing analytics");
               }}
-              disabled={busy()}
-              class={cn(
-                btnSecondary,
-                "disabled:cursor-not-allowed disabled:opacity-60",
-              )}
+              class={btnSecondary}
             >
               <IconRefresh aria-hidden="true" class="size-5" />
               Refresh
@@ -175,115 +160,187 @@ export default function AnalyticsPage() {
             onChange={setRange}
             options={RANGE_OPTIONS}
           />
+          {/* Its own boundary, so the range control stays usable while the
+              counts are still in flight. */}
           <p class="text-sm text-text-muted">
-            <Show when={!busy() && !failed()} fallback="Loading your links…">
-              <span class="font-mono tabular-nums">{ranged().length}</span>{" "}
-              {ranged().length === 1 ? "link" : "links"} created in{" "}
-              {RANGE_LABELS[view().range]}
-            </Show>
+            <ErrorBoundary fallback={null}>
+              <Suspense fallback="Loading your links…">
+                <LinkCount range={view().range} />
+              </Suspense>
+            </ErrorBoundary>
           </p>
         </div>
 
-        <Switch>
-          <Match when={failed()}>
+        {/* ErrorBoundary outside Suspense: reversed, a rejected query would
+            leave the fallback hanging instead of rendering the error. */}
+        <ErrorBoundary
+          fallback={(_err, reset) => (
             <div class="rounded-lg border border-border bg-surface p-4 md:p-5">
-              <WidgetError what="your campaign analytics" onRetry={refetch} />
-            </div>
-          </Match>
-
-          <Match when={busy()}>
-            <div class="flex flex-col gap-4">
-              <KpiSkeleton />
-              <div class="rounded-lg border border-border bg-surface p-4 md:p-5">
-                <FunnelSkeleton />
-              </div>
-              <div class="rounded-lg border border-border bg-surface p-4 md:p-5">
-                <TableSkeleton rows={5} />
-              </div>
-            </div>
-          </Match>
-
-          <Match when={!hasLinks()}>
-            <div class="rounded-lg border border-border bg-surface">
-              <NoLinksYet />
-            </div>
-          </Match>
-
-          <Match when={emptyInRange()}>
-            <div class="rounded-lg border border-border bg-surface">
-              <NoLinksInRange
-                range={RANGE_LABELS[view().range]}
-                onClear={() => setRange("all")}
+              <WidgetError
+                what="your campaign analytics"
+                onRetry={() => {
+                  void refresh();
+                  reset();
+                }}
               />
             </div>
-          </Match>
-
-          <Match when={true}>
-            <KpiStrip
-              totals={totals()}
-              unattributedScans={unattributedScans()}
+          )}
+        >
+          <Suspense fallback={<AnalyticsSkeleton />}>
+            <AnalyticsBody
+              view={view()}
+              onSort={setSort}
+              onClearRange={() => setRange("all")}
             />
+          </Suspense>
+        </ErrorBoundary>
+      </div>
+    </>
+  );
+}
 
-            <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
-              <Widget
-                id="analytics-funnel"
-                title="From scan to posted review"
-                class="lg:col-span-7"
-                meta={
-                  <span class="text-sm text-text-muted">
-                    {RANGE_LABELS[view().range]}
-                  </span>
-                }
-              >
-                <Funnel stages={funnel()} />
-                <p class="mt-5 text-xs text-pretty text-text-muted">
-                  Counted from this page's own tracking. A customer who posts on
-                  Google after closing the page isn't counted, so the last step
-                  is a floor, not a total.
-                </p>
-              </Widget>
+/** Exactly what the page used to render in its loading branch. */
+function AnalyticsSkeleton() {
+  return (
+    <div class="flex flex-col gap-4">
+      <KpiSkeleton />
+      <div class="rounded-lg border border-border bg-surface p-4 md:p-5">
+        <FunnelSkeleton />
+      </div>
+      <div class="rounded-lg border border-border bg-surface p-4 md:p-5">
+        <TableSkeleton rows={5} />
+      </div>
+    </div>
+  );
+}
 
-              <Widget
-                id="analytics-platforms"
-                title="Where customers posted"
-                action={{ href: "/settings", label: "Edit platforms" }}
-                class="lg:col-span-5"
-              >
-                <Show
-                  when={platforms().length > 0}
-                  fallback={<NoPlatformRedirects />}
-                >
-                  <PlatformPanel rows={platforms()} />
-                </Show>
-              </Widget>
-            </div>
+/** Shares the page's query by key, so this costs no extra request. */
+function LinkCount(props: { range: Range }) {
+  const data = createAsync(() => getCampaignAnalytics());
+  const count = () => inRange(data()?.reviews ?? [], props.range).length;
+  return (
+    <>
+      <span class="font-mono tabular-nums">{count()}</span>{" "}
+      {count() === 1 ? "link" : "links"} created in {RANGE_LABELS[props.range]}
+    </>
+  );
+}
 
+/**
+ * Everything derived from the analytics query. It lives in its own component
+ * so its memos are created inside the Suspense boundary above: created in the
+ * page itself they would suspend the whole route instead of this section.
+ */
+function AnalyticsBody(props: {
+  view: View;
+  onSort: (sort: SortKey, dir: SortDir) => void;
+  onClearRange: () => void;
+}) {
+  const data = createAsync(() => getCampaignAnalytics());
+
+  const all = () => data()?.reviews ?? [];
+  const ranged = createMemo(() => inRange(all(), props.view.range));
+  const totals = createMemo(() => totalsOf(ranged()));
+  const funnel = createMemo(() => funnelOf(totals()));
+  const platforms = createMemo(() => platformRows(ranged()));
+  const rows = createMemo(() =>
+    sortRows(ranged(), props.view.sort, props.view.dir),
+  );
+
+  /**
+   * QR scans counted on the business itself (the printed sheet) rather than on
+   * one link. They have no creation date, so they only show for "all time".
+   */
+  const unattributedScans = () => {
+    const info = data();
+    if (!info || props.view.range !== "all") return 0;
+    const perLink = all().reduce((sum, r) => sum + r.qrScans, 0);
+    return Math.max(0, info.totalQrScans - perLink);
+  };
+
+  const hasLinks = () => all().length > 0;
+  const emptyInRange = () => hasLinks() && ranged().length === 0;
+
+  return (
+    <Switch>
+      <Match when={!hasLinks()}>
+        <div class="rounded-lg border border-border bg-surface">
+          <NoLinksYet />
+        </div>
+      </Match>
+
+      <Match when={emptyInRange()}>
+        <div class="rounded-lg border border-border bg-surface">
+          <NoLinksInRange
+            range={RANGE_LABELS[props.view.range]}
+            onClear={props.onClearRange}
+          />
+        </div>
+      </Match>
+
+      <Match when={true}>
+        <div class="flex flex-col gap-6">
+          <KpiStrip totals={totals()} unattributedScans={unattributedScans()} />
+
+          <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
             <Widget
-              id="analytics-links"
-              title="Every link"
+              id="analytics-funnel"
+              title="From scan to posted review"
+              class="lg:col-span-7"
               meta={
                 <span class="text-sm text-text-muted">
-                  <span class="font-mono tabular-nums">{rows().length}</span>{" "}
-                  {rows().length === 1 ? "request" : "requests"}
+                  {RANGE_LABELS[props.view.range]}
                 </span>
               }
             >
-              <SortSelect
-                sort={view().sort}
-                dir={view().dir}
-                onChange={setSort}
-                class="mb-4 sm:max-w-60 md:hidden"
-              />
-              <LinksTable
-                rows={rows()}
-                sort={view().sort}
-                dir={view().dir}
-                onSort={setSort}
-              />
+              <Funnel stages={funnel()} />
+              <p class="mt-5 text-xs text-pretty text-text-muted">
+                Counted from this page's own tracking. A customer who posts on
+                Google after closing the page isn't counted, so the last step is
+                a floor, not a total.
+              </p>
             </Widget>
-          </Match>
-        </Switch>
-      </div>
-    </>
+
+            <Widget
+              id="analytics-platforms"
+              title="Where customers posted"
+              action={{ href: "/settings", label: "Edit platforms" }}
+              class="lg:col-span-5"
+            >
+              <Show
+                when={platforms().length > 0}
+                fallback={<NoPlatformRedirects />}
+              >
+                <PlatformPanel rows={platforms()} />
+              </Show>
+            </Widget>
+          </div>
+
+          <Widget
+            id="analytics-links"
+            title="Every link"
+            meta={
+              <span class="text-sm text-text-muted">
+                <span class="font-mono tabular-nums">{rows().length}</span>{" "}
+                {rows().length === 1 ? "request" : "requests"}
+              </span>
+            }
+          >
+            <SortSelect
+              sort={props.view.sort}
+              dir={props.view.dir}
+              onChange={props.onSort}
+              class="mb-4 sm:max-w-60 md:hidden"
+            />
+            <LinksTable
+              rows={rows()}
+              sort={props.view.sort}
+              dir={props.view.dir}
+              onSort={props.onSort}
+            />
+          </Widget>
+        </div>
+      </Match>
+    </Switch>
   );
 }

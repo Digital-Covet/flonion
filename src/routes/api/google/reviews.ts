@@ -4,6 +4,7 @@ import {
   getValidAccessToken,
   isGoogleConnected,
 } from "~/lib/google-tokens";
+import { fetchWithTimeout } from "~/lib/http";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 import type { GoogleReview, GoogleReviewsResponse } from "~/types/google";
 
@@ -40,7 +41,7 @@ export async function GET(event: APIEvent) {
     const params = new URLSearchParams({ pageSize });
     if (pageToken) params.set("pageToken", pageToken);
 
-    const reviewResponse = await fetch(
+    const reviewResponse = await fetchWithTimeout(
       `https://mybusiness.googleapis.com/v4/${parent}/reviews?${params.toString()}`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },

@@ -1,6 +1,32 @@
 import type { APIEvent } from "@solidjs/start/server";
+import { z } from "zod";
 import { prisma } from "~/db/prisma";
+import { MAX_BULK_SLOTS } from "~/lib/input-limits";
 import { getSessionFromHeaders } from "~/lib/server-auth";
+
+/**
+ * Slots are published a month at a time, hence the larger ceiling than the
+ * other bulk endpoints. `date` was previously fed to `new Date()` untyped, so
+ * a non-date reached Prisma as `Invalid Date`.
+ */
+const createSlotsSchema = z.object({
+  slots: z
+    .array(
+      z.object({
+        date: z.coerce.date(),
+        startTime: z
+          .string()
+          .trim()
+          .regex(/^\d{2}:\d{2}$/),
+        endTime: z
+          .string()
+          .trim()
+          .regex(/^\d{2}:\d{2}$/),
+      }),
+    )
+    .min(1)
+    .max(MAX_BULK_SLOTS),
+});
 
 export async function GET(event: APIEvent) {
   const url = new URL(event.request.url);
@@ -60,15 +86,16 @@ export async function POST(event: APIEvent) {
   }
 
   try {
-    const body = await event.request.json();
-    const { slots } = body;
+    const parsed = createSlotsSchema.safeParse(await event.request.json());
 
-    if (!Array.isArray(slots) || slots.length === 0) {
+    if (!parsed.success) {
       return Response.json(
-        { error: "At least one slot is required" },
+        { error: `Between 1 and ${MAX_BULK_SLOTS} valid slots are required` },
         { status: 400 },
       );
     }
+
+    const { slots } = parsed.data;
 
     const business = await prisma.business.findUnique({
       where: { userId: session.user.id },
@@ -80,14 +107,12 @@ export async function POST(event: APIEvent) {
     }
 
     const created = await prisma.availabilitySlot.createMany({
-      data: slots.map(
-        (slot: { date: string; startTime: string; endTime: string }) => ({
-          businessId: business.id,
-          date: new Date(slot.date),
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-        }),
-      ),
+      data: slots.map((slot) => ({
+        businessId: business.id,
+        date: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+      })),
       skipDuplicates: true,
     });
 

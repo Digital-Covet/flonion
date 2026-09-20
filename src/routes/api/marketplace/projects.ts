@@ -1,7 +1,39 @@
 import type { APIEvent } from "@solidjs/start/server";
+import { z } from "zod";
 import { prisma } from "~/db/prisma";
 import { getCompanyProjects } from "~/lib/company-profile";
+import {
+  MAX_BULK_ITEMS,
+  MAX_MEDIUM_FIELD,
+  oversizedFieldResponse,
+} from "~/lib/input-limits";
+import { imageSrc } from "~/lib/safe-url";
 import { getSessionFromHeaders } from "~/lib/server-auth";
+
+/**
+ * Replaces a `projects.map((p: { imageUrl: string, ... }) => ...)` type
+ * assertion TypeScript erased at runtime, and bounds both the array and each
+ * field. `imageUrl` is rendered into `<img src>` on the public profile, so it
+ * goes through the same gate as the logo rather than being stored as typed.
+ */
+const createProjectsSchema = z.object({
+  businessId: z.string().min(1),
+  projects: z
+    .array(
+      z.object({
+        imageUrl: z
+          .string()
+          .refine((value) => imageSrc(value) !== null, {
+            message: "Image must be a full http(s) link or an inline image",
+          })
+          .transform((value) => imageSrc(value) as string),
+        altText: z.string().trim().max(MAX_MEDIUM_FIELD),
+        position: z.number().int().min(0).max(10_000).optional(),
+      }),
+    )
+    .min(1)
+    .max(MAX_BULK_ITEMS),
+});
 
 export async function GET(event: APIEvent) {
   const url = new URL(event.request.url);
@@ -28,22 +60,18 @@ export async function POST(event: APIEvent) {
   }
 
   try {
-    const body = await event.request.json();
-    const { businessId, projects } = body;
+    const parsed = createProjectsSchema.safeParse(await event.request.json());
 
-    if (typeof businessId !== "string" || !businessId) {
+    if (!parsed.success) {
       return Response.json(
-        { error: "businessId is required" },
+        {
+          error: `Between 1 and ${MAX_BULK_ITEMS} valid projects are required`,
+        },
         { status: 400 },
       );
     }
 
-    if (!Array.isArray(projects) || projects.length === 0) {
-      return Response.json(
-        { error: "At least one project is required" },
-        { status: 400 },
-      );
-    }
+    const { businessId, projects } = parsed.data;
 
     const business = await prisma.business.findUnique({
       where: { id: businessId },
@@ -55,14 +83,12 @@ export async function POST(event: APIEvent) {
     }
 
     const created = await prisma.project.createMany({
-      data: projects.map(
-        (p: { imageUrl: string; altText: string; position?: number }) => ({
-          businessId,
-          imageUrl: p.imageUrl,
-          altText: p.altText,
-          position: p.position ?? 0,
-        }),
-      ),
+      data: projects.map((p) => ({
+        businessId,
+        imageUrl: p.imageUrl,
+        altText: p.altText,
+        position: p.position ?? 0,
+      })),
     });
 
     return Response.json({ created: created.count });
@@ -92,6 +118,11 @@ export async function PATCH(event: APIEvent) {
       );
     }
 
+    const tooLong = oversizedFieldResponse([
+      { label: "Alt text", value: data.altText, max: MAX_MEDIUM_FIELD },
+    ]);
+    if (tooLong) return tooLong;
+
     const business = await prisma.business.findUnique({
       where: { id: businessId },
       select: { userId: true },
@@ -107,7 +138,10 @@ export async function PATCH(event: APIEvent) {
     const updated = await prisma.project.update({
       where: { id, businessId },
       data: {
-        imageUrl: typeof data.imageUrl === "string" ? data.imageUrl : undefined,
+        imageUrl:
+          typeof data.imageUrl === "string"
+            ? (imageSrc(data.imageUrl) ?? undefined)
+            : undefined,
         altText: typeof data.altText === "string" ? data.altText : undefined,
         position: typeof data.position === "number" ? data.position : undefined,
       },

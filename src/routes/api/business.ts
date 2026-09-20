@@ -5,8 +5,16 @@ import {
   type ReviewLinksMap,
 } from "~/features/settings/review-platforms";
 import { fetchBusinessRating } from "~/lib/google-business-rating";
-import { httpUrl, sanitizeReviewLinks } from "~/lib/safe-url";
+import {
+  MAX_LONG_FIELD,
+  MAX_MEDIUM_FIELD,
+  MAX_SHORT_FIELD,
+  MAX_URL_LENGTH,
+  oversizedFieldResponse,
+} from "~/lib/input-limits";
+import { httpUrl, imageSrc, sanitizeReviewLinks } from "~/lib/safe-url";
 import { getSessionFromHeaders } from "~/lib/server-auth";
+import { loadBusinessInfo } from "~/server/business-data";
 
 const USERNAME_REGEX = /^[a-z0-9-]+$/;
 const RESERVED_USERNAMES = [
@@ -21,72 +29,18 @@ const RESERVED_USERNAMES = [
 ];
 const MAX_USERNAME_LENGTH = 15;
 
+/**
+ * Kept for any client that still fetches this directly; pages read the same
+ * data through `getBusiness()` instead. Both share `loadBusinessInfo` so the
+ * two responses cannot drift.
+ */
 export async function GET(event: APIEvent) {
   const session = await getSessionFromHeaders(event.request.headers);
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      onboardingCompleted: true,
-      role: true,
-      businessId: true,
-      business: true,
-      team: true,
-    },
-  });
-
-  // Members have no `business` of their own — the business they work in is the
-  // one `businessId` points at. Reading only the owner relation is what left
-  // Settings, the sidebar and task assignees blank for invited users.
-  const business = user?.team ?? user?.business ?? null;
-  const isOwner = !!business && business.userId === session.user.id;
-
-  const reviewLinks =
-    business?.reviewLinks &&
-    typeof business.reviewLinks === "object" &&
-    !Array.isArray(business.reviewLinks)
-      ? (business.reviewLinks as Record<string, string>)
-      : {};
-
-  let teamMembers: Array<{
-    id: string;
-    name: string;
-    email: string;
-    image: string | null;
-  }> = [];
-  if (business?.id) {
-    const members = await prisma.user.findMany({
-      where: { businessId: business.id },
-      select: { id: true, name: true, email: true, image: true },
-    });
-    teamMembers = members;
-  }
-
-  return Response.json({
-    currentUserId: session.user.id,
-    ownerId: business?.userId ?? null,
-    businessId: business?.id ?? "",
-    isOwner,
-    role: user?.role ?? "member",
-    placeId: business?.placeId ?? "",
-    reviewLink: business?.reviewLink ?? "",
-    reviewLinks,
-    logo: business?.logo ?? null,
-    businessName: business?.name ?? "",
-    username: business?.username ?? "",
-    phone: business?.phone ?? "",
-    address: business?.address ?? "",
-    sector: business?.sector ?? "",
-    keywords: business?.keywords ?? "",
-    description: business?.description ?? "",
-    rating: business?.rating ?? 0,
-    reviewCount: business?.reviewCount ?? 0,
-    onboardingCompleted: user?.onboardingCompleted ?? false,
-    teamMembers,
-  });
+  return Response.json(await loadBusinessInfo(session.user.id));
 }
 
 export async function POST(event: APIEvent) {
@@ -187,6 +141,20 @@ export async function POST(event: APIEvent) {
       normalizedUsername = trimmed;
     }
 
+    const tooLong = oversizedFieldResponse([
+      { label: "Business name", value: businessName, max: MAX_SHORT_FIELD },
+      { label: "Phone", value: phone, max: MAX_SHORT_FIELD },
+      { label: "Sector", value: sector, max: MAX_SHORT_FIELD },
+      { label: "Place ID", value: placeId, max: MAX_SHORT_FIELD },
+      { label: "Address", value: address, max: MAX_MEDIUM_FIELD },
+      { label: "Keywords", value: keywords, max: MAX_MEDIUM_FIELD },
+      { label: "Description", value: description, max: MAX_LONG_FIELD },
+      // `logo` is bounded by `imageSrc` below, which also allows an inline
+      // `data:` image and so cannot share the plain URL ceiling.
+      { label: "Review link", value: reviewLink, max: MAX_URL_LENGTH },
+    ]);
+    if (tooLong) return tooLong;
+
     // Review links are navigated to on the public review page, so anything
     // other than an http(s) URL (e.g. `javascript:`) is stored XSS.
     const safeReviewLink = httpUrl(reviewLink);
@@ -219,11 +187,25 @@ export async function POST(event: APIEvent) {
       safeReviewLinks = sanitized.links;
     }
 
+    // The logo is rendered on the public review page, the company profile and
+    // every marketplace card. It gets the same treatment as the links above
+    // rather than a bare `typeof` check: an unvalidated string here is an
+    // arbitrary scheme, an unbounded `data:` URI, or an off-origin tracker that
+    // fires on every visitor's page load. Onboarding inlines small images, so
+    // `imageSrc` allows a bounded `data:` image as well as an http(s) URL.
+    const safeLogo = imageSrc(logo);
+    if (typeof logo === "string" && logo.trim() && !safeLogo) {
+      return Response.json(
+        { error: "Logo must be a full http(s) link or an inline image" },
+        { status: 400 },
+      );
+    }
+
     const data = {
       placeId: typeof placeId === "string" ? placeId : null,
       reviewLink: safeReviewLink,
       reviewLinks: safeReviewLinks,
-      logo: typeof logo === "string" ? logo : null,
+      logo: safeLogo,
       name: businessName.trim(),
       username: normalizedUsername,
       phone: typeof phone === "string" ? phone : null,

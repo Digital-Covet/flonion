@@ -12,7 +12,12 @@ export async function GET(event: APIEvent) {
 
     return Response.json(payload, {
       headers: {
-        "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
+        // `private`, not `public`: this path is not in the middleware's
+        // PUBLIC_PREFIXES, so an anonymous caller gets a 401. Marking the 200
+        // `public` invites a shared cache to store it and hand it to exactly
+        // that caller. The route's own header wins over the middleware's
+        // `no-store` guard, so it has to be right here.
+        "Cache-Control": "private, max-age=60, stale-while-revalidate=300",
         "X-Cache": cached ? "HIT" : "MISS",
       },
     });

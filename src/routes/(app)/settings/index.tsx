@@ -15,7 +15,6 @@ import {
 import { createStore, reconcile } from "solid-js/store";
 import { useApp } from "~/components/app/context";
 import { profileHref } from "~/components/app/nav";
-import { settled } from "~/components/dashboard/data";
 import { WidgetError } from "~/components/dashboard/ui";
 import {
   api,
@@ -82,7 +81,7 @@ export default function SettingsPage() {
   const { business, refetchBusiness } = useApp();
   const [params, setParams] = useSearchParams();
 
-  const info = () => settled(business);
+  const info = () => business.latest;
   /** `POST /api/business` upserts the caller's own business, so only the owner can save. */
   const readOnly = () => Boolean(info()) && !info()?.isOwner;
 
@@ -344,7 +343,9 @@ export default function SettingsPage() {
 
   const focusHeading = (id: SectionId) => navigated() && shown() === id;
 
-  const loading = () => !info() && business.state !== "errored";
+  // A failed load throws from `.latest` into the page-level ErrorBoundary in
+  // AppShell, so there is no error state to hold this open for.
+  const loading = () => !info();
 
   return (
     <>
@@ -367,10 +368,6 @@ export default function SettingsPage() {
           </div>
           <SectionLink href="/settings/team" label="Team settings" />
         </header>
-
-        <Show when={business.state === "errored"}>
-          <WidgetError what="your settings" onRetry={() => refetchBusiness()} />
-        </Show>
 
         <Show when={readOnly()}>
           <ReadOnlyBanner ctaHref="/reviews/new" />

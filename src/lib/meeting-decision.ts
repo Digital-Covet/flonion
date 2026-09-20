@@ -22,6 +22,19 @@ const DECISION_LINK_TTL_SECONDS = 14 * 24 * 60 * 60;
 /** Schedule settings are documented as IST; used if a stored zone is invalid. */
 const FALLBACK_TIMEZONE = "Asia/Kolkata";
 
+/**
+ * Ceilings on the visitor-supplied text that reaches the .ics attachment.
+ * `ics.ts` folds safely on any input, so this is belt-and-braces: an invite
+ * does not need a 1000-character message body, and a bounded attachment keeps
+ * the outbound email small.
+ */
+const MAX_INVITE_SUMMARY = 200;
+const MAX_INVITE_DESCRIPTION = 2000;
+
+function clampForInvite(value: string, max: number): string {
+  return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
+}
+
 export function isMeetingAction(value: unknown): value is MeetingAction {
   return value === "accept" || value === "reject";
 }
@@ -227,16 +240,22 @@ async function sendDecisionEmails(
         {
           name: "invite.ics",
           content: generateIcsInvite({
-            summary: `Meeting: ${visitorName} & ${meeting.business.name}`,
-            description: [
-              `Visitor: ${visitorName}`,
-              `Email: ${visitorEmail}`,
-              `Phone: ${meeting.guestPhone}`,
-              meeting.message ? `Message: ${meeting.message}` : "",
-              meetUri ? `Google Meet: ${meetUri}` : "",
-            ]
-              .filter(Boolean)
-              .join("\\n"),
+            summary: clampForInvite(
+              `Meeting: ${visitorName} & ${meeting.business.name}`,
+              MAX_INVITE_SUMMARY,
+            ),
+            description: clampForInvite(
+              [
+                `Visitor: ${visitorName}`,
+                `Email: ${visitorEmail}`,
+                `Phone: ${meeting.guestPhone}`,
+                meeting.message ? `Message: ${meeting.message}` : "",
+                meetUri ? `Google Meet: ${meetUri}` : "",
+              ]
+                .filter(Boolean)
+                .join("\n"),
+              MAX_INVITE_DESCRIPTION,
+            ),
             location: meetUri ?? "Google Meet",
             organizer: { name: ownerName, email: meeting.business.user.email },
             attendees: [

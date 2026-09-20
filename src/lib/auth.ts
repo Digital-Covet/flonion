@@ -18,6 +18,7 @@ import {
 } from "@/services/email-templates";
 
 import { COMPANY_NAME } from "./constants";
+import { CLIENT_IP_HEADER } from "./rate-limit";
 import { PLATFORM_ADMIN_ROLE } from "./roles";
 import { getTrustedOrigins } from "./trusted-origins";
 
@@ -48,7 +49,11 @@ export const auth = betterAuth({
           verificationUrl: url,
         });
 
-        void sendEmail({
+        // Awaited deliberately: a discarded rejection here is an unhandled
+        // rejection, which Node turns into process exit. Awaiting also means a
+        // failed send surfaces to the caller instead of leaving the user
+        // waiting for a verification email that was never delivered.
+        await sendEmail({
           to: newEmail,
           subject: `Verify your new ${COMPANY_NAME} email`,
           text,
@@ -213,4 +218,13 @@ export const auth = betterAuth({
       },
     }),
   ],
+
+  advanced: {
+    // Same header this app's own rate limiter keys on, so the two limiters
+    // protecting this origin cannot disagree about who the client is. The
+    // proxy must overwrite it on every inbound request.
+    ipAddress: {
+      ipAddressHeaders: [CLIENT_IP_HEADER],
+    },
+  },
 });

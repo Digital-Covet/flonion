@@ -1,4 +1,5 @@
 import { A } from "@solidjs/router";
+import { HttpHeader } from "@solidjs/start";
 import {
   IconAlertTriangle,
   IconArrowRight,
@@ -83,6 +84,13 @@ export default function Landing() {
 
   return (
     <>
+      {/* Static marketing copy, identical for everyone: let a shared cache
+          serve it. Signed-in pages are covered by the `private, no-store` the
+          middleware sets on every non-public path. */}
+      <HttpHeader
+        name="Cache-Control"
+        value="public, max-age=0, s-maxage=300, stale-while-revalidate=600"
+      />
       <PageMeta
         title="Flonion – More genuine reviews for local businesses"
         description="Flonion helps local businesses collect genuine Google reviews with QR codes, reply faster with AI drafts in your tone, and get found in local search."

@@ -1,36 +1,12 @@
 import { api } from "~/components/onboarding/ui";
 import { getPlatformLabel } from "~/features/settings/review-platforms";
+import type { AnalyticsData, LinkRow } from "~/types/analytics";
+
+export type { AnalyticsData, LinkRow };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // ─── API shape ───────────────────────────────────────────────────────────
-
-/** One shared review link, as GET /api/reviews/analytics returns it. */
-export type LinkRow = {
-  id: string;
-  /** First 60 characters of the suggested text, already truncated server-side. */
-  text: string;
-  rating: number;
-  reviewerName: string | null;
-  visits: number;
-  reviews: number;
-  qrScans: number;
-  redirects: number;
-  aiCopies: number;
-  platformRedirects: Record<string, number>;
-  createdAt: string;
-};
-
-export type AnalyticsData = {
-  totalVisits: number;
-  totalReviews: number;
-  totalQrScans: number;
-  totalRedirects: number;
-  totalAiCopies: number;
-  totalPlatformRedirects: Record<string, number>;
-  totalLinks: number;
-  reviews: LinkRow[];
-};
 
 export async function loadCampaigns(): Promise<AnalyticsData> {
   const res = await api<AnalyticsData>("/api/reviews/analytics");

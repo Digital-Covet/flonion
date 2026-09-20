@@ -22,7 +22,6 @@ import {
 } from "solid-js";
 import { useApp } from "~/components/app/context";
 import { FieldError, inputBase, labelClass } from "~/components/auth/AuthShell";
-import { settled } from "~/components/dashboard/data";
 import { Skeleton } from "~/components/dashboard/ui";
 import { QrTicket } from "~/components/landing/brand";
 import { btnSecondary, Notice, Spinner } from "~/components/onboarding/ui";
@@ -75,8 +74,8 @@ type RequestState =
 type SaveState = "idle" | "pending" | "saving" | "saved" | "invalid" | "error";
 
 export default function ReviewComposerPage() {
-  const { business, refetchBusiness } = useApp();
-  const info = () => settled(business);
+  const { business } = useApp();
+  const info = () => business.latest;
 
   // ── Form
   const [customerName, setCustomerName] = createSignal("");
@@ -343,19 +342,6 @@ export default function ReviewComposerPage() {
             Create another
           </button>
         </header>
-
-        <Show when={business.state === "errored"}>
-          <Notice tone="error">
-            We couldn't load your business details. Your link still works.{" "}
-            <button
-              type="button"
-              onClick={() => refetchBusiness()}
-              class="font-medium underline underline-offset-4"
-            >
-              Try again
-            </button>
-          </Notice>
-        </Show>
 
         <Segmented
           legend="Show"

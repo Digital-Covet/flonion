@@ -1,4 +1,6 @@
 import { prisma } from "@/db/prisma";
+import { fetchWithTimeout } from "~/lib/http";
+import { invalidateGoogle } from "~/server/google-cache";
 import { decrypt, encrypt } from "./crypto";
 
 export interface TokenSet {
@@ -71,6 +73,10 @@ export async function storeTokens(
     create: { userId, ...data },
     update: data,
   });
+
+  // A fresh consent can cover a different set of Google accounts, so anything
+  // resolved against the old grant is now wrong rather than merely stale.
+  invalidateGoogle(userId);
 }
 
 export async function getTokens(userId: string): Promise<TokenSet | undefined> {
@@ -93,6 +99,7 @@ export async function isGoogleConnected(userId: string): Promise<boolean> {
 
 export async function clearTokens(userId: string): Promise<void> {
   await prisma.googleToken.deleteMany({ where: { userId } });
+  invalidateGoogle(userId);
 }
 
 /**
@@ -108,16 +115,19 @@ export async function refreshAccessToken(userId: string): Promise<string> {
   if (!clientId || !clientSecret)
     throw new Error("Missing Google OAuth env vars");
 
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: tokenSet.refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
+  const response = await fetchWithTimeout(
+    "https://oauth2.googleapis.com/token",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: tokenSet.refreshToken,
+        grant_type: "refresh_token",
+      }),
+    },
+  );
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));

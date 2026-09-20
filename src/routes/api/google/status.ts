@@ -1,6 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { isGoogleConnected } from "~/lib/google-tokens";
 import { getSessionFromHeaders } from "~/lib/server-auth";
+import { connectedCache } from "~/server/google-cache";
 
 /**
  * Whether this user has a live Google connection.
@@ -18,5 +19,11 @@ export async function GET(event: APIEvent) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  return Response.json({ connected: await isGoogleConnected(session.user.id) });
+  // Several widgets ask this per page load; the cache collapses them into one
+  // read and is cleared outright whenever the grant changes.
+  const connected = await connectedCache.get(session.user.id, () =>
+    isGoogleConnected(session.user.id),
+  );
+
+  return Response.json({ connected });
 }

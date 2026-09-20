@@ -1,5 +1,5 @@
 import { createAsync, useParams } from "@solidjs/router";
-import { HttpStatusCode } from "@solidjs/start";
+import { HttpHeader, HttpStatusCode } from "@solidjs/start";
 import { IconExternalLink, IconSparkles } from "@tabler/icons-solidjs";
 import {
   createEffect,
@@ -251,6 +251,15 @@ export default function CompanyReviewPage() {
         {(value) =>
           value.kind === "active" ? (
             <>
+              {/* Identical for every anonymous visitor, so a shared cache may
+                  serve it. `max-age=0` keeps it out of private browser caches,
+                  where a stale copy would outlive a settings change. The
+                  inactive branch below is deliberately left uncached: a link
+                  that has just been activated must not stay 404 for a minute. */}
+              <HttpHeader
+                name="Cache-Control"
+                value="public, max-age=0, s-maxage=60, stale-while-revalidate=300"
+              />
               <PageMeta
                 title={`Leave ${value.business.name} a review · Flonion`}
                 description={`Share your experience with ${value.business.name}. No account or app needed.`}

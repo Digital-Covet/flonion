@@ -3,7 +3,25 @@ import { prisma } from "~/db/prisma";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 import { isTrustedRequestOrigin } from "~/lib/trusted-origins";
 
+/**
+ * A net, not a fix: Node has defaulted to `--unhandled-rejections=throw` since
+ * v15, so one discarded promise rejection anywhere on the server takes the
+ * whole process down and every tenant's in-flight requests with it. Each such
+ * rejection is still a bug to fix at its call site -- this only stops one from
+ * being an outage. Registered here because this module is evaluated once, on
+ * the server, at startup.
+ */
+if (!globalThis.__revmeRejectionGuard) {
+  globalThis.__revmeRejectionGuard = true;
+  process.on("unhandledRejection", (reason) => {
+    console.error("[server] Unhandled promise rejection:", reason);
+  });
+}
+
 const STATE_CHANGING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/** Where SolidStart serves server functions (`SERVER_FN_BASE` in its handler). */
+const SERVER_FN_BASE = "/_server";
 
 const PUBLIC_PATHS = [
   "/",
@@ -27,10 +45,18 @@ const PUBLIC_PREFIXES = [
   // The operator arrives without a tenant session; the route authenticates
   // the desk's signed, single-use handoff token itself.
   "/api/operator/impersonate",
-  "/company/",
+  // No bare "/company/" here: it would swallow the whole subtree, including
+  // the signed-in profile page, and leave that page without `no-store`. The
+  // public sub-routes are matched by the regexes in `isPublicPath`.
   "/qr/",
   "/review/",
 ];
+
+function isServerFunction(pathname: string): boolean {
+  return (
+    pathname === SERVER_FN_BASE || pathname.startsWith(`${SERVER_FN_BASE}/`)
+  );
+}
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true;
@@ -109,11 +135,29 @@ function applySecurityHeaders(headers: Headers) {
  */
 function secured(response: Response): Response {
   applySecurityHeaders(response.headers);
+  // Every early return is either a redirect away from a protected page or a
+  // refusal, and neither should ever be cached.
+  response.headers.set("Cache-Control", "private, no-store");
   return response;
 }
 
 export default createMiddleware({
-  onBeforeResponse: async (_event, response) => {
+  onBeforeResponse: async (event, response) => {
+    // A streamed page resolves to an iterable rather than a Response, so the
+    // branch below never fires for one and its headers would be dropped.
+    // `event.response` is the header bag SolidStart also writes the page's
+    // Content-Type to, and it survives the streaming path.
+    //
+    // This belongs here rather than in `onRequest`: reading `event.response`
+    // before the handler runs breaks SolidStart's own URL handling in dev.
+    applySecurityHeaders(event.response.headers);
+
+    // Nothing signed-in may be stored by a shared cache. This is the guard
+    // that makes marking the public pages cacheable safe.
+    if (!isPublicPath(new URL(event.request.url).pathname)) {
+      event.response.headers.set("Cache-Control", "private, no-store");
+    }
+
     if (response.body instanceof Response) {
       applySecurityHeaders(response.body.headers);
     }
@@ -131,6 +175,15 @@ export default createMiddleware({
       !isTrustedRequestOrigin(event.request)
     ) {
       return secured(Response.json({ error: "Forbidden" }, { status: 403 }));
+    }
+
+    // Server functions are not navigations, so they must never be redirected:
+    // a 302 to /login would be parsed as the function's result. Public pages
+    // call queries from here too, so authenticate optionally and let each
+    // query decide for itself via `requireSession()`.
+    if (isServerFunction(pathname)) {
+      event.locals.session = await getSessionFromHeaders(event.request.headers);
+      return;
     }
 
     if (isPublicPath(pathname)) return;
@@ -165,6 +218,9 @@ export default createMiddleware({
     });
 
     if (!user) return;
+
+    // Stashed so server functions never repeat this lookup.
+    event.locals.onboardingCompleted = user.onboardingCompleted;
 
     if (
       !user.onboardingCompleted &&

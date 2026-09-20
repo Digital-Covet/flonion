@@ -10,7 +10,7 @@ import {
 } from "solid-js";
 import { useApp } from "~/components/app/context";
 import { isLoading, settled } from "~/components/dashboard/data";
-import { Skeleton, WidgetError } from "~/components/dashboard/ui";
+import { Skeleton } from "~/components/dashboard/ui";
 import {
   BackToSections,
   type NavSection,
@@ -65,7 +65,7 @@ function NavSkeleton() {
 
 export default function TeamSettingsPage() {
   const { business, refetchBusiness } = useApp();
-  const info = () => settled(business);
+  const info = () => business.latest;
 
   const viewer = (): Viewer | undefined => {
     const data = info();
@@ -176,7 +176,9 @@ export default function TeamSettingsPage() {
   };
 
   /** The business decides which sections exist, so the page waits for it. */
-  const loading = () => !info() && business.state !== "errored";
+  // A failed load throws from `.latest` into the page-level ErrorBoundary in
+  // AppShell, so there is no error state to hold this open for.
+  const loading = () => !info();
 
   return (
     <>
@@ -199,10 +201,6 @@ export default function TeamSettingsPage() {
           </div>
           <SectionLink href="/settings" label="Business settings" />
         </header>
-
-        <Show when={business.state === "errored"}>
-          <WidgetError what="your team" onRetry={() => refetchBusiness()} />
-        </Show>
 
         <Show when={info() && !manage()}>
           <MemberOnlyNotice />

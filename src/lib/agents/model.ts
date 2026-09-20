@@ -9,11 +9,20 @@ import { ChatDeepSeek } from "@langchain/deepseek";
  */
 const MODEL_ID = process.env.AI_MODEL_ID ?? "deepseek-v4-flash";
 
+/**
+ * Deadline on a completion. Without one a hung upstream holds the request
+ * handler open indefinitely, and the AI endpoints are the ones an anonymous
+ * caller can reach. Generous because generation is genuinely slow.
+ */
+const MODEL_TIMEOUT_MS = 60_000;
+
 export function getModel(apiKey: string, temperature = 0): ChatDeepSeek {
   return new ChatDeepSeek({
     model: MODEL_ID,
     temperature,
     apiKey,
+    timeout: MODEL_TIMEOUT_MS,
+    maxRetries: 2,
   });
 }
 

@@ -1,5 +1,6 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { storeTokens } from "~/lib/google-tokens";
+import { fetchWithTimeout } from "~/lib/http";
 import { clearOAuthStateCookie, consumeOAuthState } from "~/lib/oauth-state";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 
@@ -60,17 +61,20 @@ export async function GET(event: APIEvent) {
   }
 
   try {
-    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code,
-        client_id: getEnv("GOOGLE_CLIENT_ID"),
-        client_secret: getEnv("GOOGLE_CLIENT_SECRET"),
-        redirect_uri: getEnv("GOOGLE_REDIRECT_URI"),
-        grant_type: "authorization_code",
-      }),
-    });
+    const tokenResponse = await fetchWithTimeout(
+      "https://oauth2.googleapis.com/token",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: getEnv("GOOGLE_CLIENT_ID"),
+          client_secret: getEnv("GOOGLE_CLIENT_SECRET"),
+          redirect_uri: getEnv("GOOGLE_REDIRECT_URI"),
+          grant_type: "authorization_code",
+        }),
+      },
+    );
 
     if (!tokenResponse.ok) {
       const details = await tokenResponse.text().catch(() => "");

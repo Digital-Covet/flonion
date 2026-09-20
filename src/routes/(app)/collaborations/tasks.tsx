@@ -160,7 +160,7 @@ export default function TasksPage() {
   const now = new Date();
 
   const all = () => settled(tasks) ?? [];
-  const info = () => settled(business);
+  const info = () => business.latest;
   const members = () => info()?.teamMembers ?? [];
   const viewer = (): Viewer | undefined => {
     const b = info();
@@ -522,7 +522,7 @@ export default function TasksPage() {
           {(error) => <Notice tone="error">{error()}</Notice>}
         </Show>
 
-        <Show when={business.state === "ready" && !canCreate()}>
+        <Show when={!!business.latest && !canCreate()}>
           <Notice tone="info">
             Tasks are assigned to a team member, and your team is empty. Invite
             someone from{" "}

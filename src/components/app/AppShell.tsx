@@ -1,6 +1,12 @@
 import { Dialog } from "@ark-ui/solid/dialog";
 import { Menu } from "@ark-ui/solid/menu";
-import { A, createAsync, useLocation, useNavigate } from "@solidjs/router";
+import {
+  A,
+  createAsync,
+  revalidate,
+  useLocation,
+  useNavigate,
+} from "@solidjs/router";
 import {
   IconAlertTriangle,
   IconCheck,
@@ -17,6 +23,7 @@ import {
 import {
   createEffect,
   createSignal,
+  ErrorBoundary,
   For,
   type JSX,
   on,
@@ -37,6 +44,7 @@ import {
   profileHref,
 } from "~/components/app/nav";
 import { focusRing } from "~/components/auth/AuthShell";
+import { WidgetError } from "~/components/dashboard/ui";
 import { authClient } from "~/lib/auth-client";
 import { cn } from "~/lib/cn";
 import { getImpersonation } from "~/lib/impersonation";
@@ -253,7 +261,22 @@ function Shell(props: { children: JSX.Element }) {
           tabindex="-1"
           class="mx-auto w-full max-w-[1280px] flex-1 px-4 pt-6 pb-28 outline-none md:px-6 md:pt-8 md:pb-12"
         >
-          {props.children}
+          {/* One page-level net so a route's failed data keeps the shell
+              chrome usable instead of blanking the whole app. Widgets that
+              want finer-grained recovery add their own boundary inside. */}
+          <ErrorBoundary
+            fallback={(_err, reset) => (
+              <WidgetError
+                what="this page"
+                onRetry={() => {
+                  void revalidate(undefined);
+                  reset();
+                }}
+              />
+            )}
+          >
+            {props.children}
+          </ErrorBoundary>
         </main>
       </div>
 
@@ -384,7 +407,7 @@ function NavList(props: { pathname: string; collapsed: boolean }) {
 
   /** Dynamic entries (the owner's own profile) resolve against the business. */
   const hrefFor = (item: NavItem) =>
-    item.dynamic === "profile" ? profileHref(business()) : item.href;
+    item.dynamic === "profile" ? profileHref(business.latest) : item.href;
 
   return (
     <div class="flex flex-col gap-4">
@@ -465,7 +488,10 @@ function CollapseButton(props: { collapsed: boolean; onClick: () => void }) {
 /** Square business mark: the uploaded logo, or its initial on the tint. */
 function BusinessMark(props: { class?: string }) {
   const { business } = useApp();
-  const info = () => (business.state === "ready" ? business() : undefined);
+  // `.latest` rather than `business()`: the shell must not suspend and blank
+  // its own chrome while a revalidation is in flight. `deferStream` on the
+  // provider means the value is already in the first HTML.
+  const info = () => business.latest;
   return (
     <Show
       when={info()}
@@ -510,7 +536,10 @@ function BusinessMark(props: { class?: string }) {
 /** Business name and the user's role; used by the account menu and drawer. */
 function BusinessLabel() {
   const { business } = useApp();
-  const info = () => (business.state === "ready" ? business() : undefined);
+  // `.latest` rather than `business()`: the shell must not suspend and blank
+  // its own chrome while a revalidation is in flight. `deferStream` on the
+  // provider means the value is already in the first HTML.
+  const info = () => business.latest;
   return (
     <Show
       when={info()}

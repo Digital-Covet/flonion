@@ -1,4 +1,5 @@
-import type { Resource } from "solid-js";
+import type { AccessorWithLatest } from "@solidjs/router";
+import { createSignal, onMount, type Resource } from "solid-js";
 import type { BusinessInfo } from "~/components/app/context";
 import { api } from "~/components/onboarding/ui";
 import {
@@ -8,6 +9,23 @@ import {
   type GoogleReviewsResponse,
   googleStarRatingToNumber,
 } from "~/types/google";
+
+/**
+ * The business, but only once the browser has taken over.
+ *
+ * The loaders in this file fetch this app's own `/api/*` routes with a
+ * relative URL, which has no base during SSR, and they need the browser's
+ * cookies anyway. The app shell now resolves the business on the server, so
+ * without this gate those resources would start during the server render and
+ * fail. Routes drop this when they move to server-loaded queries.
+ */
+export function clientBusiness(
+  business: AccessorWithLatest<BusinessInfo | undefined>,
+): () => BusinessInfo | undefined {
+  const [mounted, setMounted] = createSignal(false);
+  onMount(() => setMounted(true));
+  return () => (mounted() ? business.latest : undefined);
+}
 
 /** Value of a settled resource without ever triggering Suspense. */
 export function settled<T>(r: Resource<T>): T | undefined {
@@ -32,31 +50,12 @@ export type GoogleData =
       nextPageToken?: string;
     };
 
-const LOCATION_CACHE_KEY = "flonion:google-location";
-
-type CachedLocation = {
+type LocationMatch = {
   placeId: string;
   accountId: string;
   locationId: string;
-  /** The listing itself; absent in entries cached before it was stored. */
-  location?: GoogleLocation;
+  location: GoogleLocation;
 };
-
-function readCachedLocation(placeId: string): CachedLocation | null {
-  try {
-    const raw = sessionStorage.getItem(LOCATION_CACHE_KEY);
-    const parsed = raw ? (JSON.parse(raw) as CachedLocation) : null;
-    return parsed?.placeId === placeId ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeCachedLocation(value: CachedLocation) {
-  try {
-    sessionStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify(value));
-  } catch {}
-}
 
 type LocationsResponse = {
   accounts: Array<GoogleAccount & { locations: GoogleLocation[] }>;
@@ -78,16 +77,15 @@ function fetchLocations(): Promise<LocationsResult> {
 
 /**
  * The reviews endpoint is keyed by account + location, but a business stores
- * only its place id. The location lookup walks every account (slow and
- * quota-bound), so the match is cached for the browser session.
+ * only its place id, so the match has to be resolved from the account walk.
+ *
+ * That walk is cached server-side (`src/server/google-cache.ts`), which is
+ * where the cost actually lives. This used to keep its own copy in
+ * `sessionStorage`; that was per tab, lost on a hard refresh, and — worse —
+ * outlived a Google reconnect, so a disconnected owner kept resolving against
+ * a grant that no longer existed.
  */
-async function resolveLocation(
-  placeId: string,
-  needListing = false,
-): Promise<CachedLocation | null> {
-  const cached = readCachedLocation(placeId);
-  if (cached && (!needListing || cached.location)) return cached;
-
+async function resolveLocation(placeId: string): Promise<LocationMatch | null> {
   const res = await fetchLocations();
   if (res.status === 401) return null;
   if (!res.ok) throw new Error(res.data.error ?? "Failed to load locations");
@@ -98,9 +96,7 @@ async function resolveLocation(
     const accountId = account.name.split("/").pop();
     const locationId = location.name.split("/").pop();
     if (!accountId || !locationId) continue;
-    const match = { placeId, accountId, locationId, location };
-    writeCachedLocation(match);
-    return match;
+    return { placeId, accountId, locationId, location };
   }
   return null;
 }
@@ -119,8 +115,8 @@ export async function loadListing(
   if (!status.data.connected) return { kind: "disconnected" };
   if (!business.placeId) return { kind: "unmatched" };
 
-  const match = await resolveLocation(business.placeId, true);
-  if (!match?.location) return { kind: "unmatched" };
+  const match = await resolveLocation(business.placeId);
+  if (!match) return { kind: "unmatched" };
   return { kind: "ready", location: match.location };
 }
 

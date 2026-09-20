@@ -13,6 +13,7 @@ import {
 } from "solid-js";
 import { useApp } from "~/components/app/context";
 import {
+  clientBusiness,
   isLoading,
   loadAnalytics,
   loadGoogle,
@@ -69,7 +70,7 @@ export default function DashboardPage() {
   const [isMobile, setIsMobile] = createSignal(false);
 
   const [google, { refetch: refetchGoogle }] = createResource(
-    () => settled(business),
+    clientBusiness(business),
     loadGoogle,
   );
   const [analytics, { refetch: refetchAnalytics }] = createResource(
@@ -109,7 +110,7 @@ export default function DashboardPage() {
     });
   });
 
-  const b = () => settled(business);
+  const b = () => business.latest;
   const g = () => settled(google);
   const a = () => settled(analytics);
 
@@ -164,19 +165,6 @@ export default function DashboardPage() {
           </A>
         </header>
 
-        <Show when={business.state === "errored"}>
-          <Notice tone="error">
-            We couldn't load your business details.{" "}
-            <button
-              type="button"
-              onClick={() => refetchBusiness()}
-              class="font-medium underline underline-offset-4"
-            >
-              Try again
-            </button>
-          </Notice>
-        </Show>
-
         <Show when={g()?.kind === "unmatched"}>
           <Notice tone="warning">
             Google is connected, but none of its locations match this business.
@@ -194,9 +182,7 @@ export default function DashboardPage() {
         <KpiStrip
           business={b()}
           google={g()}
-          googleFailed={
-            google.state === "errored" || business.state === "errored"
-          }
+          googleFailed={google.state === "errored"}
           analytics={a()}
           analyticsFailed={analytics.state === "errored"}
         />
@@ -222,9 +208,6 @@ export default function DashboardPage() {
             class="lg:col-span-8"
           >
             <Switch>
-              <Match when={business.state === "errored"}>
-                <WidgetError what="your business" onRetry={refetchBusiness} />
-              </Match>
               <Match when={google.state === "errored"}>
                 <WidgetError
                   what="your Google reviews"
@@ -255,9 +238,6 @@ export default function DashboardPage() {
             class="lg:col-span-4"
           >
             <Switch>
-              <Match when={business.state === "errored"}>
-                <WidgetError what="your profile" onRetry={refetchBusiness} />
-              </Match>
               <Match when={b() && !isLoading(google) ? b() : undefined}>
                 {(info) => (
                   <ProfileScore

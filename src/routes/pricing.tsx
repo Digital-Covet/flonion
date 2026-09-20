@@ -1,4 +1,5 @@
 import { A } from "@solidjs/router";
+import { HttpHeader } from "@solidjs/start";
 import {
   IconArrowRight,
   IconCheck,
@@ -228,6 +229,11 @@ export default function Pricing() {
 
   return (
     <>
+      {/* Static marketing copy; see the note on the landing page. */}
+      <HttpHeader
+        name="Cache-Control"
+        value="public, max-age=0, s-maxage=300, stale-while-revalidate=600"
+      />
       <PageMeta
         title="Pricing – Flonion"
         description="Simple Flonion plans for local businesses: start free, then upgrade for unlimited review QR codes, more AI reply drafts and local SEO tools."

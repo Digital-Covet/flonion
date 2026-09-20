@@ -286,17 +286,10 @@ export default function PortfolioProjectsPage() {
         </header>
 
         <Switch>
-          <Match when={business.loading || !ready()}>
+          <Match when={!business.latest || !ready()}>
             <div class={cn(sectionClass, "flex flex-col gap-4")}>
               <PanelSkeleton rows={3} />
             </div>
-          </Match>
-
-          <Match when={business.error}>
-            <WidgetError
-              what="your portfolio"
-              onRetry={() => window.location.reload()}
-            />
           </Match>
 
           <Match when={!isOwner()}>

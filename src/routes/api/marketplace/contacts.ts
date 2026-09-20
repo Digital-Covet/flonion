@@ -1,7 +1,40 @@
 import type { APIEvent } from "@solidjs/start/server";
+import { z } from "zod";
 import { prisma } from "~/db/prisma";
 import { getCompanyContacts } from "~/lib/company-profile";
+import {
+  MAX_BULK_ITEMS,
+  MAX_SHORT_FIELD,
+  oversizedFieldResponse,
+} from "~/lib/input-limits";
+import { imageSrc } from "~/lib/safe-url";
 import { getSessionFromHeaders } from "~/lib/server-auth";
+
+/**
+ * The hand-written `contacts.map((c: { name: string, ... }) => ...)` this
+ * replaces was a type assertion TypeScript erases at runtime: a non-string
+ * `name` reached Prisma, and nothing bounded the array or the strings. Rows
+ * created here are read back on every company profile render.
+ */
+const createContactsSchema = z.object({
+  businessId: z.string().min(1),
+  contacts: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(MAX_SHORT_FIELD),
+        role: z.string().trim().max(MAX_SHORT_FIELD),
+        avatarUrl: z
+          .string()
+          .transform((value) => imageSrc(value))
+          .nullable()
+          .optional(),
+        email: z.string().trim().max(MAX_SHORT_FIELD).nullable().optional(),
+        position: z.number().int().min(0).max(10_000).optional(),
+      }),
+    )
+    .min(1)
+    .max(MAX_BULK_ITEMS),
+});
 
 export async function GET(event: APIEvent) {
   const url = new URL(event.request.url);
@@ -28,22 +61,18 @@ export async function POST(event: APIEvent) {
   }
 
   try {
-    const body = await event.request.json();
-    const { businessId, contacts } = body;
+    const parsed = createContactsSchema.safeParse(await event.request.json());
 
-    if (typeof businessId !== "string" || !businessId) {
+    if (!parsed.success) {
       return Response.json(
-        { error: "businessId is required" },
+        {
+          error: `Between 1 and ${MAX_BULK_ITEMS} valid contacts are required`,
+        },
         { status: 400 },
       );
     }
 
-    if (!Array.isArray(contacts) || contacts.length === 0) {
-      return Response.json(
-        { error: "At least one contact is required" },
-        { status: 400 },
-      );
-    }
+    const { businessId, contacts } = parsed.data;
 
     const business = await prisma.business.findUnique({
       where: { id: businessId },
@@ -55,22 +84,14 @@ export async function POST(event: APIEvent) {
     }
 
     const created = await prisma.businessContact.createMany({
-      data: contacts.map(
-        (c: {
-          name: string;
-          role: string;
-          avatarUrl?: string;
-          email?: string;
-          position?: number;
-        }) => ({
-          businessId,
-          name: c.name,
-          role: c.role,
-          avatarUrl: c.avatarUrl ?? null,
-          email: c.email ?? null,
-          position: c.position ?? 0,
-        }),
-      ),
+      data: contacts.map((c) => ({
+        businessId,
+        name: c.name,
+        role: c.role,
+        avatarUrl: c.avatarUrl ?? null,
+        email: c.email ?? null,
+        position: c.position ?? 0,
+      })),
     });
 
     return Response.json({ created: created.count });
@@ -100,6 +121,13 @@ export async function PATCH(event: APIEvent) {
       );
     }
 
+    const tooLong = oversizedFieldResponse([
+      { label: "Name", value: data.name, max: MAX_SHORT_FIELD },
+      { label: "Role", value: data.role, max: MAX_SHORT_FIELD },
+      { label: "Email", value: data.email, max: MAX_SHORT_FIELD },
+    ]);
+    if (tooLong) return tooLong;
+
     const business = await prisma.business.findUnique({
       where: { id: businessId },
       select: { userId: true },
@@ -117,8 +145,13 @@ export async function PATCH(event: APIEvent) {
       data: {
         name: typeof data.name === "string" ? data.name : undefined,
         role: typeof data.role === "string" ? data.role : undefined,
+        // Rendered into `<img src>` on the public profile, so it goes through
+        // the same gate as the logo. A non-string (the client sends `null`)
+        // leaves the stored value alone, as before.
         avatarUrl:
-          typeof data.avatarUrl === "string" ? data.avatarUrl : undefined,
+          typeof data.avatarUrl === "string"
+            ? imageSrc(data.avatarUrl)
+            : undefined,
         email: typeof data.email === "string" ? data.email : undefined,
         position: typeof data.position === "number" ? data.position : undefined,
       },

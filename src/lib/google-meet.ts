@@ -1,4 +1,5 @@
 import { getValidAccessToken, isGoogleConnected } from "./google-tokens";
+import { fetchWithTimeout } from "./http";
 
 export interface MeetLink {
   meetUri: string;
@@ -21,13 +22,16 @@ export async function createMeetLink(userId: string): Promise<MeetLink | null> {
 
     const accessToken = await getValidAccessToken(userId);
 
-    const response = await fetch("https://meet.googleapis.com/v2/spaces", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
+    const response = await fetchWithTimeout(
+      "https://meet.googleapis.com/v2/spaces",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     if (!response.ok) {
       const body = await response.text().catch(() => "");

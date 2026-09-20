@@ -1,4 +1,5 @@
 import { getValidAccessToken, isGoogleConnected } from "./google-tokens";
+import { fetchWithTimeout } from "./http";
 
 export interface BusinessRating {
   rating: number;
@@ -21,7 +22,7 @@ async function findLocationParent(
   accessToken: string,
   placeId: string,
 ): Promise<string | null> {
-  const accountsResponse = await fetch(
+  const accountsResponse = await fetchWithTimeout(
     "https://mybusinessbusinessinformation.googleapis.com/v1/accounts",
     { headers: { Authorization: `Bearer ${accessToken}` } },
   );
@@ -34,7 +35,7 @@ async function findLocationParent(
   for (const account of accountsData.accounts ?? []) {
     if (!account.name) continue;
 
-    const locationsResponse = await fetch(
+    const locationsResponse = await fetchWithTimeout(
       `https://mybusinessbusinessinformation.googleapis.com/v1/${account.name}/locations`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
@@ -79,7 +80,7 @@ export async function fetchBusinessRating(
     const parent = await findLocationParent(accessToken, placeId);
     if (!parent) return null;
 
-    const reviewsResponse = await fetch(
+    const reviewsResponse = await fetchWithTimeout(
       `https://mybusiness.googleapis.com/v4/${parent}/reviews?pageSize=1`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
