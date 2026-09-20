@@ -1,7 +1,7 @@
 import { IconSparkles, IconStar } from "@tabler/icons-solidjs";
-import QRCode from "qrcode";
-import { For, type JSX, splitProps } from "solid-js";
+import { For, type JSX, Show, splitProps } from "solid-js";
 import { cn } from "~/lib/cn";
+import { QR_DARK, QR_LIGHT, qrGeometry, qrLogoSrc } from "~/lib/qr";
 
 /**
  * Onion Rings motif: concentric rounded rectangles whose radius grows 12px
@@ -90,26 +90,53 @@ export function AiMarker(props: { label?: string; class?: string }) {
   );
 }
 
-/** Real, scannable QR drawn as a single SVG path (no canvas, no JS on load). */
-export function QrSvg(props: { value: string; class?: string }) {
-  const qr = QRCode.create(props.value, { errorCorrectionLevel: "M" });
-  const n = qr.modules.size;
-  let d = "";
-  for (let y = 0; y < n; y++) {
-    for (let x = 0; x < n; x++) {
-      if (qr.modules.get(y, x)) d += `M${x + 2} ${y + 2}h1v1h-1z`;
-    }
-  }
+/**
+ * Real, scannable QR drawn as a single SVG path (no canvas, no JS on load).
+ *
+ * `logo` puts the business's mark on a white plate in the middle. Passing one
+ * raises the code to error correction H, so the modules it covers are still
+ * recoverable; codes that must stay machine-plain (an authenticator's TOTP
+ * URI, say) simply leave it off.
+ */
+export function QrSvg(props: {
+  value: string;
+  logo?: string | null;
+  class?: string;
+}) {
+  const src = () => qrLogoSrc(props.logo);
+  const geo = () => qrGeometry(props.value, Boolean(src()));
   return (
     <svg
       role="img"
       aria-label={`QR code linking to ${props.value}`}
-      viewBox={`0 0 ${n + 4} ${n + 4}`}
+      viewBox={`0 0 ${geo().size} ${geo().size}`}
       shape-rendering="crispEdges"
       class={props.class}
     >
-      <rect width={n + 4} height={n + 4} fill="#FFFFFF" />
-      <path d={d} fill="#1C1917" />
+      <rect width={geo().size} height={geo().size} fill={QR_LIGHT} />
+      <path d={geo().path} fill={QR_DARK} />
+      <Show when={src() ? geo().plate : null}>
+        {(plate) => (
+          <>
+            <rect
+              x={plate().x}
+              y={plate().y}
+              width={plate().side}
+              height={plate().side}
+              rx={plate().radius}
+              fill={QR_LIGHT}
+            />
+            <image
+              href={src() as string}
+              x={plate().logo.x}
+              y={plate().logo.y}
+              width={plate().logo.side}
+              height={plate().logo.side}
+              preserveAspectRatio="xMidYMid meet"
+            />
+          </>
+        )}
+      </Show>
     </svg>
   );
 }
@@ -123,6 +150,8 @@ export function QrTicket(props: {
   business: string;
   prompt: string;
   url: string;
+  /** The business's own mark, drawn in the middle of the code. */
+  logo?: string | null;
   /** Below `lg`, put the QR above the label with a horizontal perforation. */
   stack?: boolean;
   qrClass?: string;
@@ -139,6 +168,7 @@ export function QrTicket(props: {
       <div class="grid shrink-0 place-items-center p-4">
         <QrSvg
           value={props.url}
+          logo={props.logo}
           class={cn("size-24 rounded-sm sm:size-28", props.qrClass)}
         />
       </div>

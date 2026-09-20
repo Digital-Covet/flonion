@@ -34,6 +34,7 @@ import { SiteFooter } from "~/components/landing/SiteFooter";
 import {
   btnPrimary,
   btnSecondary,
+  SIGNUP_URL,
   SiteHeader,
 } from "~/components/landing/SiteHeader";
 import { PageMeta } from "~/components/meta/PageMeta";
@@ -807,7 +808,10 @@ function FinalCta() {
             Set up Flonion today and print your first QR in five minutes.
           </p>
         </div>
-        <A href="/signup" class={`${btnPrimary} min-h-12 shrink-0 px-6`}>
+        <A
+          href={`${SIGNUP_URL}`}
+          class={`${btnPrimary} min-h-12 shrink-0 px-6`}
+        >
           <IconSparkles aria-hidden="true" class="size-5" />
           Start free
         </A>

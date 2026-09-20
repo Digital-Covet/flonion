@@ -618,6 +618,7 @@ export default function ReviewComposerPage() {
                   <RequestShare
                     id={id}
                     businessName={info()?.businessName || "Your business"}
+                    logo={info()?.logo}
                     prompt={prompt()}
                     onPrompt={changePrompt}
                     announce={announce}
@@ -697,6 +698,8 @@ function ShareSkeleton() {
 function RequestShare(props: {
   id: string;
   businessName: string;
+  /** Drawn in the middle of the code on the ticket, the PNG and the sheet. */
+  logo?: string | null;
   prompt: string;
   onPrompt: (value: string) => void;
   announce: (message: string) => void;
@@ -717,7 +720,11 @@ function RequestShare(props: {
 
   async function download() {
     try {
-      await downloadQrPng(qr(), `flonion-review-qr-${props.id}.png`);
+      await downloadQrPng(
+        qr(),
+        `flonion-review-qr-${props.id}.png`,
+        props.logo,
+      );
       setProblem(undefined);
       props.announce("QR code downloaded");
     } catch {
@@ -731,6 +738,7 @@ function RequestShare(props: {
       link: link(),
       business: props.businessName,
       prompt: shownPrompt(),
+      logo: props.logo,
     }).catch(() => false);
     setProblem(
       opened
@@ -759,6 +767,7 @@ function RequestShare(props: {
           business={props.businessName}
           prompt={shownPrompt()}
           url={qr()}
+          logo={props.logo}
         />
       </Show>
 

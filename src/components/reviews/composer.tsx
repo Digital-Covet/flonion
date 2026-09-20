@@ -7,7 +7,6 @@ import {
   IconStar,
   IconX,
 } from "@tabler/icons-solidjs";
-import QRCode from "qrcode";
 import {
   createSignal,
   For,
@@ -22,6 +21,7 @@ import { Skeleton } from "~/components/dashboard/ui";
 import { AiMarker, RatingPill } from "~/components/landing/brand";
 import { btnPrimary, btnSecondary } from "~/components/onboarding/ui";
 import { cn } from "~/lib/cn";
+import { inlineQrLogo, qrPngDataUrl, qrSvgMarkup } from "~/lib/qr";
 
 // ─── Limits (mirror /api/reviews/share) ──────────────────────────────────
 
@@ -582,13 +582,12 @@ export function CopyButton(props: {
 const escapeHtml = (s: string) =>
   s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-export async function downloadQrPng(url: string, filename: string) {
-  const dataUrl = await QRCode.toDataURL(url, {
-    errorCorrectionLevel: "M",
-    margin: 2,
-    width: 1024,
-    color: { dark: "#1C1917", light: "#FFFFFF" },
-  });
+export async function downloadQrPng(
+  url: string,
+  filename: string,
+  logo?: string | null,
+) {
+  const dataUrl = await qrPngDataUrl(url, logo);
   const a = document.createElement("a");
   a.href = dataUrl;
   a.download = filename;
@@ -604,15 +603,14 @@ export async function printQrSheet(input: {
   link: string;
   business: string;
   prompt: string;
+  logo?: string | null;
 }): Promise<boolean> {
   const win = window.open("", "_blank");
   if (!win) return false;
-  const svg = await QRCode.toString(input.url, {
-    type: "svg",
-    errorCorrectionLevel: "M",
-    margin: 1,
-    color: { dark: "#1C1917", light: "#FFFFFF" },
-  });
+  // Inlined first: this window prints the moment it is written, so a logo still
+  // being fetched over the network would be missing from the paper.
+  const logo = await inlineQrLogo(input.logo);
+  const svg = qrSvgMarkup(input.url, logo);
   const business = escapeHtml(input.business);
   win.document.write(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>${business} · Review QR</title>
