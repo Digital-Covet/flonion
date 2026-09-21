@@ -122,9 +122,17 @@ export default function PortfolioProjectsPage() {
   const [contacts, { refetch: refetchContacts, mutate: mutateContacts }] =
     createResource(businessId, loadContacts);
 
-  const serviceList = () => services() ?? [];
-  const projectList = () => projects() ?? [];
-  const contactList = () => contacts() ?? [];
+  // Never read these in a way that suspends. The fetches start in onMount,
+  // after the navigation transition has committed, so a suspending read has no
+  // old view to hold and the page blanks until they resolve. Calling the
+  // resource suspends while it loads, and so does `.latest` until the first
+  // load resolves; `.state` never does. The panels show their own skeleton
+  // off `.loading`, and an errored resource is shown by its own `.error` Match.
+  const settled = (r: { state: string }) =>
+    r.state === "ready" || r.state === "refreshing";
+  const serviceList = () => (settled(services) ? (services.latest ?? []) : []);
+  const projectList = () => (settled(projects) ? (projects.latest ?? []) : []);
+  const contactList = () => (settled(contacts) ? (contacts.latest ?? []) : []);
 
   /**
    * Only the owner may edit: the three endpoints check

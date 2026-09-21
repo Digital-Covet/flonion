@@ -169,7 +169,15 @@ export default function SettingsPage() {
         return "unknown";
       }
     });
-  const googleState = (): GoogleState => google() ?? "loading";
+  // Must never suspend: the fetch starts in onMount, after navigation, so a
+  // suspending read has no old view to hold and the page blanks until the
+  // status returns. Calling the resource suspends while it loads, and so does
+  // `.latest` until the first load resolves; `.state` never does. The loader
+  // catches its own errors, so it cannot land in "errored".
+  const googleState = (): GoogleState =>
+    google.state === "ready" || google.state === "refreshing"
+      ? (google.latest ?? "loading")
+      : "loading";
 
   const [confirmDisconnect, setConfirmDisconnect] = createSignal(false);
   const [disconnecting, setDisconnecting] = createSignal(false);

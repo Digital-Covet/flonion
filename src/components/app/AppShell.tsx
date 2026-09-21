@@ -275,7 +275,11 @@ function Shell(props: { children: JSX.Element }) {
               />
             )}
           >
-            {props.children}
+            {/* The loading counterpart of the net above. Without it, any page
+                that suspends outside a navigation transition (a fetch started
+                in onMount, say) reaches the router-root <Suspense> in app.tsx,
+                which has no fallback, and the sidebar blanks with the page. */}
+            <Suspense>{props.children}</Suspense>
           </ErrorBoundary>
         </main>
       </div>
