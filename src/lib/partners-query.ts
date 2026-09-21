@@ -212,7 +212,12 @@ export async function getPartners(
     });
   }
 
-  const where = conditions.length > 0 ? { AND: conditions } : {};
+  // Operator moderation: suspended businesses and listings hidden from the
+  // marketplace never appear, whatever the filters. The 60s cache means a
+  // change can take up to a minute to show here.
+  conditions.push({ status: "active", marketplaceHidden: false });
+
+  const where = { AND: conditions };
 
   const select = {
     id: true,

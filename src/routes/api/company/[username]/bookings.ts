@@ -97,7 +97,7 @@ export async function POST(event: APIEvent) {
   }
 
   const business = await prisma.business.findUnique({
-    where: { username },
+    where: { username, status: "active" },
     select: {
       id: true,
       name: true,

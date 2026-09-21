@@ -91,6 +91,17 @@ model Business {
   /// Number of QR code scans for this business.
   qrScanCount     Int       @default(0)
 
+  /// active | suspended
+  /// Moderation state, written by the operator console. A suspended business
+  /// is locked out of the tenant app and hidden from every public surface.
+  status            String    @default("active")
+  suspendReason     String?
+  /// Operator id, not a User FK: operators are not tenants.
+  suspendedById     String?
+  suspendedAt       DateTime?
+  /// Hidden from the marketplace listing only; the business keeps working.
+  marketplaceHidden Boolean   @default(false)
+
   /// Schedule settings (all times in IST / Asia/Kolkata).
   /// Comma-separated day-of-week numbers: 0=Sun, 1=Mon, ..., 6=Sat.
   workingDays      String @default("1,2,3,4,5")
@@ -119,6 +130,7 @@ model Business {
 
   @@index([sector])
   @@index([rating, createdAt])
+  @@index([status, marketplaceHidden])
   @@map("business")
 }
 
@@ -297,10 +309,30 @@ model Feedback {
   /// Internal note. Never shown to the person who submitted the feedback.
   operatorNote String?
   createdAt    DateTime  @default(now())
+  replies      FeedbackReply[]
 
   @@index([userId])
   @@index([status, createdAt])
   @@map("feedback")
+}
+
+/// A reply an operator emailed from the console's support inbox.
+model FeedbackReply {
+  id             String    @id @default(cuid())
+  feedbackId     String
+  feedback       Feedback  @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  /// Operator id and display label, not a User FK: operators are not tenants.
+  operatorId     String
+  operatorLabel  String
+  body           String
+  /// sent | failed
+  deliveryStatus String    @default("sent")
+  error          String?
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([feedbackId, createdAt])
+  @@map("feedback_reply")
 }
 
 model Task {

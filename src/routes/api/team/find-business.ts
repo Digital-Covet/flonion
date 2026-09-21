@@ -71,14 +71,20 @@ export async function GET(event: APIEvent) {
   };
 
   let business = USERNAME_REGEX.test(handle)
-    ? await prisma.business.findUnique({ where: { username: handle }, select })
+    ? await prisma.business.findUnique({
+        where: { username: handle, status: "active" },
+        select,
+      })
     : null;
 
   if (!business) {
     // Falls back to the full business name so a team that never claimed a
     // handle is still reachable. Whole-string equality, never a prefix.
     const matches = await prisma.business.findMany({
-      where: { name: { equals: handle, mode: "insensitive" } },
+      where: {
+        name: { equals: handle, mode: "insensitive" },
+        status: "active",
+      },
       select,
       take: 2,
     });

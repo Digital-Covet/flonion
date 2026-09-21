@@ -53,15 +53,17 @@ async function resolveTarget(id: string): Promise<Target> {
     select: {
       id: true,
       status: true,
-      business: { select: { name: true } },
-      user: { select: { business: { select: { name: true } } } },
+      business: { select: { name: true, status: true } },
+      user: {
+        select: { business: { select: { name: true, status: true } } },
+      },
     },
   });
 
   if (review) {
     const business = review.business ?? review.user.business ?? null;
     if (!business) return { kind: "inactive", businessName: null };
-    if (review.status !== "visible") {
+    if (review.status !== "visible" || business.status !== "active") {
       return { kind: "inactive", businessName: business.name };
     }
     return {
@@ -75,10 +77,14 @@ async function resolveTarget(id: string): Promise<Target> {
   // have not claimed a username yet are reachable by id.
   const business = await prisma.business.findFirst({
     where: { OR: [{ username: id }, { id }] },
-    select: { id: true, name: true, username: true },
+    select: { id: true, name: true, username: true, status: true },
   });
 
   if (!business) return { kind: "inactive", businessName: null };
+  // A suspended business's standing code stays printed; it just goes quiet.
+  if (business.status !== "active") {
+    return { kind: "inactive", businessName: business.name };
+  }
 
   return {
     kind: "business",

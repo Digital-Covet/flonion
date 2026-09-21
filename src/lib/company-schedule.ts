@@ -68,9 +68,16 @@ export async function getCompanySchedule(
     timezone: true,
   } as const;
 
+  // A suspended business takes no bookings: it reads as not found.
   const business =
-    (await prisma.business.findUnique({ where: { username: key }, select })) ||
-    (await prisma.business.findUnique({ where: { id: key }, select }));
+    (await prisma.business.findUnique({
+      where: { username: key, status: "active" },
+      select,
+    })) ||
+    (await prisma.business.findUnique({
+      where: { id: key, status: "active" },
+      select,
+    }));
 
   if (!business) return null;
 

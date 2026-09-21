@@ -88,13 +88,14 @@ export const getCompanyReview = query(
     const { prisma } = await import("~/db/prisma");
 
     // The composer links by username when there is one and by id otherwise.
+    // A suspended business collects no reviews, so its link reads as inactive.
     const business =
       (await prisma.business.findUnique({
-        where: { username: param.toLowerCase() },
+        where: { username: param.toLowerCase(), status: "active" },
         select: businessSelect,
       })) ??
       (await prisma.business.findUnique({
-        where: { id: param },
+        where: { id: param, status: "active" },
         select: businessSelect,
       }));
 
@@ -131,15 +132,21 @@ export const legacyReviewTarget = query(async (id: string): Promise<null> => {
   const row = await prisma.sharedReview.findUnique({
     where: { id },
     select: {
-      business: { select: { id: true, username: true } },
+      status: true,
+      business: { select: { id: true, username: true, status: true } },
       user: {
-        select: { business: { select: { id: true, username: true } } },
+        select: {
+          business: { select: { id: true, username: true, status: true } },
+        },
       },
     },
   });
 
-  const business = row?.business ?? row?.user.business ?? null;
-  if (!business) return null;
+  // A request an operator hid or flagged is inactive, the same rule the QR
+  // redirect applies, and so is any request of a suspended business.
+  if (!row || row.status !== "visible") return null;
+  const business = row.business ?? row.user.business ?? null;
+  if (!business || business.status !== "active") return null;
 
   const { redirect } = await import("@solidjs/router");
   throw redirect(`/company/${business.username ?? business.id}/review`, 301);

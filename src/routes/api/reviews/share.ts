@@ -270,7 +270,9 @@ export async function GET(event: APIEvent) {
   }
 
   if ((username || businessId) && !id) {
-    const businessWhere = username ? { username } : { id: businessId! };
+    const businessWhere = username
+      ? { username, status: "active" }
+      : { id: businessId!, status: "active" };
     const business = await prisma.business.findUnique({
       where: businessWhere,
       select: {
@@ -311,8 +313,9 @@ export async function GET(event: APIEvent) {
     return Response.json({ error: "Missing id parameter" }, { status: 400 });
   }
 
+  // Only a visible request is served; hidden or flagged ones read as missing.
   const review = await prisma.sharedReview.findUnique({
-    where: { id },
+    where: { id, status: "visible" },
     select: {
       id: true,
       text: true,

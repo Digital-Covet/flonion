@@ -33,6 +33,7 @@ const PUBLIC_PATHS = [
   "/verify-email",
   "/2fa",
   "/accept-invite",
+  "/suspended",
 ];
 
 const PUBLIC_PREFIXES = [
@@ -89,6 +90,29 @@ function isPublicPath(pathname: string): boolean {
   if (companyBookingsMatch) return true;
 
   return false;
+}
+
+/**
+ * The per-user state the gate below needs, in one primary-key lookup. A user
+ * reaches a business either as its owner or as a team member, never both, and
+ * a suspension on either locks them out.
+ */
+async function loadAccountGate(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      onboardingCompleted: true,
+      business: { select: { status: true } },
+      team: { select: { status: true } },
+    },
+  });
+  if (!user) return null;
+  return {
+    onboardingCompleted: user.onboardingCompleted,
+    suspended:
+      user.business?.status === "suspended" ||
+      user.team?.status === "suspended",
+  };
 }
 
 /**
@@ -182,7 +206,11 @@ export default createMiddleware({
     // call queries from here too, so authenticate optionally and let each
     // query decide for itself via `requireSession()`.
     if (isServerFunction(pathname)) {
-      event.locals.session = await getSessionFromHeaders(event.request.headers);
+      const session = await getSessionFromHeaders(event.request.headers);
+      // A suspended member is treated as signed out, so every query's own
+      // `requireSession()` refuses them without knowing about suspension.
+      const gate = session ? await loadAccountGate(session.user.id) : null;
+      event.locals.session = gate?.suspended ? null : session;
       return;
     }
 
@@ -196,6 +224,12 @@ export default createMiddleware({
       if (!session) {
         return secured(
           Response.json({ error: "Unauthorized" }, { status: 401 }),
+        );
+      }
+      const gate = await loadAccountGate(session.user.id);
+      if (gate?.suspended) {
+        return secured(
+          Response.json({ error: "Business suspended" }, { status: 403 }),
         );
       }
       return;
@@ -212,12 +246,18 @@ export default createMiddleware({
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { onboardingCompleted: true },
-    });
+    const user = await loadAccountGate(session.user.id);
 
     if (!user) return;
+
+    if (user.suspended) {
+      return secured(
+        new Response(null, {
+          status: 302,
+          headers: { Location: "/suspended" },
+        }),
+      );
+    }
 
     // Stashed so server functions never repeat this lookup.
     event.locals.onboardingCompleted = user.onboardingCompleted;

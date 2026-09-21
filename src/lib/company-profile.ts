@@ -55,9 +55,12 @@ export async function getCompanyProfile(
   const key = identifier.trim();
   if (!key) return null;
 
+  // A suspended business has no public profile: it reads as not found.
   const business =
-    (await prisma.business.findUnique({ where: { username: key } })) ||
-    (await prisma.business.findUnique({ where: { id: key } }));
+    (await prisma.business.findUnique({
+      where: { username: key, status: "active" },
+    })) ||
+    (await prisma.business.findUnique({ where: { id: key, status: "active" } }));
 
   if (!business) return null;
 

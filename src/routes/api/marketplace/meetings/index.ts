@@ -111,13 +111,15 @@ export async function POST(event: APIEvent) {
             id: true,
             name: true,
             userId: true,
+            status: true,
             user: { select: { email: true, name: true } },
           },
         },
       },
     });
 
-    if (!slot) {
+    // A suspended business takes no bookings; its slots read as missing.
+    if (!slot || slot.business.status !== "active") {
       return Response.json({ error: "Slot not found" }, { status: 404 });
     }
 

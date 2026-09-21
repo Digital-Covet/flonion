@@ -53,8 +53,9 @@ export async function POST(event: APIEvent) {
       return Response.json({ error: "Unknown platform" }, { status: 400 });
     }
 
+    // Hidden or flagged requests are not public, so they are not counted.
     const review = await prisma.sharedReview.findUnique({
-      where: { id: reviewId },
+      where: { id: reviewId, status: "visible" },
       select: { id: true },
     });
 
