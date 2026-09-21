@@ -9,7 +9,8 @@
     "format": "biome format --write",
     "check": "biome check --write",
     "lint": "biome lint --write",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:purge-deleted": "prisma db execute --file scripts/purge-deleted-records.sql"
   },
   "dependencies": {
     "@ark-ui/solid": "^5.38.0",

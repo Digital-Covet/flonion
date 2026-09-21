@@ -559,3 +559,32 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_log")
 }
+
+/// A copy of a row deleted from a business-data table, kept for a year.
+///
+/// Written only by the `archive_deleted_row` trigger (see the
+/// `archive_deleted_records` migration), never by the app, so it catches
+/// deletes from both this app and the desk, including rows removed by
+/// `ON DELETE CASCADE`. Rows cascaded from one delete share a `txId`, which
+/// is how a business is put back together with its meetings, services and
+/// so on. Secrets (tokens, password hashes) are never copied.
+///
+/// `purge_deleted_records()` drops rows past `purgeAfter`. Vercel Cron calls
+/// it daily via /api/cron/purge-deleted-records; `pnpm db:purge-deleted` runs
+/// it by hand.
+model DeletedRecord {
+  id         BigInt   @id @default(autoincrement())
+  /// Source table, e.g. user | business | shared_review | meeting_request
+  tableName  String
+  recordId   String
+  /// The whole row as it was, minus the columns the trigger strips.
+  data       Json
+  txId       BigInt
+  deletedAt  DateTime @default(now())
+  purgeAfter DateTime
+
+  @@index([tableName, recordId])
+  @@index([txId])
+  @@index([purgeAfter])
+  @@map("deleted_record")
+}

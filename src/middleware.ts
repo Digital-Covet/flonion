@@ -46,6 +46,8 @@ const PUBLIC_PREFIXES = [
   // The operator arrives without a tenant session; the route authenticates
   // the desk's signed, single-use handoff token itself.
   "/api/operator/impersonate",
+  // Vercel Cron has no session; each route checks CRON_SECRET itself.
+  "/api/cron/",
   // No bare "/company/" here: it would swallow the whole subtree, including
   // the signed-in profile page, and leave that page without `no-store`. The
   // public sub-routes are matched by the regexes in `isPublicPath`.
