@@ -2,7 +2,9 @@ import type { APIEvent } from "@solidjs/start/server";
 import { prisma } from "~/db/prisma";
 import { writeLedger } from "~/lib/agents/ledger";
 import { runSuggestionPipeline } from "~/lib/agents/pipeline";
+import { getBusinessContext } from "~/lib/business-context";
 import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
+import { getSessionFromHeaders } from "~/lib/server-auth";
 
 const REVIEW_RATE_LIMIT = 10;
 const IP_RATE_LIMIT = 30;
@@ -80,6 +82,45 @@ async function isDailyBudgetExhausted(): Promise<boolean> {
  */
 function capped(value: unknown, max: number): string | undefined {
   return typeof value === "string" ? value.slice(0, max) : undefined;
+}
+
+interface Attribution {
+  userId: string | null;
+  businessId: string | null;
+}
+
+/**
+ * Who a suggestion's spend belongs to, for the ai_usage ledger.
+ *
+ * On the public review page the business is the one the shared review row was
+ * created for, read from the database rather than taken from the request body,
+ * which anyone can fill in. In the app, the caller is signed in and the
+ * business is the one they act in. Never throws: attribution is bookkeeping and
+ * must not fail a suggestion.
+ */
+async function resolveAttribution(
+  headers: Headers,
+  reviewId: string | undefined,
+): Promise<Attribution> {
+  try {
+    const [review, session] = await Promise.all([
+      reviewId
+        ? prisma.sharedReview.findUnique({
+            where: { id: reviewId },
+            select: { businessId: true },
+          })
+        : null,
+      getSessionFromHeaders(headers).catch(() => null),
+    ]);
+    const userId = session?.user.id ?? null;
+    if (review?.businessId) return { userId, businessId: review.businessId };
+    if (!userId) return { userId: null, businessId: null };
+    const ctx = await getBusinessContext(userId);
+    return { userId, businessId: ctx?.businessId ?? null };
+  } catch (err) {
+    console.error("[ai/suggest-review] attribution failed:", err);
+    return { userId: null, businessId: null };
+  }
 }
 
 function getApiKey(): string {
@@ -165,6 +206,9 @@ export async function POST(event: APIEvent) {
     const apiKey = getApiKey();
     const start = Date.now();
 
+    // Resolved alongside the pipeline, so attribution adds no response time.
+    const attribution = resolveAttribution(event.request.headers, reviewId);
+
     let result: Awaited<ReturnType<typeof runSuggestionPipeline>>;
     try {
       result = await runSuggestionPipeline({
@@ -176,33 +220,41 @@ export async function POST(event: APIEvent) {
       });
     } catch (err) {
       const latencyMs = Date.now() - start;
-      void writeLedger({
-        endpoint: "suggest-review",
-        stage: "pipeline",
-        usage: { promptTokens: 0, completionTokens: 0, model: "unknown" },
-        latencyMs,
-        ok: false,
-        errorKind: err instanceof Error ? err.constructor.name : "unknown",
-        ip,
-      });
+      void attribution.then(({ userId, businessId }) =>
+        writeLedger({
+          endpoint: "suggest-review",
+          stage: "pipeline",
+          usage: { promptTokens: 0, completionTokens: 0, model: "unknown" },
+          latencyMs,
+          ok: false,
+          errorKind: err instanceof Error ? err.constructor.name : "unknown",
+          userId,
+          businessId,
+          reviewId: reviewId ?? null,
+          ip,
+        }),
+      );
       throw err;
     }
 
     // Write ledger rows off the critical path (fire-and-forget)
     const latencyMs = Date.now() - start;
-    for (const u of result.usage) {
-      void writeLedger({
-        endpoint: "suggest-review",
-        stage: u.model === "none" ? "sentiment" : "suggest",
-        usage: u,
-        latencyMs: Math.round(latencyMs / result.usage.length),
-        ok: true,
-        userId: null,
-        businessId: null,
-        reviewId: reviewId ?? null,
-        ip,
-      });
-    }
+    const usage = result.usage;
+    void attribution.then(({ userId, businessId }) => {
+      for (const u of usage) {
+        void writeLedger({
+          endpoint: "suggest-review",
+          stage: u.model === "none" ? "sentiment" : "suggest",
+          usage: u,
+          latencyMs: Math.round(latencyMs / usage.length),
+          ok: true,
+          userId,
+          businessId,
+          reviewId: reviewId ?? null,
+          ip,
+        });
+      }
+    });
 
     return Response.json({
       sentiment: result.sentiment,

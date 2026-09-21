@@ -1,6 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
 import { writeLedger } from "~/lib/agents/ledger";
 import { runReviewPipeline } from "~/lib/agents/pipeline";
+import { getBusinessContext } from "~/lib/business-context";
 import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 
@@ -74,6 +75,14 @@ export async function POST(event: APIEvent) {
     const apiKey = getApiKey();
     const start = Date.now();
 
+    // Resolved alongside the pipeline so ledger rows can be attributed to the
+    // business the user acts in, without adding a query to the response time.
+    // A lookup failure only costs attribution, never the draft.
+    const businessId = getBusinessContext(session.user.id).then(
+      (ctx) => ctx?.businessId ?? null,
+      () => null,
+    );
+
     let result: Awaited<ReturnType<typeof runReviewPipeline>>;
     try {
       result = await runReviewPipeline({
@@ -86,33 +95,41 @@ export async function POST(event: APIEvent) {
     } catch (err) {
       // Write a failed ledger row off the critical path
       const latencyMs = Date.now() - start;
-      void writeLedger({
-        endpoint: "draft-reply",
-        stage: "pipeline",
-        usage: { promptTokens: 0, completionTokens: 0, model: "unknown" },
-        latencyMs,
-        ok: false,
-        errorKind: err instanceof Error ? err.constructor.name : "unknown",
-        userId: session.user.id,
-        ip: getClientIp(event.request),
-      });
+      const ip = getClientIp(event.request);
+      void businessId.then((id) =>
+        writeLedger({
+          endpoint: "draft-reply",
+          stage: "pipeline",
+          usage: { promptTokens: 0, completionTokens: 0, model: "unknown" },
+          latencyMs,
+          ok: false,
+          errorKind: err instanceof Error ? err.constructor.name : "unknown",
+          userId: session.user.id,
+          businessId: id,
+          ip,
+        }),
+      );
       throw err;
     }
 
     // Write ledger rows off the critical path (fire-and-forget)
     const latencyMs = Date.now() - start;
     const ip = getClientIp(event.request);
-    for (const u of result.usage) {
-      void writeLedger({
-        endpoint: "draft-reply",
-        stage: u.model === "none" ? "sentiment" : "draft",
-        usage: u,
-        latencyMs: Math.round(latencyMs / result.usage.length),
-        ok: true,
-        userId: session.user.id,
-        ip,
-      });
-    }
+    const usage = result.usage;
+    void businessId.then((id) => {
+      for (const u of usage) {
+        void writeLedger({
+          endpoint: "draft-reply",
+          stage: u.model === "none" ? "sentiment" : "draft",
+          usage: u,
+          latencyMs: Math.round(latencyMs / usage.length),
+          ok: true,
+          userId: session.user.id,
+          businessId: id,
+          ip,
+        });
+      }
+    });
 
     return Response.json({
       sentiment: result.sentiment,
