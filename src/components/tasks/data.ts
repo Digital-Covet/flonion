@@ -104,12 +104,35 @@ export function isColumn(value: string): value is TaskColumn {
 // ─── View state ──────────────────────────────────────────────────────────
 
 export const TASK_TABS = [
-  { value: "board", label: "Board" },
+  { value: "table", label: "Main table" },
+  { value: "board", label: "Kanban" },
   { value: "workload", label: "Workload" },
   { value: "meetings", label: "Team meetings" },
 ] as const satisfies ReadonlyArray<{ value: string; label: string }>;
 
 export type TaskTab = (typeof TASK_TABS)[number]["value"];
+
+/** Views that list tasks, and so share the search / filter toolbar. */
+export const isTaskListTab = (tab: TaskTab) =>
+  tab === "table" || tab === "board";
+
+export const SORT_OPTIONS = [
+  { value: "manual", label: "Board order" },
+  { value: "due", label: "Due date" },
+  { value: "priority", label: "Priority" },
+  { value: "title", label: "Name (A–Z)" },
+  { value: "newest", label: "Newest first" },
+] as const satisfies ReadonlyArray<{ value: string; label: string }>;
+
+export type SortKey = (typeof SORT_OPTIONS)[number]["value"];
+
+export const GROUP_OPTIONS = [
+  { value: "due", label: "Due date" },
+  { value: "status", label: "Status" },
+  { value: "assignee", label: "Assignee" },
+] as const satisfies ReadonlyArray<{ value: string; label: string }>;
+
+export type GroupKey = (typeof GROUP_OPTIONS)[number]["value"];
 
 export const ASSIGNEE_ALL = "all";
 /** Shortcut for the owner's own work, which is what most visits are about. */
@@ -140,6 +163,10 @@ export type TasksView = {
   assignee: string;
   priority: PriorityFilter;
   due: DueFilter;
+  /** Free-text search over title and details. */
+  q: string;
+  sort: SortKey;
+  group: GroupKey;
 };
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -163,7 +190,7 @@ export function viewFrom(params: SearchParams): TasksView {
     tab: pick(
       one(params.tab),
       TASK_TABS.map((t) => t.value),
-      "board",
+      "table",
     ),
     assignee: one(params.assignee)?.trim() || ASSIGNEE_ALL,
     priority: pick(
@@ -176,25 +203,45 @@ export function viewFrom(params: SearchParams): TasksView {
       DUE_OPTIONS.map((o) => o.value),
       "all",
     ),
+    q: (one(params.q) ?? "").slice(0, 100),
+    sort: pick(
+      one(params.sort),
+      SORT_OPTIONS.map((o) => o.value),
+      "manual",
+    ),
+    group: pick(
+      one(params.group),
+      GROUP_OPTIONS.map((o) => o.value),
+      "due",
+    ),
   };
 }
 
 /** Defaults drop out so a plain link stays clean. */
 export function viewParams(view: TasksView) {
   return {
-    tab: view.tab === "board" ? undefined : view.tab,
+    tab: view.tab === "table" ? undefined : view.tab,
     assignee: view.assignee === ASSIGNEE_ALL ? undefined : view.assignee,
     priority: view.priority === "all" ? undefined : view.priority,
     due: view.due === "all" ? undefined : view.due,
+    q: view.q.trim() ? view.q : undefined,
+    sort: view.sort === "manual" ? undefined : view.sort,
+    group: view.group === "due" ? undefined : view.group,
   };
 }
 
-export function filtersActive(view: TasksView): boolean {
+/** How many filters are narrowing the list — the "Filter / 2" count. */
+export function activeFilterCount(view: TasksView): number {
   return (
-    view.assignee !== ASSIGNEE_ALL ||
-    view.priority !== "all" ||
-    view.due !== "all"
+    Number(view.assignee !== ASSIGNEE_ALL) +
+    Number(view.priority !== "all") +
+    Number(view.due !== "all")
   );
+}
+
+/** Search counts as narrowing too: an empty result must offer a way back. */
+export function filtersActive(view: TasksView): boolean {
+  return activeFilterCount(view) > 0 || view.q.trim() !== "";
 }
 
 /** Assignee choices: everyone, me, then the rest of the team by name. */
@@ -221,6 +268,16 @@ export function matchesView(
     if (task.assigneeId !== wanted) return false;
   }
   if (view.priority !== "all" && task.priority !== view.priority) return false;
+
+  const q = view.q.trim().toLocaleLowerCase();
+  if (
+    q &&
+    !task.title.toLocaleLowerCase().includes(q) &&
+    !(task.description ?? "").toLocaleLowerCase().includes(q) &&
+    !(task.assignee?.name ?? "").toLocaleLowerCase().includes(q)
+  ) {
+    return false;
+  }
 
   switch (view.due) {
     case "overdue":
@@ -288,6 +345,327 @@ export function sortByUrgency(tasks: Task[], now = new Date()): Task[] {
     const bDue = b.dueDate ? Date.parse(b.dueDate) : Number.POSITIVE_INFINITY;
     return aDue - bDue;
   });
+}
+
+// ─── Table: sorting, grouping, timeline ──────────────────────────────────
+
+const COLUMN_RANK: Record<TaskColumn, number> = {
+  todo: 0,
+  in_progress: 1,
+  waiting: 2,
+  done: 3,
+};
+
+const dueTime = (task: Task) =>
+  task.dueDate ? Date.parse(task.dueDate) : Number.POSITIVE_INFINITY;
+
+export function sortTasks(tasks: Task[], sort: SortKey): Task[] {
+  const list = [...tasks];
+  switch (sort) {
+    case "due":
+      return list.sort((a, b) => dueTime(a) - dueTime(b));
+    case "priority":
+      return list.sort(
+        (a, b) =>
+          PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] ||
+          dueTime(a) - dueTime(b),
+      );
+    case "title":
+      return list.sort((a, b) => a.title.localeCompare(b.title));
+    case "newest":
+      return list.sort(
+        (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+      );
+    default:
+      return list.sort(
+        (a, b) =>
+          COLUMN_RANK[a.column] - COLUMN_RANK[b.column] ||
+          a.position - b.position,
+      );
+  }
+}
+
+/** Each group's rail colour. Every group also has a label, so colour is extra. */
+export type GroupTone =
+  | "error"
+  | "primary"
+  | "info"
+  | "accent"
+  | "secondary"
+  | "success"
+  | "muted";
+
+export type TaskGroup = {
+  key: string;
+  label: string;
+  tone: GroupTone;
+  tasks: Task[];
+  /**
+   * What a task added from this group's "Add task" row starts with, so it
+   * lands in the group it was added to. `null` hides the row: nothing can be
+   * added straight into "Overdue".
+   */
+  defaults: Partial<TaskDraft> | null;
+};
+
+function endOfWeek(today: Date): Date {
+  // Weeks run Monday–Sunday, like the meeting scheduler's.
+  const day = today.getDay();
+  const end = new Date(today);
+  end.setDate(today.getDate() + (day === 0 ? 0 : 7 - day));
+  return end;
+}
+
+const endOfMonth = (today: Date, ahead = 0) =>
+  new Date(today.getFullYear(), today.getMonth() + ahead + 1, 0);
+
+type DueBucket = {
+  key: string;
+  label: string;
+  tone: GroupTone;
+  /** Last day (inclusive) as `YYYY-MM-DD`; null for open-ended buckets. */
+  until: string | null;
+  quickAddDue: string | null;
+};
+
+function dueBuckets(now: Date): DueBucket[] {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const week = dayKey(endOfWeek(today));
+  const month = dayKey(endOfMonth(today));
+  const next = dayKey(endOfMonth(today, 1));
+  const monthName = (ahead: number) =>
+    new Date(
+      today.getFullYear(),
+      today.getMonth() + ahead,
+      1,
+    ).toLocaleDateString(undefined, { month: "long" });
+
+  return [
+    {
+      key: "this_week",
+      label: "This week",
+      tone: "primary",
+      until: week,
+      quickAddDue: week,
+    },
+    // When the week runs into next month, "rest of the month" is empty and
+    // simply doesn't render.
+    {
+      key: "this_month",
+      label: `Later in ${monthName(0)}`,
+      tone: "info",
+      until: month,
+      quickAddDue: month,
+    },
+    {
+      key: "next_month",
+      label: monthName(1),
+      tone: "accent",
+      until: next,
+      quickAddDue: next,
+    },
+    {
+      key: "later",
+      label: "Later",
+      tone: "secondary",
+      until: null,
+      quickAddDue: dayKey(endOfMonth(today, 2)),
+    },
+  ];
+}
+
+function groupByDue(tasks: Task[], now: Date): TaskGroup[] {
+  const today = dayKey(now);
+  const buckets = dueBuckets(now);
+
+  const overdue: Task[] = [];
+  const earlier: Task[] = [];
+  const none: Task[] = [];
+  const byBucket = new Map<string, Task[]>(buckets.map((b) => [b.key, []]));
+
+  for (const task of tasks) {
+    const key = dueDayKey(task);
+    if (!key) {
+      none.push(task);
+    } else if (key < today) {
+      (isOpen(task) ? overdue : earlier).push(task);
+    } else {
+      const bucket =
+        buckets.find((b) => b.until !== null && key <= b.until) ??
+        buckets[buckets.length - 1];
+      byBucket.get(bucket.key)?.push(task);
+    }
+  }
+
+  return [
+    {
+      key: "overdue",
+      label: "Overdue",
+      tone: "error",
+      tasks: overdue,
+      defaults: null,
+    },
+    ...buckets.map((b) => ({
+      key: b.key,
+      label: b.label,
+      tone: b.tone,
+      tasks: byBucket.get(b.key) ?? [],
+      defaults: { dueDate: b.quickAddDue ?? "" },
+    })),
+    {
+      key: "none",
+      label: "No due date",
+      tone: "muted",
+      tasks: none,
+      defaults: { dueDate: "" },
+    },
+    {
+      key: "earlier",
+      label: "Finished earlier",
+      tone: "success",
+      tasks: earlier,
+      defaults: null,
+    },
+  ];
+}
+
+const STATUS_TONE: Record<TaskColumn, GroupTone> = {
+  todo: "info",
+  in_progress: "accent",
+  waiting: "primary",
+  done: "success",
+};
+
+/**
+ * Rows grouped the way the owner asked. Empty groups are dropped, except the
+ * ones that still accept new tasks when grouping by status or assignee —
+ * there an empty "Waiting" or an idle team-mate is information too.
+ */
+export function groupTasks(
+  tasks: Task[],
+  group: GroupKey,
+  sort: SortKey,
+  members: TeamMember[],
+  now = new Date(),
+): TaskGroup[] {
+  let groups: TaskGroup[];
+
+  if (group === "status") {
+    groups = COLUMNS.map((c) => ({
+      key: c.value,
+      label: c.label,
+      tone: STATUS_TONE[c.value],
+      tasks: tasks.filter((t) => t.column === c.value),
+      defaults: { column: c.value },
+    }));
+  } else if (group === "assignee") {
+    const people = new Map(members.map((m) => [m.id, m.name]));
+    for (const t of tasks) {
+      if (!people.has(t.assigneeId)) {
+        people.set(t.assigneeId, t.assignee?.name ?? "Former team member");
+      }
+    }
+    groups = [...people.entries()]
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([id, name]) => ({
+        key: id,
+        label: name,
+        tone: "primary" as const,
+        tasks: tasks.filter((t) => t.assigneeId === id),
+        // Only current members can be assigned new work.
+        defaults: members.some((m) => m.id === id) ? { assigneeId: id } : null,
+      }));
+  } else {
+    return groupByDue(tasks, now)
+      .filter((g) => g.tasks.length > 0 || g.key === "this_week")
+      .map((g) => ({ ...g, tasks: sortTasks(g.tasks, sort) }));
+  }
+
+  return groups
+    .filter((g) => g.tasks.length > 0 || g.defaults !== null)
+    .map((g) => ({ ...g, tasks: sortTasks(g.tasks, sort) }));
+}
+
+export type Timeline = {
+  /** "9 Sep – 15 Sep", or null when there is no due date to draw to. */
+  label: string | null;
+  /** Share of the span already elapsed, 0–1. */
+  progress: number;
+  state: "done" | "late" | "active" | "none";
+};
+
+const shortDay = new Intl.DateTimeFormat(undefined, {
+  day: "numeric",
+  month: "short",
+});
+
+function rangeLabel(start: Date, end: Date): string {
+  return typeof shortDay.formatRange === "function"
+    ? shortDay.formatRange(start, end)
+    : `${shortDay.format(start)} – ${shortDay.format(end)}`;
+}
+
+/**
+ * A task's timeline runs from the day it was created to the day it is due —
+ * the model has no separate start date. The fill shows how much of that
+ * window has gone, which is what an owner scanning for trouble wants.
+ */
+export function timelineOf(task: Task, now = new Date()): Timeline {
+  const dueKey = dueDayKey(task);
+  if (!dueKey) return { label: null, progress: 0, state: "none" };
+
+  const end = parseDayKey(dueKey);
+  const created = new Date(task.createdAt);
+  const start = new Date(
+    created.getFullYear(),
+    created.getMonth(),
+    created.getDate(),
+  );
+  const from = start > end ? end : start;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const span = end.getTime() - from.getTime();
+  const progress =
+    span <= 0
+      ? today >= end
+        ? 1
+        : 0
+      : Math.min(1, Math.max(0, (today.getTime() - from.getTime()) / span));
+
+  return {
+    label:
+      from.getTime() === end.getTime()
+        ? shortDay.format(end)
+        : rangeLabel(from, end),
+    progress: isOpen(task) ? progress : 1,
+    state: !isOpen(task) ? "done" : isOverdue(task, now) ? "late" : "active",
+  };
+}
+
+/** The whole group's window: earliest start to latest due date. */
+export function groupSpan(tasks: Task[]): string | null {
+  const dated = tasks.filter((t) => t.dueDate);
+  if (dated.length === 0) return null;
+  const starts = dated.map((t) => {
+    const d = new Date(t.createdAt);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  });
+  const ends = dated.map((t) => parseDayKey(dueDayKey(t) as string).getTime());
+  const from = new Date(Math.min(...starts, ...ends));
+  const to = new Date(Math.max(...ends));
+  return from.getTime() === to.getTime()
+    ? shortDay.format(to)
+    : rangeLabel(from, to);
+}
+
+/** Task counts per status, in board order, for a group's summary bar. */
+export function statusMix(
+  tasks: Task[],
+): Array<{ column: TaskColumn; count: number }> {
+  return COLUMNS.map((c) => ({
+    column: c.value,
+    count: tasks.filter((t) => t.column === c.value).length,
+  })).filter((s) => s.count > 0);
 }
 
 // ─── Workload ────────────────────────────────────────────────────────────

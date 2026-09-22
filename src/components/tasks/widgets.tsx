@@ -136,7 +136,7 @@ export function DueChip(props: { task: Task; now: Date }) {
   );
 }
 
-const COLUMN_ICON: Record<TaskColumn, typeof IconFlag> = {
+export const COLUMN_ICON: Record<TaskColumn, typeof IconFlag> = {
   todo: IconFlag,
   in_progress: IconProgress,
   waiting: IconPlayerPause,

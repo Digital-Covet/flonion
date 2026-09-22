@@ -3,9 +3,11 @@ import { Title } from "@solidjs/meta";
 import { A, useSearchParams } from "@solidjs/router";
 import {
   IconCalendarEvent,
+  IconChartBar,
   IconLayoutKanban,
   IconMoodSearch,
   IconPlus,
+  IconTable,
   IconUsers,
 } from "@tabler/icons-solidjs";
 import {
@@ -23,37 +25,29 @@ import {
   Switch,
 } from "solid-js";
 import { useApp } from "~/components/app/context";
+import { focusRing } from "~/components/auth/AuthShell";
 import { isLoading, settled } from "~/components/dashboard/data";
 import { WidgetError } from "~/components/dashboard/ui";
-import {
-  tabListClass,
-  tabTriggerClass,
-} from "~/components/marketplace/portfolio";
-import {
-  btnPrimary,
-  btnSecondary,
-  Notice,
-  SelectField,
-} from "~/components/onboarding/ui";
+import { btnPrimary, Notice } from "~/components/onboarding/ui";
 import { EmptyState } from "~/components/reviews/inbox";
 import {
   ASSIGNEE_ALL,
-  assigneeOptions,
+  ASSIGNEE_ME,
   byColumn,
   COLUMN_LABEL,
   canEditTask,
   createTask,
   createTeamMeeting,
-  DUE_OPTIONS,
-  type DueFilter,
   deleteTask,
   deleteTeamMeeting,
   draftFrom,
   emptyDraft,
   emptyMeetingDraft,
   filtersActive,
+  groupTasks,
   isOpen,
   isOverdue,
+  isTaskListTab,
   isUpcoming,
   loadTasks,
   loadTeamMeetings,
@@ -61,8 +55,6 @@ import {
   matchesView,
   meetingCountLabel,
   moveTask,
-  PRIORITY_FILTER_OPTIONS,
-  type PriorityFilter,
   reorderTask,
   resolveIndex,
   sortMeetings,
@@ -70,6 +62,7 @@ import {
   type Task,
   type TaskColumn,
   type TaskDraft,
+  type TaskGroup,
   type TasksView,
   type TaskTab,
   type TeamMeeting,
@@ -81,6 +74,8 @@ import {
   viewParams,
   workload,
 } from "~/components/tasks/data";
+import { TableSkeleton, TaskTable } from "~/components/tasks/table";
+import { TasksToolbar } from "~/components/tasks/toolbar";
 import {
   Board,
   BoardSkeleton,
@@ -172,6 +167,9 @@ export default function TasksPage() {
   const visible = () =>
     all().filter((t) => matchesView(t, view(), viewer()?.userId ?? "", now));
   const columns = createMemo(() => byColumn(visible()));
+  const groups = createMemo(() =>
+    groupTasks(visible(), view().group, view().sort, members(), now),
+  );
 
   const openCount = () => all().filter(isOpen).length;
   const overdueCount = () => all().filter((t) => isOverdue(t, now)).length;
@@ -229,7 +227,7 @@ export default function TasksPage() {
   }
 
   function clearFilters() {
-    update({ assignee: ASSIGNEE_ALL, priority: "all", due: "all" });
+    update({ assignee: ASSIGNEE_ALL, priority: "all", due: "all", q: "" });
     announce("Filters cleared");
   }
 
@@ -261,6 +259,7 @@ export default function TasksPage() {
 
     batch(() => {
       setMoveErrors((errors) => ({ ...errors, [column]: undefined }));
+      setActionError("");
       setRevertedId(null);
       setMovingId(taskId);
       mutateTasks(after);
@@ -270,16 +269,20 @@ export default function TasksPage() {
       await reorderTask(taskId, column, index);
       announce(`${task.title} moved to ${COLUMN_LABEL[column]}`);
     } catch (error) {
+      const reason =
+        error instanceof Error
+          ? error.message
+          : "We couldn't move that task. It's back where it was.";
       batch(() => {
         mutateTasks(before);
         setRevertedId(taskId);
-        setMoveErrors((errors) => ({
-          ...errors,
-          [column]:
-            error instanceof Error
-              ? error.message
-              : "We couldn't move that task. It's back where it was.",
-        }));
+        // The board says it on the column; the table has no columns, so it
+        // says it at the top of the page.
+        if (view().tab === "board") {
+          setMoveErrors((errors) => ({ ...errors, [column]: reason }));
+        } else {
+          setActionError(`${task.title}: ${reason}`);
+        }
       });
       announce(`${task.title} could not be moved and stayed where it was`);
     } finally {
@@ -289,20 +292,22 @@ export default function TasksPage() {
 
   // ── Creating and editing ────────────────────────────────────────────────
 
-  function openNew(column: TaskColumn) {
+  /** Whoever the list is filtered to, else the person adding it. */
+  function defaultAssignee(): string {
     const me = viewer()?.userId ?? "";
-    // Default to whoever the board is filtered to, else to the person adding it.
     const assignee =
-      view().assignee !== ASSIGNEE_ALL && view().assignee !== "me"
+      view().assignee !== ASSIGNEE_ALL && view().assignee !== ASSIGNEE_ME
         ? view().assignee
         : me;
-    const fallback = members().some((m) => m.id === assignee)
+    return members().some((m) => m.id === assignee)
       ? assignee
       : (members()[0]?.id ?? "");
+  }
 
+  function openNew(column: TaskColumn) {
     batch(() => {
       setEditing(null);
-      setDraft({ ...emptyDraft(fallback), column });
+      setDraft({ ...emptyDraft(defaultAssignee()), column });
       setDialogError("");
       setDialogOpen(true);
     });
@@ -381,6 +386,38 @@ export default function TasksPage() {
       refetchTasks();
     } finally {
       setSaving(false);
+    }
+  }
+
+  /**
+   * A task typed into a group's "Add task" row. It takes that group's
+   * defaults — its status, due period or person — so it appears where it
+   * was typed rather than jumping elsewhere in the table.
+   */
+  async function quickAdd(group: TaskGroup, title: string): Promise<boolean> {
+    const defaults = group.defaults ?? {};
+    const values: TaskDraft = {
+      ...emptyDraft(defaultAssignee()),
+      ...defaults,
+      title,
+    };
+    if (!values.assigneeId) return false;
+
+    try {
+      const created = await createTask(values);
+      batch(() => {
+        setActionError("");
+        mutateTasks([...all(), created]);
+      });
+      announce(`${created.title} added to ${group.label}`);
+      return true;
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "We couldn't add that task. Try again.",
+      );
+      return false;
     }
   }
 
@@ -474,24 +511,50 @@ export default function TasksPage() {
     }
   }
 
-  /**
-   * A component rather than a shared element: the same button appears in the
-   * header and in two empty states, and one DOM node can only live in one of
-   * them.
-   */
-  const NewTaskButton = (props: { secondary?: boolean }) => (
+  const NewTaskButton = () => (
     <button
       type="button"
       disabled={!canCreate()}
       onClick={() => openNew("todo")}
-      class={cn(
-        props.secondary ? btnSecondary : btnPrimary,
-        "disabled:cursor-not-allowed disabled:opacity-60",
-      )}
+      class={cn(btnPrimary, "disabled:cursor-not-allowed disabled:opacity-60")}
     >
       <IconPlus aria-hidden="true" class="size-5" />
       New task
     </button>
+  );
+
+  /** Shared by the table and the kanban: same tasks, same empty states. */
+  const NoTasksYet = () => (
+    <div class="rounded-lg border border-border bg-surface">
+      <EmptyState
+        icon={IconLayoutKanban}
+        title="No tasks yet"
+        action={<NewTaskButton />}
+      >
+        Put the jobs your team keeps forgetting here — replying to this week's
+        reviews, printing a fresh QR sheet, updating opening hours.
+      </EmptyState>
+    </div>
+  );
+
+  const NoMatches = () => (
+    <div class="rounded-lg border border-border bg-surface">
+      <EmptyState
+        icon={IconMoodSearch}
+        title="No tasks match"
+        action={
+          <button
+            type="button"
+            onClick={clearFilters}
+            class="min-h-11 font-medium text-primary underline underline-offset-4"
+          >
+            Clear search and filters
+          </button>
+        }
+      >
+        Try other words, another person, or any priority rather than one.
+      </EmptyState>
+    </div>
   );
 
   return (
@@ -503,24 +566,15 @@ export default function TasksPage() {
       </p>
 
       <div class="flex flex-col gap-8">
-        <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div class="min-w-0">
-            <h1 class="font-display text-xl font-semibold text-balance text-text md:text-2xl">
-              Tasks
-            </h1>
-            <p class="mt-1 max-w-[60ch] text-base text-pretty text-text-muted">
-              What your team is working on, who is carrying what, and the
-              meetings you have with each other.
-            </p>
-          </div>
-          <div class="shrink-0">
-            <NewTaskButton />
-          </div>
+        <header class="min-w-0">
+          <h1 class="font-display text-xl font-semibold text-balance text-text md:text-2xl">
+            Tasks
+          </h1>
+          <p class="mt-1 max-w-[60ch] text-base text-pretty text-text-muted">
+            What your team is working on, who is carrying what, and the meetings
+            you have with each other.
+          </p>
         </header>
-
-        <Show when={actionError()}>
-          {(error) => <Notice tone="error">{error()}</Notice>}
-        </Show>
 
         <Show when={!!business.latest && !canCreate()}>
           <Notice tone="info">
@@ -539,14 +593,37 @@ export default function TasksPage() {
         <Tabs.Root
           value={view().tab}
           onValueChange={(e) => update({ tab: e.value as TaskTab })}
-          class="flex flex-col gap-6"
+          class="flex flex-col gap-5"
         >
-          <Tabs.List class={tabListClass}>
+          {/* View switcher: one set of tasks, seen as a table or a board. */}
+          <Tabs.List class="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
             <For each={TASK_TABS}>
               {(tab) => (
-                <Tabs.Trigger value={tab.value} class={tabTriggerClass}>
+                <Tabs.Trigger
+                  value={tab.value}
+                  class={cn(
+                    "flex min-h-11 shrink-0 items-center gap-2 rounded-md px-3.5 text-sm font-medium whitespace-nowrap text-text-muted",
+                    "transition-colors duration-[var(--duration-fast)] hover:bg-primary-soft hover:text-text",
+                    "data-[selected]:bg-surface data-[selected]:text-text data-[selected]:shadow-[0_1px_3px_rgb(0_0_0/0.08)] data-[selected]:ring-1 data-[selected]:ring-border",
+                    focusRing,
+                  )}
+                >
+                  <Switch>
+                    <Match when={tab.value === "table"}>
+                      <IconTable aria-hidden="true" class="size-4.5" />
+                    </Match>
+                    <Match when={tab.value === "board"}>
+                      <IconLayoutKanban aria-hidden="true" class="size-4.5" />
+                    </Match>
+                    <Match when={tab.value === "workload"}>
+                      <IconChartBar aria-hidden="true" class="size-4.5" />
+                    </Match>
+                    <Match when={tab.value === "meetings"}>
+                      <IconCalendarEvent aria-hidden="true" class="size-4.5" />
+                    </Match>
+                  </Switch>
                   {tab.label}
-                  <Show when={tab.value === "board"}>
+                  <Show when={tab.value === "table"}>
                     <TabCount value={openCount()} />
                   </Show>
                   <Show when={tab.value === "workload"}>
@@ -560,48 +637,17 @@ export default function TasksPage() {
             </For>
           </Tabs.List>
 
-          {/* ── Board ──────────────────────────────────────────────────── */}
-          <Tabs.Content value="board" class="flex flex-col gap-4 outline-none">
-            <SectionHeading
-              id="board-heading"
-              title="Board"
-              lead="Drag a card by its grip to move it, or open it to change anything about it. Only the assignee, an admin, or the owner can move a task."
+          <Show when={isTaskListTab(view().tab)}>
+            <TasksToolbar
+              view={view()}
+              members={members()}
+              viewerId={viewer()?.userId ?? ""}
+              tableTools={view().tab === "table"}
+              canCreate={canCreate()}
+              onNew={() => openNew("todo")}
+              onUpdate={update}
+              onClear={clearFilters}
             />
-
-            <div class="flex flex-wrap items-end gap-3">
-              <SelectField
-                label="Assigned to"
-                options={assigneeOptions(members(), viewer()?.userId ?? "")}
-                value={view().assignee}
-                onChange={(assignee) => update({ assignee })}
-                class="w-full sm:w-52"
-              />
-              <SelectField
-                label="Priority"
-                options={PRIORITY_FILTER_OPTIONS}
-                value={view().priority}
-                onChange={(priority) =>
-                  update({ priority: priority as PriorityFilter })
-                }
-                class="w-full sm:w-44"
-              />
-              <SelectField
-                label="Due"
-                options={DUE_OPTIONS}
-                value={view().due}
-                onChange={(due) => update({ due: due as DueFilter })}
-                class="w-full sm:w-44"
-              />
-              <Show when={filtersActive(view())}>
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  class={cn(btnSecondary, "min-h-11 px-4 text-sm")}
-                >
-                  Clear filters
-                </button>
-              </Show>
-            </div>
 
             <Show when={tasks.state === "ready" && all().length > 0}>
               <BoardSummary
@@ -611,6 +657,59 @@ export default function TasksPage() {
                 filtered={filtersActive(view())}
               />
             </Show>
+          </Show>
+
+          <Show when={actionError()}>
+            {(error) => <Notice tone="error">{error()}</Notice>}
+          </Show>
+
+          {/* ── Main table ─────────────────────────────────────────────── */}
+          <Tabs.Content value="table" class="outline-none">
+            <h2 class="sr-only">Main table</h2>
+            <Switch>
+              <Match when={isLoading(tasks)}>
+                <TableSkeleton />
+              </Match>
+
+              <Match when={tasks.state === "errored"}>
+                <WidgetError what="your tasks" onRetry={refetchTasks} />
+              </Match>
+
+              <Match when={all().length === 0}>
+                <NoTasksYet />
+              </Match>
+
+              <Match when={visible().length === 0}>
+                <NoMatches />
+              </Match>
+
+              <Match when={true}>
+                <TaskTable
+                  groups={groups()}
+                  now={now}
+                  movingId={movingId()}
+                  canCreate={canCreate()}
+                  canEdit={(task) => canEditTask(task, viewer())}
+                  onOpen={openTask}
+                  onStatus={(task, column) => move(task.id, column, null)}
+                  onDelete={(task) => {
+                    setDeleteError("");
+                    setDeleting(task);
+                  }}
+                  onQuickAdd={quickAdd}
+                />
+              </Match>
+            </Switch>
+          </Tabs.Content>
+
+          {/* ── Kanban ─────────────────────────────────────────────────── */}
+          <Tabs.Content value="board" class="flex flex-col gap-4 outline-none">
+            <h2 class="sr-only">Kanban</h2>
+            <p class="text-sm text-text-muted">
+              Drag a card by its grip to move it, or open it to change anything
+              about it. Only the assignee, an admin, or the owner can move a
+              task.
+            </p>
 
             <Switch>
               <Match when={isLoading(tasks)}>
@@ -622,37 +721,11 @@ export default function TasksPage() {
               </Match>
 
               <Match when={all().length === 0}>
-                <div class="rounded-lg border border-border bg-surface">
-                  <EmptyState
-                    icon={IconLayoutKanban}
-                    title="No tasks yet"
-                    action={<NewTaskButton />}
-                  >
-                    Put the jobs your team keeps forgetting on the board —
-                    replying to this week's reviews, printing a fresh QR sheet,
-                    updating opening hours.
-                  </EmptyState>
-                </div>
+                <NoTasksYet />
               </Match>
 
               <Match when={visible().length === 0}>
-                <div class="rounded-lg border border-border bg-surface">
-                  <EmptyState
-                    icon={IconMoodSearch}
-                    title="No tasks match these filters"
-                    action={
-                      <button
-                        type="button"
-                        onClick={clearFilters}
-                        class="min-h-11 font-medium text-primary underline underline-offset-4"
-                      >
-                        Clear filters
-                      </button>
-                    }
-                  >
-                    Try another person, or look at any priority rather than one.
-                  </EmptyState>
-                </div>
+                <NoMatches />
               </Match>
 
               <Match when={true}>
