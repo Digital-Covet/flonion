@@ -642,32 +642,6 @@ export function timelineOf(task: Task, now = new Date()): Timeline {
   };
 }
 
-/** The whole group's window: earliest start to latest due date. */
-export function groupSpan(tasks: Task[]): string | null {
-  const dated = tasks.filter((t) => t.dueDate);
-  if (dated.length === 0) return null;
-  const starts = dated.map((t) => {
-    const d = new Date(t.createdAt);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  });
-  const ends = dated.map((t) => parseDayKey(dueDayKey(t) as string).getTime());
-  const from = new Date(Math.min(...starts, ...ends));
-  const to = new Date(Math.max(...ends));
-  return from.getTime() === to.getTime()
-    ? shortDay.format(to)
-    : rangeLabel(from, to);
-}
-
-/** Task counts per status, in board order, for a group's summary bar. */
-export function statusMix(
-  tasks: Task[],
-): Array<{ column: TaskColumn; count: number }> {
-  return COLUMNS.map((c) => ({
-    column: c.value,
-    count: tasks.filter((t) => t.column === c.value).length,
-  })).filter((s) => s.count > 0);
-}
-
 // ─── Workload ────────────────────────────────────────────────────────────
 
 export type WorkloadRow = {

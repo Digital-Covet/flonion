@@ -1,7 +1,6 @@
 import { Menu } from "@ark-ui/solid/menu";
 import {
   IconAlertTriangle,
-  IconAlignLeft,
   IconCheck,
   IconChevronDown,
   IconDots,
@@ -19,8 +18,6 @@ import {
   COLUMN_LABEL,
   COLUMNS,
   type GroupTone,
-  groupSpan,
-  statusMix,
   type Task,
   type TaskColumn,
   type TaskGroup,
@@ -72,13 +69,6 @@ const STATUS_FILL: Record<TaskColumn, string> = {
   in_progress: "bg-accent text-surface",
   waiting: "bg-primary text-primary-foreground",
   done: "bg-success text-surface",
-};
-
-const STATUS_BAR: Record<TaskColumn, string> = {
-  todo: "bg-info",
-  in_progress: "bg-accent",
-  waiting: "bg-primary",
-  done: "bg-success",
 };
 
 const menuContent =
@@ -316,12 +306,6 @@ function TitleCell(props: {
           <span class="sr-only"> (done)</span>
         </Show>
       </button>
-      <Show when={props.task.description}>
-        <span title="Has details" class="shrink-0 text-text-muted">
-          <IconAlignLeft aria-hidden="true" class="size-4" />
-          <span class="sr-only">Has details</span>
-        </span>
-      </Show>
       <Show when={!props.editable}>
         <span
           title="Only the assignee, an admin, or the owner can change this task"
@@ -335,6 +319,45 @@ function TitleCell(props: {
   );
 }
 
+/**
+ * The task's details, two lines at most. It opens the task like the title
+ * does, so the full text — and editing it — is one click away.
+ */
+function DescriptionCell(props: {
+  task: Task;
+  onOpen: (task: Task) => void;
+  lines?: 1 | 2;
+}) {
+  return (
+    <Show
+      when={props.task.description?.trim()}
+      fallback={
+        <span class="text-sm text-text-muted">
+          <span aria-hidden="true">—</span>
+          <span class="sr-only">No description</span>
+        </span>
+      }
+    >
+      {(text) => (
+        <button
+          type="button"
+          title={text()}
+          onClick={() => props.onOpen(props.task)}
+          class={cn(
+            "w-full rounded-sm text-left text-sm text-pretty text-text-muted hover:text-text",
+            "transition-colors duration-[var(--duration-fast)]",
+            props.lines === 1 ? "line-clamp-1" : "line-clamp-2",
+            focusRing,
+          )}
+        >
+          <span class="sr-only">Description: </span>
+          {text()}
+        </button>
+      )}
+    </Show>
+  );
+}
+
 function Assignee(props: { task: Task }) {
   const name = () => props.task.assignee?.name ?? "Unassigned";
   return (
@@ -342,69 +365,6 @@ function Assignee(props: { task: Task }) {
       <AssigneeMark member={props.task.assignee} class="size-8" />
       <span class="sr-only">{name()}</span>
     </span>
-  );
-}
-
-/** Up to three faces, then "+n" — who is working in this group. */
-function AssigneeStack(props: { tasks: Task[] }) {
-  const people = () => {
-    const seen = new Map<string, NonNullable<Task["assignee"]>>();
-    for (const t of props.tasks) {
-      if (t.assignee && !seen.has(t.assignee.id)) {
-        seen.set(t.assignee.id, t.assignee);
-      }
-    }
-    return [...seen.values()];
-  };
-  return (
-    <span class="flex items-center justify-center">
-      <span class="sr-only">
-        {people()
-          .map((p) => p.name)
-          .join(", ")}
-      </span>
-      <span aria-hidden="true" class="flex -space-x-2">
-        <For each={people().slice(0, 3)}>
-          {(p) => (
-            <AssigneeMark member={p} class="size-7 ring-2 ring-surface" />
-          )}
-        </For>
-        <Show when={people().length > 3}>
-          <span class="grid size-7 place-items-center rounded-full bg-background font-mono text-xs text-text-muted ring-2 ring-surface">
-            +{people().length - 3}
-          </span>
-        </Show>
-      </span>
-    </span>
-  );
-}
-
-/** Status share across the group, drawn once and spelled out for listeners. */
-function StatusMix(props: { tasks: Task[] }) {
-  const mix = () => statusMix(props.tasks);
-  const words = () =>
-    mix()
-      .map((m) => `${m.count} ${COLUMN_LABEL[m.column].toLowerCase()}`)
-      .join(", ");
-  return (
-    <Show when={mix().length > 0}>
-      <span class="block" title={words()}>
-        <span class="sr-only">{words()}</span>
-        <span
-          aria-hidden="true"
-          class="flex h-9 overflow-hidden rounded-sm bg-background"
-        >
-          <For each={mix()}>
-            {(m) => (
-              <span
-                class={STATUS_BAR[m.column]}
-                style={{ "flex-grow": m.count }}
-              />
-            )}
-          </For>
-        </span>
-      </span>
-    </Show>
   );
 }
 
@@ -570,12 +530,13 @@ function GroupTable(props: {
       {/* ── Desktop: a real table, header in the group's own bar ── */}
       <div class="hidden md:block">
         <div class="overflow-x-auto">
-          <table class="w-full min-w-[720px] table-fixed border-collapse">
+          <table class="w-full min-w-[960px] table-fixed border-collapse">
             <caption class="sr-only">
               {g().label} — {g().tasks.length}{" "}
               {taskCountLabel(g().tasks.length)}
             </caption>
             <colgroup>
+              <col />
               <col />
               <col class="w-48" />
               <col class="w-24" />
@@ -593,6 +554,9 @@ function GroupTable(props: {
                     onToggle={props.onToggle}
                   />
                   <span class="sr-only">Task</span>
+                </th>
+                <th scope="col" class={cn(th, "text-left")}>
+                  Description
                 </th>
                 <th scope="col" class={th}>
                   Timeline
@@ -637,6 +601,12 @@ function GroupTable(props: {
                         />
                       </td>
                       <td class="px-3 py-1.5">
+                        <DescriptionCell
+                          task={task}
+                          onOpen={props.table.onOpen}
+                        />
+                      </td>
+                      <td class="px-3 py-1.5">
                         <TimelineBar
                           task={task}
                           now={props.table.now}
@@ -670,15 +640,18 @@ function GroupTable(props: {
                 }}
               </For>
 
-              {/* Closing row: add a task here, and the group at a glance. */}
+              {/* Closing row: add a task here. It spans the row so nothing
+                  in it reads as the cells of another task. */}
               <tr class="bg-background/40">
-                <td class="py-1.5 pr-3 pl-5">
+                <td colSpan={7} class="py-1.5 pr-3 pl-5">
                   <Show
                     when={props.table.canCreate && g().defaults}
                     fallback={
-                      <span class="text-sm text-text-muted">
-                        <Show when={g().tasks.length === 0}>Nothing here.</Show>
-                      </span>
+                      <Show when={g().tasks.length === 0}>
+                        <span class="text-sm text-text-muted">
+                          Nothing here.
+                        </span>
+                      </Show>
                     }
                   >
                     <QuickAdd
@@ -687,24 +660,6 @@ function GroupTable(props: {
                     />
                   </Show>
                 </td>
-                <td class="px-3 py-1.5">
-                  <Show when={groupSpan(g().tasks)}>
-                    {(span) => (
-                      <span class="flex h-9 items-center justify-center rounded-sm bg-primary-soft font-mono text-xs font-medium tabular-nums text-primary">
-                        <span class="sr-only">Group runs </span>
-                        {span()}
-                      </span>
-                    )}
-                  </Show>
-                </td>
-                <td class="px-3 py-1.5">
-                  <AssigneeStack tasks={g().tasks} />
-                </td>
-                <td class="px-3 py-1.5">
-                  <StatusMix tasks={g().tasks} />
-                </td>
-                <td class="hidden lg:table-cell" />
-                <td />
               </tr>
             </tbody>
           </table>
@@ -759,6 +714,12 @@ function GroupTable(props: {
                         onDelete={props.table.onDelete}
                       />
                     </div>
+                    <Show when={task.description?.trim()}>
+                      <DescriptionCell
+                        task={task}
+                        onOpen={props.table.onOpen}
+                      />
+                    </Show>
                     <div class="grid grid-cols-2 gap-2">
                       <StatusCell
                         task={task}
