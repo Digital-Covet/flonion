@@ -37,7 +37,7 @@ export function SiteFooter() {
         class={`${container} flex flex-col gap-10 md:flex-row md:justify-between`}
       >
         <div class="max-w-xs">
-          <InlineCombinationMark class="h-6 w-auto [&>path:first-of-type]:fill-primary" />
+          <InlineCombinationMark class="h-6 w-auto" />
           <p class="mt-4 text-sm text-text-muted">
             Genuine reviews, faster replies and better local search for the
             businesses in your neighbourhood.

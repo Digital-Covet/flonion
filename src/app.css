@@ -65,6 +65,19 @@
   --motif: #c4b5fd24;
 }
 
+/* Brand marks: violet on light, white on dark so the logo never dissolves
+   into dark surfaces. Covers both full-page dark mode (`.dark` on <html>)
+   and `data-surface="dark"` islands (footer, landing bands), plus the
+   violet accent band. CSS `fill` beats the SVG presentation attribute. */
+.brand-mark > path:first-of-type {
+  fill: #5b21b6;
+}
+.dark .brand-mark > path:first-of-type,
+[data-surface="dark"] .brand-mark > path:first-of-type,
+[data-surface="accent"] .brand-mark > path:first-of-type {
+  fill: #fff;
+}
+
 /* landing accent band */
 [data-surface="accent"] {
   --background: #5b21b6;
