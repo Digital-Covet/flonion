@@ -60,7 +60,9 @@ export async function getCompanyProfile(
     (await prisma.business.findUnique({
       where: { username: key, status: "active" },
     })) ||
-    (await prisma.business.findUnique({ where: { id: key, status: "active" } }));
+    (await prisma.business.findUnique({
+      where: { id: key, status: "active" },
+    }));
 
   if (!business) return null;
 

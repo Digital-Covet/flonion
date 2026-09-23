@@ -34,8 +34,8 @@ export default function SuspendedPage() {
           <p class="text-base text-text-muted">
             Access to this workspace has been paused by the Flonion team. Its
             public profile, reviews and marketplace listing are hidden while the
-            suspension is in place. If you think this is a mistake, contact
-            the Flonion team.
+            suspension is in place. If you think this is a mistake, contact the
+            Flonion team.
           </p>
           <button
             type="button"

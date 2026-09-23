@@ -465,7 +465,10 @@ export function SelectField(props: {
         </Select.Trigger>
       </Select.Control>
       <Portal>
-        <Select.Positioner class="z-50">
+        {/* `!` is load-bearing: Ark sets `z-index: var(--z-index)` inline on
+            the positioner and leaves it `auto`, so a plain `z-50` class loses
+            to it and the list renders behind any dialog it is opened in. */}
+        <Select.Positioner class="z-50!">
           <Select.Content class="max-h-72 w-[max(var(--reference-width),16rem)] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border border-border-strong bg-surface p-1 text-text shadow-[0_8px_24px_rgb(0_0_0/0.12)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-[var(--duration-fast)] data-[state=closed]:animate-out data-[state=closed]:fade-out-0">
             <For each={collection().items}>
               {(item) => (
@@ -514,7 +517,8 @@ export function HelpPopover(props: { title: string; body: string }) {
         Where do I find this?
       </Popover.Trigger>
       <Portal>
-        <Popover.Positioner class="z-50">
+        {/* Same inline `--z-index: auto` as the select above. */}
+        <Popover.Positioner class="z-50!">
           <Popover.Content class="w-[min(20rem,calc(100vw-2rem))] rounded-md border border-border-strong bg-surface p-4 text-text shadow-[0_8px_24px_rgb(0_0_0/0.12)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-[var(--duration-fast)]">
             <div class="flex items-start justify-between gap-2">
               <Popover.Title class="font-display text-base font-semibold">
