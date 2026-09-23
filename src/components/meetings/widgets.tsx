@@ -1004,7 +1004,7 @@ export function SectionHeading(props: {
           </p>
         </Show>
       </div>
-      <Show when={props.action}>{props.action}</Show>
+      {props.action}
     </div>
   );
 }

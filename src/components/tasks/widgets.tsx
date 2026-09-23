@@ -1714,7 +1714,9 @@ export function SectionHeading(props: {
           </p>
         </Show>
       </div>
-      <Show when={props.action}>{props.action}</Show>
+      {/* Read once: every read of a JSX prop builds the element again, and a
+          second build during hydration finds its server node already taken. */}
+      {props.action}
     </div>
   );
 }

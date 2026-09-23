@@ -160,7 +160,7 @@ export function SettingsSection(props: {
             </p>
           </Show>
         </div>
-        <Show when={props.aside}>{props.aside}</Show>
+        {props.aside}
       </div>
       <div class="mt-6">{props.children}</div>
     </section>
