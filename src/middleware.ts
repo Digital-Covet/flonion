@@ -1,5 +1,7 @@
 import { createMiddleware } from "@solidjs/start/middleware";
 import { prisma } from "~/db/prisma";
+import { inviteCallbackUrl, pickInviteToken } from "~/lib/invite-redirect";
+import { safeRedirectPath } from "~/lib/post-login-redirect";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 import { isTrustedRequestOrigin } from "~/lib/trusted-origins";
 
@@ -35,6 +37,9 @@ const PUBLIC_PATHS = [
   "/accept-invite",
   "/suspended",
 ];
+
+/** Signed-in visitors are sent past these to where they were headed. */
+const GUEST_ONLY_PATHS = new Set(["/login", "/signup"]);
 
 const PUBLIC_PREFIXES = [
   "/api/auth",
@@ -214,6 +219,23 @@ export default createMiddleware({
       const gate = session ? await loadAccountGate(session.user.id) : null;
       event.locals.session = gate?.suspended ? null : session;
       return;
+    }
+
+    // The landing page's "Log in" CTA is rendered before the client session
+    // resolves, so a signed-in visitor can still reach the auth forms. Send
+    // them on from here; the gate below then handles suspension/onboarding.
+    if (GUEST_ONLY_PATHS.has(pathname) && event.request.method === "GET") {
+      const session = await getSessionFromHeaders(event.request.headers);
+      if (session) {
+        const params = new URL(event.request.url).searchParams;
+        const target = inviteCallbackUrl(
+          pickInviteToken(params.get("invite") ?? undefined),
+          safeRedirectPath(params.get("callbackURL")),
+        );
+        return secured(
+          new Response(null, { status: 302, headers: { Location: target } }),
+        );
+      }
     }
 
     if (isPublicPath(pathname)) return;

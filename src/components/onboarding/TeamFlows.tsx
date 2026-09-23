@@ -173,16 +173,19 @@ export function BranchChooser(props: {
 
 /* --------------------------------------------------------------- invite */
 
-export function InviteCard(props: {
-  invitation: Invitation;
-  ownedBusiness: OwnedBusiness | null;
+/**
+ * Accept / decline calls shared by the onboarding invite card and the
+ * /accept-invite page. Accepting while owning an empty business answers 409
+ * first; `confirm` then holds the message for the consent dialog.
+ */
+export function createInviteActions(opts: {
+  token: () => string;
+  onAccepted: () => void;
   onDeclined: () => void;
 }) {
   const [busy, setBusy] = createSignal<"accept" | "decline" | null>(null);
   const [error, setError] = createSignal<string | null>(null);
   const [confirm, setConfirm] = createSignal<string | null>(null);
-
-  const blocked = () => props.ownedBusiness && !props.ownedBusiness.empty;
 
   async function accept(confirmDeleteOwnedBusiness = false) {
     setBusy("accept");
@@ -192,10 +195,10 @@ export function InviteCard(props: {
         requiresConfirmation: boolean;
       }>("/api/team/accept-invite", {
         method: "POST",
-        body: { token: props.invitation.token, confirmDeleteOwnedBusiness },
+        body: { token: opts.token(), confirmDeleteOwnedBusiness },
       });
       if (ok) {
-        window.location.assign("/dashboard");
+        opts.onAccepted();
         return;
       }
       if (status === 409 && data.requiresConfirmation) {
@@ -217,9 +220,9 @@ export function InviteCard(props: {
     try {
       const { ok, data } = await api("/api/team/decline-invite", {
         method: "POST",
-        body: { token: props.invitation.token },
+        body: { token: opts.token() },
       });
-      if (ok) props.onDeclined();
+      if (ok) opts.onDeclined();
       else setError(data.error ?? "We couldn't decline the invitation.");
     } catch {
       setError(NETWORK_ERROR);
@@ -227,6 +230,23 @@ export function InviteCard(props: {
       setBusy(null);
     }
   }
+
+  return { busy, error, confirm, setConfirm, accept, decline };
+}
+
+export function InviteCard(props: {
+  invitation: Invitation;
+  ownedBusiness: OwnedBusiness | null;
+  onDeclined: () => void;
+}) {
+  const { busy, error, confirm, setConfirm, accept, decline } =
+    createInviteActions({
+      token: () => props.invitation.token,
+      onAccepted: () => window.location.assign("/dashboard"),
+      onDeclined: () => props.onDeclined(),
+    });
+
+  const blocked = () => props.ownedBusiness && !props.ownedBusiness.empty;
 
   const inviter = () =>
     props.invitation.invitedBy?.name || props.invitation.invitedBy?.email;
