@@ -1,4 +1,10 @@
+import { Avatar } from "@ark-ui/solid/avatar";
+import { Clipboard } from "@ark-ui/solid/clipboard";
 import { Dialog } from "@ark-ui/solid/dialog";
+import { Field } from "@ark-ui/solid/field";
+import { Progress } from "@ark-ui/solid/progress";
+import { SegmentGroup } from "@ark-ui/solid/segment-group";
+import { Tooltip } from "@ark-ui/solid/tooltip";
 import {
   IconAlertTriangle,
   IconCalendarDue,
@@ -116,6 +122,34 @@ function Dynamic(props: { icon: typeof IconFlag }) {
   return <props.icon aria-hidden="true" class="size-3.5 shrink-0" />;
 }
 
+const LOCK_HINT =
+  "Only the assignee, an admin, or the owner can change this task";
+
+/** Lock mark with a keyboard-accessible tooltip (replaces `title=`). */
+export function LockHint(props: { class?: string }) {
+  return (
+    <Tooltip.Root positioning={{ placement: "top", gutter: 6 }}>
+      <Tooltip.Trigger
+        class={cn(
+          "grid size-6 shrink-0 place-items-center rounded-sm text-text-muted",
+          focusRing,
+          props.class,
+        )}
+      >
+        <IconLock aria-hidden="true" class="size-4" />
+        <span class="sr-only">Locked — assigned to someone else</span>
+      </Tooltip.Trigger>
+      <Portal>
+        <Tooltip.Positioner class="z-50!">
+          <Tooltip.Content class="max-w-60 rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-text shadow-[0_8px_24px_rgb(0_0_0/0.12)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-[var(--duration-fast)]">
+            {LOCK_HINT}
+          </Tooltip.Content>
+        </Tooltip.Positioner>
+      </Portal>
+    </Tooltip.Root>
+  );
+}
+
 export function DueChip(props: { task: Task; now: Date }) {
   const label = () => dueLabel(props.task, props.now);
   const late = () => isOverdue(props.task, props.now);
@@ -150,28 +184,28 @@ export function AssigneeMark(props: {
 }) {
   const name = () => props.member?.name ?? "Unassigned";
   return (
-    <Show
-      when={props.member?.image}
-      fallback={
-        <span
-          aria-hidden="true"
-          class={cn(
-            "grid size-7 shrink-0 place-items-center rounded-full bg-primary-soft font-display text-xs font-semibold text-primary",
-            props.class,
-          )}
-        >
-          {name().charAt(0).toUpperCase()}
-        </span>
-      }
-    >
-      {(src) => (
-        <img
-          src={src()}
-          alt=""
-          class={cn("size-7 shrink-0 rounded-full object-cover", props.class)}
-        />
+    <Avatar.Root
+      class={cn(
+        "grid size-7 shrink-0 place-items-center rounded-full bg-primary-soft font-display text-xs font-semibold text-primary",
+        props.class,
       )}
-    </Show>
+    >
+      <Avatar.Fallback class="grid size-full place-items-center rounded-full">
+        <span aria-hidden="true">{name().charAt(0).toUpperCase()}</span>
+      </Avatar.Fallback>
+      <Show when={props.member?.image}>
+        {(src) => (
+          <Avatar.Image
+            src={src()}
+            alt=""
+            class={cn(
+              "size-full rounded-full object-cover",
+              // Size comes from the Root class (size-5/size-8/size-10).
+            )}
+          />
+        )}
+      </Show>
+    </Avatar.Root>
   );
 }
 
@@ -216,12 +250,8 @@ export function TaskCard(props: CardProps) {
       <Show
         when={props.editable}
         fallback={
-          <span
-            class="mt-0.5 grid size-6 shrink-0 place-items-center text-text-muted"
-            title="Only the assignee, an admin, or the owner can change this task"
-          >
-            <IconLock aria-hidden="true" class="size-4" />
-            <span class="sr-only">Locked — assigned to someone else</span>
+          <span class="mt-0.5 block shrink-0">
+            <LockHint />
           </span>
         }
       >
@@ -657,39 +687,36 @@ export function Board(props: {
       {/* Column picker for phones: a four-column kanban cannot be read on
           one, and a horizontally scrolling board hides the other columns
           (spec §1 anti-pattern 5). */}
-      <div
-        role="tablist"
+      <SegmentGroup.Root
+        value={mobileColumn()}
+        onValueChange={(e) => setMobileColumn(e.value as TaskColumn)}
         aria-label="Board column"
         class="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 md:hidden"
       >
         <For each={COLUMNS}>
-          {(column) => {
-            const active = () => mobileColumn() === column.value;
-            return (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={active()}
-                onClick={() => setMobileColumn(column.value)}
-                class={cn(
-                  "flex min-h-11 shrink-0 items-center gap-1.5 rounded-md border px-3 text-sm font-medium",
-                  "transition-colors duration-[var(--duration-fast)]",
-                  active()
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border-strong text-text-muted",
-                  focusRing,
-                )}
-              >
+          {(column) => (
+            <SegmentGroup.Item
+              value={column.value}
+              class={cn(
+                "flex min-h-11 shrink-0 items-center gap-1.5 rounded-md border px-3 text-sm font-medium",
+                "transition-colors duration-[var(--duration-fast)]",
+                "data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground",
+                "data-[state=unchecked]:border-border-strong data-[state=unchecked]:text-text-muted",
+                focusRing,
+              )}
+            >
+              <SegmentGroup.ItemText class="flex items-center gap-1.5">
                 <Dynamic icon={COLUMN_ICON[column.value]} />
                 {column.label}
                 <span class="font-mono tabular-nums">
                   {props.columns[column.value].length}
                 </span>
-              </button>
-            );
-          }}
+              </SegmentGroup.ItemText>
+              <SegmentGroup.ItemHiddenInput />
+            </SegmentGroup.Item>
+          )}
         </For>
-      </div>
+      </SegmentGroup.Root>
 
       {/* One hint for the whole board: repeating it inside every card would
           make a screen reader read it once per task. */}
@@ -886,29 +913,25 @@ const dialogContent =
   "max-h-[calc(100dvh-2rem)] w-full max-w-[520px] overflow-y-auto rounded-lg bg-surface p-6 text-text shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:motion-safe:zoom-in-95";
 
 /**
- * Label, control and hint as one block. The id is generated here and handed
- * back, so every control keeps a real `for` pairing rather than relying on
- * being nested inside the label.
+ * Label, control and hint as one block, backed by Ark Field so every
+ * control keeps a real `for` pairing plus `aria-describedby` for free.
  */
-function Field(props: {
+function FieldBlock(props: {
   label: string;
   hint?: string;
-  children: (id: string) => JSX.Element;
+  required?: boolean;
+  children: JSX.Element;
 }) {
-  const id = createUniqueId();
-  const hintId = `${id}-hint`;
   return (
-    <div class="flex flex-col gap-1.5">
-      <label for={id} class={labelClass}>
-        {props.label}
-      </label>
-      {props.children(id)}
+    <Field.Root required={props.required} class="flex flex-col gap-1.5">
+      <Field.Label class={labelClass}>{props.label}</Field.Label>
+      {props.children}
       <Show when={props.hint}>
-        <span id={hintId} class="text-sm text-text-muted">
+        <Field.HelperText class="text-sm text-text-muted">
           {props.hint}
-        </span>
+        </Field.HelperText>
       </Show>
-    </div>
+    </Field.Root>
   );
 }
 
@@ -977,42 +1000,36 @@ export function TaskDialog(props: {
                 disabled={!props.editable}
                 class="flex flex-col gap-4 disabled:opacity-90"
               >
-                <Field label="Title">
-                  {(id) => (
-                    <input
-                      id={id}
-                      type="text"
-                      required
-                      maxlength={160}
-                      value={props.draft.title}
-                      placeholder="Reply to this week's Google reviews"
-                      onInput={(e) =>
-                        props.onChange({ title: e.currentTarget.value })
-                      }
-                      class={inputBase}
-                    />
-                  )}
-                </Field>
+                <FieldBlock label="Title" required>
+                  <Field.Input
+                    type="text"
+                    required
+                    maxlength={160}
+                    value={props.draft.title}
+                    placeholder="Reply to this week's Google reviews"
+                    onInput={(e) =>
+                      props.onChange({ title: e.currentTarget.value })
+                    }
+                    class={inputBase}
+                  />
+                </FieldBlock>
 
-                <Field
+                <FieldBlock
                   label="Details"
                   hint="Optional — anything the assignee needs to know."
                 >
-                  {(id) => (
-                    <textarea
-                      id={id}
-                      rows={3}
-                      value={props.draft.description}
-                      onInput={(e) =>
-                        props.onChange({ description: e.currentTarget.value })
-                      }
-                      class={cn(
-                        inputBase,
-                        "min-h-24 resize-y py-2 leading-relaxed",
-                      )}
-                    />
-                  )}
-                </Field>
+                  <Field.Textarea
+                    rows={3}
+                    value={props.draft.description}
+                    onInput={(e) =>
+                      props.onChange({ description: e.currentTarget.value })
+                    }
+                    class={cn(
+                      inputBase,
+                      "min-h-24 resize-y py-2 leading-relaxed",
+                    )}
+                  />
+                </FieldBlock>
 
                 <SelectField
                   label="Assigned to"
@@ -1041,22 +1058,19 @@ export function TaskDialog(props: {
                   />
                 </div>
 
-                <Field
+                <FieldBlock
                   label="Due date"
                   hint="Leave empty if there is no deadline."
                 >
-                  {(id) => (
-                    <input
-                      id={id}
-                      type="date"
-                      value={props.draft.dueDate}
-                      onInput={(e) =>
-                        props.onChange({ dueDate: e.currentTarget.value })
-                      }
-                      class={inputBase}
-                    />
-                  )}
-                </Field>
+                  <Field.Input
+                    type="date"
+                    value={props.draft.dueDate}
+                    onInput={(e) =>
+                      props.onChange({ dueDate: e.currentTarget.value })
+                    }
+                    class={inputBase}
+                  />
+                </FieldBlock>
               </fieldset>
 
               <Show when={props.error}>
@@ -1225,18 +1239,24 @@ export function WorkloadPanel(props: { rows: WorkloadRow[] }) {
               </span>
             </p>
 
-            <div
-              aria-hidden="true"
-              class="mt-2 h-1.5 overflow-hidden rounded-full bg-primary-soft"
+            <Progress.Root
+              value={row.open}
+              max={max()}
+              aria-label={`${row.member.name}: ${row.open} open ${taskCountLabel(row.open)}`}
+              class="mt-2"
             >
-              <div
-                class={cn(
-                  "h-full origin-left rounded-full transition-transform duration-[var(--duration-base)] ease-[var(--ease-out)] motion-reduce:transition-none",
-                  row.overdue > 0 ? "bg-accent" : "bg-primary",
-                )}
-                style={{ transform: `scaleX(${row.open / max()})` }}
-              />
-            </div>
+              <Progress.Track class="h-1.5 overflow-hidden rounded-full bg-primary-soft">
+                <Progress.Range
+                  class={cn(
+                    "h-full rounded-full transition-[width] duration-[var(--duration-base)] ease-[var(--ease-out)] motion-reduce:transition-none",
+                    row.overdue > 0 ? "bg-accent" : "bg-primary",
+                  )}
+                />
+              </Progress.Track>
+              <Progress.ValueText class="sr-only">
+                {row.open} of {max()}
+              </Progress.ValueText>
+            </Progress.Root>
 
             <p class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-text-muted">
               <span>
@@ -1292,45 +1312,41 @@ export function CopyLinkButton(props: {
   onFailed: () => void;
 }) {
   const [copied, setCopied] = createSignal(false);
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  onCleanup(() => clearTimeout(timer));
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(props.value);
-      setCopied(true);
-      props.announce(props.copiedMessage);
-      clearTimeout(timer);
-      timer = setTimeout(() => setCopied(false), 2000);
-    } catch {
-      props.onFailed();
-    }
-  }
 
   return (
-    <button
-      type="button"
-      onClick={copy}
-      class={cn(btnSecondary, "min-h-11 px-3 text-sm")}
+    <Clipboard.Root
+      value={props.value}
+      timeout={2000}
+      onStatusChange={(details) => {
+        setCopied(details.copied);
+        if (details.copied) props.announce(props.copiedMessage);
+      }}
     >
-      <span class="relative grid size-4 place-items-center">
-        <IconCopy
-          aria-hidden="true"
-          class={cn(
-            "absolute size-4 transition-opacity duration-[var(--duration-fast)] motion-reduce:transition-none",
-            copied() && "opacity-0",
-          )}
-        />
-        <IconCheck
-          aria-hidden="true"
-          class={cn(
-            "absolute size-4 text-success transition-opacity duration-[var(--duration-fast)] motion-reduce:transition-none",
-            !copied() && "opacity-0",
-          )}
-        />
-      </span>
-      {copied() ? "Copied" : props.label}
-    </button>
+      <Clipboard.Trigger
+        class={cn(btnSecondary, "min-h-11 px-3 text-sm")}
+        onClick={() => {
+          // Ark Clipboard fails silently when the API is unavailable;
+          // surface the page-level fallback instead of leaving no feedback.
+          if (
+            typeof navigator === "undefined" ||
+            !navigator.clipboard?.writeText
+          ) {
+            props.onFailed();
+          }
+        }}
+      >
+        <span class="relative grid size-4 place-items-center">
+          <Clipboard.Indicator
+            copied={
+              <IconCheck aria-hidden="true" class="size-4 text-success" />
+            }
+          >
+            <IconCopy aria-hidden="true" class="size-4" />
+          </Clipboard.Indicator>
+        </span>
+        {copied() ? "Copied" : props.label}
+      </Clipboard.Trigger>
+    </Clipboard.Root>
   );
 }
 
@@ -1496,68 +1512,56 @@ export function MeetingDialog(props: {
                 props.onSubmit();
               }}
             >
-              <Field label="Title">
-                {(id) => (
-                  <input
-                    id={id}
-                    type="text"
-                    required
-                    maxlength={160}
-                    value={props.draft.title}
-                    placeholder="Monday stand-up"
-                    onInput={(e) =>
-                      props.onChange({ title: e.currentTarget.value })
-                    }
-                    class={inputBase}
-                  />
-                )}
-              </Field>
+              <FieldBlock label="Title" required>
+                <Field.Input
+                  type="text"
+                  required
+                  maxlength={160}
+                  value={props.draft.title}
+                  placeholder="Monday stand-up"
+                  onInput={(e) =>
+                    props.onChange({ title: e.currentTarget.value })
+                  }
+                  class={inputBase}
+                />
+              </FieldBlock>
 
-              <Field label="Date">
-                {(id) => (
-                  <input
-                    id={id}
-                    type="date"
-                    required
-                    value={props.draft.date}
-                    onInput={(e) =>
-                      props.onChange({ date: e.currentTarget.value })
-                    }
-                    class={inputBase}
-                  />
-                )}
-              </Field>
+              <FieldBlock label="Date" required>
+                <Field.Input
+                  type="date"
+                  required
+                  value={props.draft.date}
+                  onInput={(e) =>
+                    props.onChange({ date: e.currentTarget.value })
+                  }
+                  class={inputBase}
+                />
+              </FieldBlock>
 
               <div class="grid gap-4 sm:grid-cols-2">
-                <Field label="Starts">
-                  {(id) => (
-                    <input
-                      id={id}
-                      type="time"
-                      required
-                      value={props.draft.startTime}
-                      onInput={(e) =>
-                        props.onChange({ startTime: e.currentTarget.value })
-                      }
-                      class={inputBase}
-                    />
-                  )}
-                </Field>
-                <Field label="Ends">
-                  {(id) => (
-                    <input
-                      id={id}
-                      type="time"
-                      required
-                      value={props.draft.endTime}
-                      aria-invalid={invalidTimes()}
-                      onInput={(e) =>
-                        props.onChange({ endTime: e.currentTarget.value })
-                      }
-                      class={inputBase}
-                    />
-                  )}
-                </Field>
+                <FieldBlock label="Starts" required>
+                  <Field.Input
+                    type="time"
+                    required
+                    value={props.draft.startTime}
+                    onInput={(e) =>
+                      props.onChange({ startTime: e.currentTarget.value })
+                    }
+                    class={inputBase}
+                  />
+                </FieldBlock>
+                <FieldBlock label="Ends" required>
+                  <Field.Input
+                    type="time"
+                    required
+                    value={props.draft.endTime}
+                    aria-invalid={invalidTimes()}
+                    onInput={(e) =>
+                      props.onChange({ endTime: e.currentTarget.value })
+                    }
+                    class={inputBase}
+                  />
+                </FieldBlock>
               </div>
 
               <Show when={invalidTimes()}>
@@ -1566,25 +1570,23 @@ export function MeetingDialog(props: {
                 </Notice>
               </Show>
 
-              <Field
+              <FieldBlock
                 label="Where"
                 hint="A room, an address, or “Online” if it is a call."
+                required
               >
-                {(id) => (
-                  <input
-                    id={id}
-                    type="text"
-                    required
-                    maxlength={160}
-                    value={props.draft.location}
-                    placeholder="Back office"
-                    onInput={(e) =>
-                      props.onChange({ location: e.currentTarget.value })
-                    }
-                    class={inputBase}
-                  />
-                )}
-              </Field>
+                <Field.Input
+                  type="text"
+                  required
+                  maxlength={160}
+                  value={props.draft.location}
+                  placeholder="Back office"
+                  onInput={(e) =>
+                    props.onChange({ location: e.currentTarget.value })
+                  }
+                  class={inputBase}
+                />
+              </FieldBlock>
 
               <Show when={props.error}>
                 {(error) => <Notice tone="error">{error()}</Notice>}

@@ -1,3 +1,4 @@
+import { Collapsible } from "@ark-ui/solid/collapsible";
 import { Menu } from "@ark-ui/solid/menu";
 import {
   IconArrowsSort,
@@ -8,15 +9,7 @@ import {
   IconSearch,
   IconX,
 } from "@tabler/icons-solidjs";
-import {
-  createEffect,
-  createSignal,
-  createUniqueId,
-  For,
-  on,
-  onCleanup,
-  Show,
-} from "solid-js";
+import { createEffect, createSignal, For, on, onCleanup, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import type { TeamMember } from "~/components/app/context";
 import { focusRing } from "~/components/auth/AuthShell";
@@ -112,7 +105,6 @@ export function TasksToolbar(props: {
   onUpdate: (next: Partial<TasksView>) => void;
   onClear: () => void;
 }) {
-  const panelId = createUniqueId();
   const count = () => activeFilterCount(props.view);
   // Opens by itself when a link arrives already filtered, so the reason the
   // list looks short is on screen.
@@ -140,7 +132,11 @@ export function TasksToolbar(props: {
   }
 
   return (
-    <div class="flex flex-col gap-3">
+    <Collapsible.Root
+      open={filtersOpen()}
+      onOpenChange={(e) => setFiltersOpen(e.open)}
+      class="flex flex-col gap-3"
+    >
       <div class="flex flex-wrap items-center gap-x-1 gap-y-2">
         <button
           type="button"
@@ -170,11 +166,7 @@ export function TasksToolbar(props: {
           />
         </label>
 
-        <button
-          type="button"
-          aria-expanded={filtersOpen()}
-          aria-controls={panelId}
-          onClick={() => setFiltersOpen((v) => !v)}
+        <Collapsible.Trigger
           class={cn(
             toolButton,
             count() > 0 &&
@@ -192,7 +184,7 @@ export function TasksToolbar(props: {
               {count() === 1 ? " filter on" : " filters on"}
             </span>
           </Show>
-        </button>
+        </Collapsible.Trigger>
 
         <Show when={props.tableTools}>
           <ChoiceMenu
@@ -226,11 +218,7 @@ export function TasksToolbar(props: {
         </Show>
       </div>
 
-      <div
-        id={panelId}
-        hidden={!filtersOpen()}
-        class="rounded-lg border border-border bg-surface p-3"
-      >
+      <Collapsible.Content class="rounded-lg border border-border bg-surface p-3">
         <div class="flex flex-wrap items-end gap-3">
           <SelectField
             label="Assigned to"
@@ -256,7 +244,7 @@ export function TasksToolbar(props: {
             class="w-full sm:w-44"
           />
         </div>
-      </div>
-    </div>
+      </Collapsible.Content>
+    </Collapsible.Root>
   );
 }

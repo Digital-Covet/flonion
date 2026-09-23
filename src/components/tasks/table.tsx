@@ -1,15 +1,17 @@
+import { Collapsible } from "@ark-ui/solid/collapsible";
+import { Field } from "@ark-ui/solid/field";
 import { Menu } from "@ark-ui/solid/menu";
+import { Progress } from "@ark-ui/solid/progress";
 import {
   IconAlertTriangle,
   IconCheck,
   IconChevronDown,
   IconDots,
   IconExternalLink,
-  IconLock,
   IconPlus,
   IconTrash,
 } from "@tabler/icons-solidjs";
-import { createSignal, createUniqueId, For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { focusRing } from "~/components/auth/AuthShell";
 import { Skeleton } from "~/components/dashboard/ui";
@@ -27,6 +29,7 @@ import {
 import {
   AssigneeMark,
   COLUMN_ICON,
+  LockHint,
   PriorityChip,
 } from "~/components/tasks/widgets";
 import { cn } from "~/lib/cn";
@@ -200,20 +203,22 @@ function TimelineBar(props: { task: Task; now: Date; size: "row" | "card" }) {
       }
     >
       {(label) => (
-        <span
+        <Progress.Root
+          value={Math.round(t().progress * 100)}
+          aria-label={`${props.task.title}: ${label()}${t().state === "late" ? ", overdue" : t().state === "done" ? ", finished" : `, ${Math.round(t().progress * 100)}% of the time used`}`}
           class={cn(
             "relative block overflow-hidden rounded-sm bg-primary-soft",
             props.size === "row" ? "h-9" : "h-11",
           )}
         >
-          <span
-            aria-hidden="true"
-            class={cn(
-              "absolute inset-0 origin-left transition-transform duration-[var(--duration-base)] ease-[var(--ease-out)] motion-reduce:transition-none",
-              fill(),
-            )}
-            style={{ transform: `scaleX(${t().progress})` }}
-          />
+          <Progress.Track class="absolute inset-0">
+            <Progress.Range
+              class={cn(
+                "h-full origin-left transition-[width] duration-[var(--duration-base)] ease-[var(--ease-out)] motion-reduce:transition-none",
+                fill(),
+              )}
+            />
+          </Progress.Track>
           <span class="relative flex h-full items-center justify-center gap-1 px-2 font-mono text-xs font-medium tabular-nums whitespace-nowrap text-text">
             <Show when={t().state === "late"}>
               <IconAlertTriangle
@@ -222,15 +227,15 @@ function TimelineBar(props: { task: Task; now: Date; size: "row" | "card" }) {
               />
             </Show>
             {label()}
-            <span class="sr-only">
+            <Progress.ValueText class="sr-only">
               {t().state === "late"
                 ? ", overdue"
                 : t().state === "done"
                   ? ", finished"
                   : `, ${Math.round(t().progress * 100)}% of the time used`}
-            </span>
+            </Progress.ValueText>
           </span>
-        </span>
+        </Progress.Root>
       )}
     </Show>
   );
@@ -307,12 +312,8 @@ function TitleCell(props: {
         </Show>
       </button>
       <Show when={!props.editable}>
-        <span
-          title="Only the assignee, an admin, or the owner can change this task"
-          class="shrink-0 text-text-muted"
-        >
-          <IconLock aria-hidden="true" class="size-4" />
-          <span class="sr-only">Locked — assigned to someone else</span>
+        <span class="shrink-0 text-text-muted">
+          <LockHint class="size-5" />
         </span>
       </Show>
     </span>
@@ -423,27 +424,30 @@ function QuickAdd(props: {
           void submit();
         }}
       >
-        <input
-          ref={input}
-          type="text"
-          maxlength={160}
-          value={value()}
-          disabled={busy()}
-          placeholder="Task name, then Enter"
-          aria-label={`New task in ${props.group}`}
-          onInput={(e) => setValue(e.currentTarget.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              e.preventDefault();
-              setValue("");
-              setOpen(false);
-            }
-          }}
-          onBlur={() => {
-            if (!value().trim() && !busy()) setOpen(false);
-          }}
-          class="h-9 min-w-0 flex-1 rounded-sm border border-border-strong bg-surface px-2.5 text-base text-text placeholder:text-text-muted/80 focus:border-primary focus:outline-2 focus:outline-offset-0 focus:outline-primary md:text-sm"
-        />
+        <Field.Root class="min-w-0 flex-1">
+          <Field.Label class="sr-only">New task in {props.group}</Field.Label>
+          <Field.Input
+            ref={input}
+            type="text"
+            maxlength={160}
+            value={value()}
+            disabled={busy()}
+            placeholder="Task name, then Enter"
+            aria-label={`New task in ${props.group}`}
+            onInput={(e) => setValue(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setValue("");
+                setOpen(false);
+              }
+            }}
+            onBlur={() => {
+              if (!value().trim() && !busy()) setOpen(false);
+            }}
+            class="h-9 min-w-0 w-full flex-1 rounded-sm border border-border-strong bg-surface px-2.5 text-base text-text placeholder:text-text-muted/80 focus:border-primary focus:outline-2 focus:outline-offset-0 focus:outline-primary md:text-sm"
+          />
+        </Field.Root>
         <Show when={busy()}>
           <Spinner class="size-4 text-text-muted" />
         </Show>
@@ -466,23 +470,9 @@ type TableProps = {
   onQuickAdd: (group: TaskGroup, title: string) => Promise<boolean>;
 };
 
-function GroupToggle(props: {
-  group: TaskGroup;
-  open: boolean;
-  controls: string;
-  onToggle: () => void;
-}) {
+function GroupToggle(props: { group: TaskGroup; open: boolean }) {
   return (
-    <button
-      type="button"
-      aria-expanded={props.open}
-      aria-controls={props.controls}
-      onClick={() => props.onToggle()}
-      class={cn(
-        "flex min-h-11 min-w-0 items-center gap-3 rounded-sm text-left",
-        focusRing,
-      )}
-    >
+    <>
       <span
         aria-hidden="true"
         class={cn(
@@ -505,7 +495,7 @@ function GroupToggle(props: {
         {props.group.tasks.length}
         <span class="sr-only"> {taskCountLabel(props.group.tasks.length)}</span>
       </span>
-    </button>
+    </>
   );
 }
 
@@ -518,240 +508,244 @@ function GroupTable(props: {
   onToggle: () => void;
   table: TableProps;
 }) {
-  const bodyId = createUniqueId();
   const g = () => props.group;
   const open = () => props.open;
+  const triggerClass = cn(
+    "flex min-h-11 min-w-0 items-center gap-3 rounded-sm text-left",
+    focusRing,
+  );
 
   return (
-    <section
-      aria-label={`${g().label}, ${g().tasks.length} ${taskCountLabel(g().tasks.length)}`}
-      class="overflow-hidden rounded-lg border border-border bg-surface"
+    <Collapsible.Root
+      open={open()}
+      onOpenChange={(e) => {
+        if (e.open !== open()) props.onToggle();
+      }}
     >
-      {/* ── Desktop: a real table, header in the group's own bar ── */}
-      <div class="hidden md:block">
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-[960px] table-fixed border-collapse">
-            <caption class="sr-only">
-              {g().label} — {g().tasks.length}{" "}
-              {taskCountLabel(g().tasks.length)}
-            </caption>
-            <colgroup>
-              <col />
-              <col />
-              <col class="w-48" />
-              <col class="w-24" />
-              <col class="w-40" />
-              <col class="hidden w-32 lg:table-column" />
-              <col class="w-14" />
-            </colgroup>
-            <thead>
-              <tr class="border-b border-border bg-background/60">
-                <th scope="col" class="px-3 py-1 text-left">
-                  <GroupToggle
-                    group={g()}
-                    open={open()}
-                    controls={bodyId}
-                    onToggle={props.onToggle}
-                  />
-                  <span class="sr-only">Task</span>
-                </th>
-                <th scope="col" class={cn(th, "text-left")}>
-                  Description
-                </th>
-                <th scope="col" class={th}>
-                  Timeline
-                </th>
-                <th scope="col" class={th}>
-                  Assignee
-                </th>
-                <th scope="col" class={th}>
-                  Status
-                </th>
-                <th scope="col" class={cn(th, "hidden lg:table-cell")}>
-                  Priority
-                </th>
-                <th scope="col" class={th}>
-                  <span class="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody id={bodyId} hidden={!open()}>
+      <section
+        aria-label={`${g().label}, ${g().tasks.length} ${taskCountLabel(g().tasks.length)}`}
+        class="overflow-hidden rounded-lg border border-border bg-surface"
+      >
+        {/* ── Desktop: a real table, header in the group's own bar ── */}
+        <div class="hidden md:block">
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[960px] table-fixed border-collapse">
+              <caption class="sr-only">
+                {g().label} — {g().tasks.length}{" "}
+                {taskCountLabel(g().tasks.length)}
+              </caption>
+              <colgroup>
+                <col />
+                <col />
+                <col class="w-48" />
+                <col class="w-24" />
+                <col class="w-40" />
+                <col class="hidden w-32 lg:table-column" />
+                <col class="w-14" />
+              </colgroup>
+              <thead>
+                <tr class="border-b border-border bg-background/60">
+                  <th scope="col" class="px-3 py-1 text-left">
+                    <Collapsible.Trigger class={triggerClass}>
+                      <GroupToggle group={g()} open={open()} />
+                    </Collapsible.Trigger>
+                    <span class="sr-only">Task</span>
+                  </th>
+                  <th scope="col" class={cn(th, "text-left")}>
+                    Description
+                  </th>
+                  <th scope="col" class={th}>
+                    Timeline
+                  </th>
+                  <th scope="col" class={th}>
+                    Assignee
+                  </th>
+                  <th scope="col" class={th}>
+                    Status
+                  </th>
+                  <th scope="col" class={cn(th, "hidden lg:table-cell")}>
+                    Priority
+                  </th>
+                  <th scope="col" class={th}>
+                    <span class="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody hidden={!open()}>
+                <For each={g().tasks}>
+                  {(task) => {
+                    const editable = () => props.table.canEdit(task);
+                    return (
+                      <tr
+                        class={cn(
+                          "border-b border-border transition-colors duration-[var(--duration-fast)] hover:bg-background/60",
+                          props.table.movingId === task.id && "opacity-60",
+                        )}
+                      >
+                        <td class="relative py-1.5 pr-3 pl-5">
+                          <span
+                            aria-hidden="true"
+                            class={cn(
+                              "absolute inset-y-0 left-0 w-1.5",
+                              RAIL[g().tone],
+                            )}
+                          />
+                          <TitleCell
+                            task={task}
+                            editable={editable()}
+                            onOpen={props.table.onOpen}
+                          />
+                        </td>
+                        <td class="px-3 py-1.5">
+                          <DescriptionCell
+                            task={task}
+                            onOpen={props.table.onOpen}
+                          />
+                        </td>
+                        <td class="px-3 py-1.5">
+                          <TimelineBar
+                            task={task}
+                            now={props.table.now}
+                            size="row"
+                          />
+                        </td>
+                        <td class="px-3 py-1.5">
+                          <Assignee task={task} />
+                        </td>
+                        <td class="px-3 py-1.5">
+                          <StatusCell
+                            task={task}
+                            editable={editable()}
+                            size="row"
+                            onStatus={props.table.onStatus}
+                          />
+                        </td>
+                        <td class="hidden px-3 py-1.5 text-center lg:table-cell">
+                          <PriorityChip priority={task.priority} />
+                        </td>
+                        <td class="px-2 py-1.5 text-center">
+                          <RowMenu
+                            task={task}
+                            editable={editable()}
+                            onOpen={props.table.onOpen}
+                            onDelete={props.table.onDelete}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  }}
+                </For>
+
+                {/* Closing row: add a task here. It spans the row so nothing
+                  in it reads as the cells of another task. */}
+                <tr class="bg-background/40">
+                  <td colSpan={7} class="py-1.5 pr-3 pl-5">
+                    <Show
+                      when={props.table.canCreate && g().defaults}
+                      fallback={
+                        <Show when={g().tasks.length === 0}>
+                          <span class="text-sm text-text-muted">
+                            Nothing here.
+                          </span>
+                        </Show>
+                      }
+                    >
+                      <QuickAdd
+                        group={g().label}
+                        onAdd={(title) => props.table.onQuickAdd(g(), title)}
+                      />
+                    </Show>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ── Phones: the same group as stacked cards ── */}
+        <div class="md:hidden">
+          <div class="flex items-center justify-between gap-2 border-b border-border bg-background/60 px-3 py-1">
+            <Collapsible.Trigger class={triggerClass}>
+              <GroupToggle group={g()} open={open()} />
+            </Collapsible.Trigger>
+          </div>
+          <Collapsible.Content>
+            <ul class="flex flex-col">
               <For each={g().tasks}>
                 {(task) => {
                   const editable = () => props.table.canEdit(task);
                   return (
-                    <tr
+                    <li
                       class={cn(
-                        "border-b border-border transition-colors duration-[var(--duration-fast)] hover:bg-background/60",
+                        "relative flex flex-col gap-3 border-b border-border py-3 pr-3 pl-5",
                         props.table.movingId === task.id && "opacity-60",
                       )}
                     >
-                      <td class="relative py-1.5 pr-3 pl-5">
-                        <span
-                          aria-hidden="true"
-                          class={cn(
-                            "absolute inset-y-0 left-0 w-1.5",
-                            RAIL[g().tone],
-                          )}
+                      <span
+                        aria-hidden="true"
+                        class={cn(
+                          "absolute inset-y-0 left-0 w-1.5",
+                          RAIL[g().tone],
+                        )}
+                      />
+                      <div class="flex items-start gap-2">
+                        <div class="min-w-0 flex-1 pt-2">
+                          <TitleCell
+                            task={task}
+                            editable={editable()}
+                            onOpen={props.table.onOpen}
+                          />
+                        </div>
+                        <AssigneeMark
+                          member={task.assignee}
+                          class="mt-1 size-9"
                         />
-                        <TitleCell
-                          task={task}
-                          editable={editable()}
-                          onOpen={props.table.onOpen}
-                        />
-                      </td>
-                      <td class="px-3 py-1.5">
-                        <DescriptionCell
-                          task={task}
-                          onOpen={props.table.onOpen}
-                        />
-                      </td>
-                      <td class="px-3 py-1.5">
-                        <TimelineBar
-                          task={task}
-                          now={props.table.now}
-                          size="row"
-                        />
-                      </td>
-                      <td class="px-3 py-1.5">
-                        <Assignee task={task} />
-                      </td>
-                      <td class="px-3 py-1.5">
-                        <StatusCell
-                          task={task}
-                          editable={editable()}
-                          size="row"
-                          onStatus={props.table.onStatus}
-                        />
-                      </td>
-                      <td class="hidden px-3 py-1.5 text-center lg:table-cell">
-                        <PriorityChip priority={task.priority} />
-                      </td>
-                      <td class="px-2 py-1.5 text-center">
                         <RowMenu
                           task={task}
                           editable={editable()}
                           onOpen={props.table.onOpen}
                           onDelete={props.table.onDelete}
                         />
-                      </td>
-                    </tr>
+                      </div>
+                      <Show when={task.description?.trim()}>
+                        <DescriptionCell
+                          task={task}
+                          onOpen={props.table.onOpen}
+                        />
+                      </Show>
+                      <div class="grid grid-cols-2 gap-2">
+                        <StatusCell
+                          task={task}
+                          editable={editable()}
+                          size="card"
+                          onStatus={props.table.onStatus}
+                        />
+                        <TimelineBar
+                          task={task}
+                          now={props.table.now}
+                          size="card"
+                        />
+                      </div>
+                      <div>
+                        <PriorityChip priority={task.priority} />
+                      </div>
+                    </li>
                   );
                 }}
               </For>
-
-              {/* Closing row: add a task here. It spans the row so nothing
-                  in it reads as the cells of another task. */}
-              <tr class="bg-background/40">
-                <td colSpan={7} class="py-1.5 pr-3 pl-5">
-                  <Show
-                    when={props.table.canCreate && g().defaults}
-                    fallback={
-                      <Show when={g().tasks.length === 0}>
-                        <span class="text-sm text-text-muted">
-                          Nothing here.
-                        </span>
-                      </Show>
-                    }
-                  >
-                    <QuickAdd
-                      group={g().label}
-                      onAdd={(title) => props.table.onQuickAdd(g(), title)}
-                    />
-                  </Show>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+            </ul>
+            <Show when={props.table.canCreate && g().defaults}>
+              <div class="px-4 py-2">
+                <QuickAdd
+                  group={g().label}
+                  onAdd={(title) => props.table.onQuickAdd(g(), title)}
+                />
+              </div>
+            </Show>
+          </Collapsible.Content>
         </div>
-      </div>
-
-      {/* ── Phones: the same group as stacked cards ── */}
-      <div class="md:hidden">
-        <div class="flex items-center justify-between gap-2 border-b border-border bg-background/60 px-3 py-1">
-          <GroupToggle
-            group={g()}
-            open={open()}
-            controls={`${bodyId}-cards`}
-            onToggle={props.onToggle}
-          />
-        </div>
-        <div id={`${bodyId}-cards`} hidden={!open()}>
-          <ul class="flex flex-col">
-            <For each={g().tasks}>
-              {(task) => {
-                const editable = () => props.table.canEdit(task);
-                return (
-                  <li
-                    class={cn(
-                      "relative flex flex-col gap-3 border-b border-border py-3 pr-3 pl-5",
-                      props.table.movingId === task.id && "opacity-60",
-                    )}
-                  >
-                    <span
-                      aria-hidden="true"
-                      class={cn(
-                        "absolute inset-y-0 left-0 w-1.5",
-                        RAIL[g().tone],
-                      )}
-                    />
-                    <div class="flex items-start gap-2">
-                      <div class="min-w-0 flex-1 pt-2">
-                        <TitleCell
-                          task={task}
-                          editable={editable()}
-                          onOpen={props.table.onOpen}
-                        />
-                      </div>
-                      <AssigneeMark
-                        member={task.assignee}
-                        class="mt-1 size-9"
-                      />
-                      <RowMenu
-                        task={task}
-                        editable={editable()}
-                        onOpen={props.table.onOpen}
-                        onDelete={props.table.onDelete}
-                      />
-                    </div>
-                    <Show when={task.description?.trim()}>
-                      <DescriptionCell
-                        task={task}
-                        onOpen={props.table.onOpen}
-                      />
-                    </Show>
-                    <div class="grid grid-cols-2 gap-2">
-                      <StatusCell
-                        task={task}
-                        editable={editable()}
-                        size="card"
-                        onStatus={props.table.onStatus}
-                      />
-                      <TimelineBar
-                        task={task}
-                        now={props.table.now}
-                        size="card"
-                      />
-                    </div>
-                    <div>
-                      <PriorityChip priority={task.priority} />
-                    </div>
-                  </li>
-                );
-              }}
-            </For>
-          </ul>
-          <Show when={props.table.canCreate && g().defaults}>
-            <div class="px-4 py-2">
-              <QuickAdd
-                group={g().label}
-                onAdd={(title) => props.table.onQuickAdd(g(), title)}
-              />
-            </div>
-          </Show>
-        </div>
-      </div>
-    </section>
+      </section>
+    </Collapsible.Root>
   );
 }
 
