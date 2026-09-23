@@ -2,12 +2,11 @@ import { A } from "@solidjs/router";
 import { HttpHeader } from "@solidjs/start";
 import {
   IconArrowRight,
-  IconCheck,
-  IconMinus,
   IconShieldCheck,
   IconSparkles,
 } from "@tabler/icons-solidjs";
 import { createSignal, For, Show } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import { OnionRings, SectionHeading } from "~/components/landing/brand";
 import { Faq, type FaqItem } from "~/components/landing/Faq";
 import { SiteFooter } from "~/components/landing/SiteFooter";
@@ -17,179 +16,31 @@ import {
   SiteHeader,
 } from "~/components/landing/SiteHeader";
 import { PageMeta } from "~/components/meta/PageMeta";
+import {
+  BillingToggle,
+  CellValue,
+  FeatureList,
+  PlanPrice,
+} from "~/components/plans/ui";
 import { cn } from "~/lib/cn";
 import { SUPPORT_EMAIL } from "~/lib/constants";
+import {
+  type Billing,
+  COMPARISON,
+  PLANS,
+  type Plan,
+  type PlanId,
+} from "~/lib/plans";
 
 const container = "mx-auto w-full max-w-[1200px] px-4 md:px-6";
 const section = "py-16 md:py-24";
 
-type Billing = "monthly" | "yearly";
-type PlanId = "starter" | "business" | "enterprise";
-
-/*
- * Plan limits and the Business price are placeholders until billing exists.
- * Prices are in INR, per business location, excluding GST. Yearly is shown
- * as the per-month equivalent. Enterprise is quoted, so it has no price.
- */
-const PLANS: {
-  id: PlanId;
-  name: string;
-  tagline: string;
-  price: { monthly: number; yearly: number } | null;
-  cta: string;
-  href: string;
-  featured?: boolean;
-  features: string[];
-}[] = [
-  {
-    id: "starter",
-    name: "Starter",
-    tagline: "Try it on your counter",
-    price: { monthly: 0, yearly: 0 },
-    cta: "Start free",
-    href: "/signup",
-    features: [
-      "1 review link with printable QR",
-      "Review inbox for Google reviews",
-      "25 AI drafts a month",
-      "1 team member",
-    ],
-  },
-  {
-    id: "business",
-    name: "Business",
-    tagline: "For a busy location and its team",
-    price: { monthly: 999, yearly: 799 },
-    cta: "Choose Business",
-    href: "/signup",
-    featured: true,
-    features: [
-      "Unlimited review links and QR codes",
-      "500 AI drafts a month",
-      "Local SEO score and weekly actions",
-      "Campaign analytics",
-      "Booking page and meeting scheduler",
-      "Up to 10 team members",
-    ],
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    tagline: "For chains, franchises and multi-location brands",
-    price: null,
-    cta: "Talk to us",
-    href: `mailto:${SUPPORT_EMAIL}`,
-    features: [
-      "Everything in Business",
-      "Multiple locations in one account",
-      "Custom AI draft volume",
-      "Keyword and competitor tracking",
-      "Task board with team workload",
-      "Unlimited team members",
-      "Dedicated onboarding and priority support",
-    ],
-  },
-];
-
-type Cell = boolean | string;
-
-const COMPARISON: {
-  group: string;
-  rows: { label: string; values: Record<PlanId, Cell> }[];
-}[] = [
-  {
-    group: "Collect reviews",
-    rows: [
-      {
-        label: "Review links with QR",
-        values: {
-          starter: "1",
-          business: "Unlimited",
-          enterprise: "Unlimited",
-        },
-      },
-      {
-        label: "Printable QR sheet",
-        values: { starter: true, business: true, enterprise: true },
-      },
-      {
-        label: "AI writing help for customers",
-        values: { starter: true, business: true, enterprise: true },
-      },
-      {
-        label: "Review platforms (Google, JustDial and more)",
-        values: { starter: true, business: true, enterprise: true },
-      },
-    ],
-  },
-  {
-    group: "Reply",
-    rows: [
-      {
-        label: "Review inbox with sentiment",
-        values: { starter: true, business: true, enterprise: true },
-      },
-      {
-        label: "AI drafts per month",
-        values: { starter: "25", business: "500", enterprise: "Custom" },
-      },
-      {
-        label: "Reply tones (Professional, Friendly, Formal)",
-        values: { starter: true, business: true, enterprise: true },
-      },
-    ],
-  },
-  {
-    group: "Get found",
-    rows: [
-      {
-        label: "Profile score and actions",
-        values: { starter: false, business: true, enterprise: true },
-      },
-      {
-        label: "Campaign analytics",
-        values: { starter: false, business: true, enterprise: true },
-      },
-      {
-        label: "Keyword tracking",
-        values: { starter: false, business: false, enterprise: true },
-      },
-      {
-        label: "Competitor comparison",
-        values: { starter: false, business: false, enterprise: true },
-      },
-    ],
-  },
-  {
-    group: "Team and partners",
-    rows: [
-      {
-        label: "Locations",
-        values: { starter: "1", business: "1", enterprise: "Multiple" },
-      },
-      {
-        label: "Team members",
-        values: { starter: "1", business: "10", enterprise: "Unlimited" },
-      },
-      {
-        label: "Booking page and scheduler",
-        values: { starter: false, business: true, enterprise: true },
-      },
-      {
-        label: "Task board and workload",
-        values: { starter: false, business: false, enterprise: true },
-      },
-      {
-        label: "Partner marketplace listing",
-        values: { starter: true, business: true, enterprise: true },
-      },
-      {
-        label: "Support",
-        values: { starter: "Email", business: "Email", enterprise: "Priority" },
-      },
-    ],
-  },
-];
+/** Marketing CTAs; the in-app `/upgrade` page has its own. */
+const PLAN_CTA: Record<PlanId, { label: string; href: string }> = {
+  starter: { label: "Start free", href: "/signup" },
+  business: { label: "Choose Business", href: "/signup" },
+  enterprise: { label: "Talk to us", href: `mailto:${SUPPORT_EMAIL}` },
+};
 
 const PRICING_FAQ: FaqItem[] = [
   {
@@ -221,8 +72,6 @@ const PRICING_FAQ: FaqItem[] = [
     a: "Yes, at any time from your settings. If you move down to Starter, your reviews and QR codes stay, and extra links are paused rather than deleted.",
   },
 ];
-
-const inr = new Intl.NumberFormat("en-IN");
 
 export default function Pricing() {
   const [billing, setBilling] = createSignal<Billing>("monthly");
@@ -290,7 +139,11 @@ function Plans(props: {
           </p>
         </div>
 
-        <BillingToggle value={props.billing} onChange={props.onBillingChange} />
+        <BillingToggle
+          value={props.billing}
+          onChange={props.onBillingChange}
+          class="mt-10 flex justify-center"
+        />
 
         <ul class="mt-10 grid gap-4 md:grid-cols-3 md:items-stretch">
           <For each={PLANS}>
@@ -310,49 +163,7 @@ function Plans(props: {
   );
 }
 
-/** Native radios so the switch works before hydration and with a keyboard. */
-function BillingToggle(props: {
-  value: Billing;
-  onChange: (b: Billing) => void;
-}) {
-  const option =
-    "relative inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-4 font-display text-sm font-semibold text-text-muted transition-colors duration-[var(--duration-fast)] has-[:checked]:bg-surface has-[:checked]:text-text has-[:checked]:shadow-[0_1px_3px_rgb(28_25_23/0.12)] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary";
-
-  return (
-    <fieldset class="mt-10 flex justify-center">
-      <legend class="sr-only">Billing period</legend>
-      <div class="inline-flex rounded-lg border border-border-strong bg-primary-soft/60 p-1">
-        <label class={option}>
-          <input
-            type="radio"
-            name="billing"
-            value="monthly"
-            class="sr-only"
-            checked={props.value === "monthly"}
-            onChange={() => props.onChange("monthly")}
-          />
-          Monthly
-        </label>
-        <label class={option}>
-          <input
-            type="radio"
-            name="billing"
-            value="yearly"
-            class="sr-only"
-            checked={props.value === "yearly"}
-            onChange={() => props.onChange("yearly")}
-          />
-          Yearly
-          <span class="rounded-full bg-accent-soft px-2 py-0.5 font-sans text-xs font-medium text-accent">
-            Save 20%
-          </span>
-        </label>
-      </div>
-    </fieldset>
-  );
-}
-
-function PlanCard(props: { plan: (typeof PLANS)[number]; billing: Billing }) {
+function PlanCard(props: { plan: Plan; billing: Billing }) {
   return (
     <li
       class={cn(
@@ -377,77 +188,22 @@ function PlanCard(props: { plan: (typeof PLANS)[number]; billing: Billing }) {
       </div>
       <p class="mt-1 text-sm text-text-muted">{props.plan.tagline}</p>
 
-      <Show
-        when={props.plan.price}
-        fallback={
-          <>
-            <p class="mt-6 font-display text-4xl font-semibold">Custom</p>
-            <p class="mt-1 min-h-6 text-sm text-text-muted">
-              Quoted for your locations and team
-            </p>
-          </>
-        }
-      >
-        {(price) => (
-          <>
-            <p class="mt-6 flex items-baseline gap-1.5">
-              <span class="font-mono text-4xl font-medium tabular-nums">
-                ₹{inr.format(price()[props.billing])}
-              </span>
-              <span class="text-sm text-text-muted">
-                {price().monthly === 0 ? "forever" : "/ month"}
-              </span>
-            </p>
-            <p aria-live="polite" class="mt-1 min-h-6 text-sm text-text-muted">
-              <Show when={price().monthly > 0} fallback="No card needed">
-                <Show
-                  when={props.billing === "yearly"}
-                  fallback={
-                    <>
-                      or{" "}
-                      <span class="font-mono tabular-nums">
-                        ₹{inr.format(price().yearly)}
-                      </span>
-                      /month billed yearly
-                    </>
-                  }
-                >
-                  Billed{" "}
-                  <span class="font-mono tabular-nums">
-                    ₹{inr.format(price().yearly * 12)}
-                  </span>{" "}
-                  yearly
-                </Show>
-              </Show>
-            </p>
-          </>
-        )}
-      </Show>
+      <PlanPrice plan={props.plan} billing={props.billing} />
 
-      <A
-        href={props.plan.href}
+      {/* A plain <a>: the router's <A> resolves `mailto:` as a relative path. */}
+      <Dynamic
+        component={PLAN_CTA[props.plan.id].href.startsWith("/") ? A : "a"}
+        href={PLAN_CTA[props.plan.id].href}
         class={cn(
           props.plan.featured ? btnPrimary : btnSecondary,
           "mt-6 min-h-12 w-full",
         )}
       >
-        {props.plan.cta}
+        {PLAN_CTA[props.plan.id].label}
         <span class="sr-only"> ({props.plan.name} plan)</span>
-      </A>
+      </Dynamic>
 
-      <ul class="mt-6 flex flex-col gap-3 border-t border-border pt-6 text-sm">
-        <For each={props.plan.features}>
-          {(feature) => (
-            <li class="flex gap-2.5">
-              <IconCheck
-                aria-hidden="true"
-                class="mt-0.5 size-4 shrink-0 text-secondary"
-              />
-              <span>{feature}</span>
-            </li>
-          )}
-        </For>
-      </ul>
+      <FeatureList features={props.plan.features} />
     </li>
   );
 }
@@ -536,32 +292,6 @@ function Comparison() {
         </p>
       </div>
     </section>
-  );
-}
-
-/** Included/not included is an icon plus hidden text, never colour alone. */
-function CellValue(props: { value: Cell }) {
-  return (
-    <Show
-      when={typeof props.value !== "string"}
-      fallback={<span class="font-mono tabular-nums">{props.value}</span>}
-    >
-      <Show
-        when={props.value}
-        fallback={
-          <>
-            <IconMinus
-              aria-hidden="true"
-              class="mx-auto size-4 text-text-muted"
-            />
-            <span class="sr-only">Not included</span>
-          </>
-        }
-      >
-        <IconCheck aria-hidden="true" class="mx-auto size-5 text-secondary" />
-        <span class="sr-only">Included</span>
-      </Show>
-    </Show>
   );
 }
 

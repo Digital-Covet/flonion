@@ -112,6 +112,13 @@ model Business {
   slotDuration     Int    @default(30)
   timezone         String @default("Asia/Kolkata")
 
+  /// starter | business | enterprise. Written only by billing
+  /// (`src/lib/payments`); read it through `effectivePlan()`, which falls back
+  /// to Starter once the paid period in `planExpiresAt` has lapsed.
+  plan          String    @default("starter")
+  /// End of the last period Cashfree has actually collected payment for.
+  planExpiresAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -127,6 +134,7 @@ model Business {
   contacts          BusinessContact[]
   favoritePartners  FavoritePartner[]
   sharedReviews     SharedReview[]
+  billingSubscriptions BillingSubscription[]
 
   @@index([sector])
   @@index([rating, createdAt])
@@ -587,4 +595,62 @@ model DeletedRecord {
   @@index([txId])
   @@index([purgeAfter])
   @@map("deleted_record")
+}
+
+/// One Cashfree subscription (a recurring mandate) for a business.
+///
+/// Rows are created before Cashfree is called and only ever moved forward
+/// by `syncSubscription()` in `src/lib/payments/subscriptions.ts`, from
+/// state fetched from Cashfree's API. Webhook bodies are never trusted.
+model BillingSubscription {
+  id               String    @id @default(cuid())
+  /// Ours, random, sent to Cashfree as `subscription_id`.
+  subscriptionId   String    @unique
+  cfSubscriptionId String?
+  businessId       String
+  business         Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  /// Mirrors `businessId` while the subscription is live (pending or active)
+  /// and is NULL once it ends. The unique index is what makes a concurrent
+  /// double-submit a P2002 rather than two mandates on one business.
+  liveBusinessId   String?   @unique
+  /// User id, not an FK: removing the member must not erase who paid.
+  createdById      String
+  /// Our plan id (business) and billing period (monthly | yearly).
+  planId           String
+  billing          String
+  /// The Cashfree plan the mandate was created against.
+  cfPlanId         String
+  /// Per-period charge including GST, in INR.
+  amount           Decimal   @db.Decimal(10, 2)
+  /// Cashfree's subscription_status, or ABANDONED | MISMATCH (ours).
+  status           String    @default("INITIALIZED")
+  cancelledAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  payments BillingPayment[]
+
+  @@index([businessId, status])
+  @@map("billing_subscription")
+}
+
+/// Ledger of successful Cashfree payments. The unique `cfPaymentId` is the
+/// idempotency guard: a period is added to `Business.planExpiresAt` only in
+/// the transaction that inserts the payment, so a replayed webhook or a
+/// return-page sync racing the webhook can never extend it twice.
+model BillingPayment {
+  id             String              @id @default(cuid())
+  cfPaymentId    String              @unique
+  subscriptionId String
+  subscription   BillingSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  amount         Decimal             @db.Decimal(10, 2)
+  /// AUTH (first period, paid at mandate setup) | CHARGE (renewal)
+  paymentType    String
+  /// The paid period this payment bought.
+  periodStart    DateTime
+  periodEnd      DateTime
+  createdAt      DateTime            @default(now())
+
+  @@index([subscriptionId])
+  @@map("billing_payment")
 }

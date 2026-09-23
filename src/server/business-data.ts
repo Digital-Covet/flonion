@@ -1,3 +1,4 @@
+import { effectivePlan, isBilling } from "~/lib/plans";
 import type { BusinessInfo } from "~/types/business";
 
 /**
@@ -38,6 +39,13 @@ export async function loadBusinessInfo(userId: string): Promise<BusinessInfo> {
       })
     : [];
 
+  const liveSub = business?.id
+    ? await prisma.billingSubscription.findUnique({
+        where: { liveBusinessId: business.id },
+        select: { status: true, billing: true },
+      })
+    : null;
+
   return {
     currentUserId: userId,
     ownerId: business?.userId ?? null,
@@ -59,5 +67,15 @@ export async function loadBusinessInfo(userId: string): Promise<BusinessInfo> {
     reviewCount: business?.reviewCount ?? 0,
     onboardingCompleted: user?.onboardingCompleted ?? false,
     teamMembers,
+    plan: business ? effectivePlan(business) : "starter",
+    planExpiresAt: business?.planExpiresAt?.toISOString() ?? null,
+    subscription:
+      liveSub && isBilling(liveSub.billing)
+        ? {
+            status: liveSub.status,
+            billing: liveSub.billing,
+            renews: liveSub.status === "ACTIVE",
+          }
+        : null,
   };
 }

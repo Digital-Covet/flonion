@@ -16,6 +16,7 @@ import {
   IconLayoutSidebarLeftExpand,
   IconLogout,
   IconMoon,
+  IconRocket,
   IconSelector,
   IconSun,
   IconX,
@@ -48,6 +49,18 @@ import { WidgetError } from "~/components/dashboard/ui";
 import { authClient } from "~/lib/auth-client";
 import { cn } from "~/lib/cn";
 import { getImpersonation } from "~/lib/impersonation";
+import { PLANS, type PlanId, planName } from "~/lib/plans";
+
+const UPGRADE_HREF = "/upgrade";
+
+/**
+ * The business's plan for the shell chrome. `.latest` so the sidebar never
+ * suspends; Starter until the business has loaded.
+ */
+function useCurrentPlan(): () => PlanId {
+  const { business } = useApp();
+  return () => business.latest?.plan ?? "starter";
+}
 
 const COLLAPSE_KEY = "flonion:sidebar-collapsed";
 const THEME_KEY = "flonion:theme";
@@ -136,6 +149,9 @@ function Shell(props: { children: JSX.Element }) {
   const [moreOpen, setMoreOpen] = createSignal(false);
   const { theme, setTheme, cycle } = createTheme();
   const location = useLocation();
+  const plan = useCurrentPlan();
+  /** Nothing to upsell once the business is on the top plan. */
+  const canUpgrade = () => plan() !== PLANS[PLANS.length - 1].id;
 
   onMount(() => setCollapsed(readStorage(COLLAPSE_KEY) === "1"));
 
@@ -208,7 +224,13 @@ function Shell(props: { children: JSX.Element }) {
           <NavList pathname={location.pathname} collapsed={collapsed()} />
         </nav>
 
-        <div class="shrink-0 border-t border-border p-3">
+        <div class="flex shrink-0 flex-col gap-2 border-t border-border p-3">
+          <Show when={canUpgrade()}>
+            <UpgradeLink
+              collapsed={collapsed()}
+              active={isActive(location.pathname, UPGRADE_HREF)}
+            />
+          </Show>
           <AccountMenu
             collapsed={collapsed()}
             theme={theme()}
@@ -236,24 +258,41 @@ function Shell(props: { children: JSX.Element }) {
             <InlineCombinationMark class="h-5 w-auto" />
             <span class="sr-only">Flonion dashboard</span>
           </A>
-          <button
-            type="button"
-            onClick={cycle}
-            aria-label={`Theme: ${theme()}. Activate to change`}
-            class={cn(
-              "grid size-11 place-items-center rounded-md text-text-muted hover:bg-primary-soft hover:text-text",
-              focusRing,
-            )}
-          >
-            <Dynamic
-              component={
-                THEMES.find((t) => t.value === theme())?.icon ??
-                IconDeviceDesktop
-              }
-              aria-hidden="true"
-              class="size-5"
-            />
-          </button>
+          <div class="flex items-center gap-1">
+            <Show when={canUpgrade()}>
+              <A
+                href={UPGRADE_HREF}
+                aria-current={
+                  isActive(location.pathname, UPGRADE_HREF) ? "page" : undefined
+                }
+                class={cn(
+                  "inline-flex min-h-11 items-center gap-1.5 rounded-md px-3 font-display text-sm font-semibold text-primary hover:bg-primary-soft aria-[current=page]:bg-primary-soft",
+                  focusRing,
+                )}
+              >
+                <IconRocket aria-hidden="true" class="size-4" />
+                Upgrade
+              </A>
+            </Show>
+            <button
+              type="button"
+              onClick={cycle}
+              aria-label={`Theme: ${theme()}. Activate to change`}
+              class={cn(
+                "grid size-11 place-items-center rounded-md text-text-muted hover:bg-primary-soft hover:text-text",
+                focusRing,
+              )}
+            >
+              <Dynamic
+                component={
+                  THEMES.find((t) => t.value === theme())?.icon ??
+                  IconDeviceDesktop
+                }
+                aria-hidden="true"
+                class="size-5"
+              />
+            </button>
+          </div>
         </header>
 
         <main
@@ -486,6 +525,53 @@ function CollapseButton(props: { collapsed: boolean; onClick: () => void }) {
         />
       </Show>
     </button>
+  );
+}
+
+/**
+ * Plan upsell above the account menu: always one glance away, but a tint
+ * rather than a filled button so it never competes with the page's own
+ * primary action.
+ */
+function UpgradeLink(props: { collapsed: boolean; active: boolean }) {
+  const plan = useCurrentPlan();
+  return (
+    <A
+      href={UPGRADE_HREF}
+      aria-current={props.active ? "page" : undefined}
+      title={props.collapsed ? "Upgrade plan" : undefined}
+      class={cn(
+        "flex items-center rounded-md bg-primary-soft text-primary transition-colors duration-[var(--duration-fast)] hover:bg-primary-soft/70 aria-[current=page]:ring-1 aria-[current=page]:ring-primary aria-[current=page]:ring-inset",
+        props.collapsed
+          ? "size-10 justify-center self-center"
+          : "min-h-12 gap-2.5 px-2 py-1.5",
+        focusRing,
+        "focus-visible:outline-offset-0",
+      )}
+    >
+      <span
+        aria-hidden="true"
+        class={cn(
+          "grid shrink-0 place-items-center rounded-md",
+          !props.collapsed && "size-9 bg-primary text-primary-foreground",
+        )}
+      >
+        <IconRocket stroke-width={1.75} class="size-5" />
+      </span>
+      <Show
+        when={!props.collapsed}
+        fallback={<span class="sr-only">Upgrade plan</span>}
+      >
+        <span class="flex min-w-0 flex-col">
+          <span class="truncate font-display text-sm font-semibold">
+            Upgrade plan
+          </span>
+          <span class="truncate text-xs text-text-muted">
+            You're on {planName(plan())}
+          </span>
+        </span>
+      </Show>
+    </A>
   );
 }
 

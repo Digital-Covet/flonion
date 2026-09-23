@@ -53,6 +53,9 @@ const PUBLIC_PREFIXES = [
   "/api/operator/impersonate",
   // Vercel Cron has no session; each route checks CRON_SECRET itself.
   "/api/cron/",
+  // Cashfree has no session; the route verifies the webhook's HMAC signature
+  // and re-reads everything from Cashfree's API before acting.
+  "/api/webhooks/cashfree",
   // No bare "/company/" here: it would swallow the whole subtree, including
   // the signed-in profile page, and leave that page without `no-store`. The
   // public sub-routes are matched by the regexes in `isPublicPath`.
@@ -131,14 +134,16 @@ async function loadAccountGate(userId: string) {
  */
 const CSP_REPORT_ONLY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  // Cashfree.js is loaded from its CDN only when checkout opens on /upgrade.
+  "script-src 'self' 'unsafe-inline' https://sdk.cashfree.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self' data:",
   "connect-src 'self' https:",
   "frame-ancestors 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  // Cashfree's hosted checkout may post the customer on to its own pages.
+  "form-action 'self' https://*.cashfree.com",
 ].join("; ");
 
 function applySecurityHeaders(headers: Headers) {

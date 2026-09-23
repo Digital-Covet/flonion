@@ -1,3 +1,5 @@
+import type { Billing, PlanId } from "~/lib/plans";
+
 export type TeamMember = {
   id: string;
   name: string;
@@ -32,4 +34,17 @@ export type BusinessInfo = {
   reviewCount: number;
   onboardingCompleted: boolean;
   teamMembers: TeamMember[];
+  /** The plan in force now, already past `effectivePlan()`'s expiry check. */
+  plan: PlanId;
+  /** End of the paid period (ISO), or null on Starter. */
+  planExpiresAt: string | null;
+  /**
+   * The live Cashfree subscription, if any. `renews` is false once the
+   * owner cancelled auto-renew or a pending checkout hasn't been authorised.
+   */
+  subscription: {
+    status: string;
+    billing: Billing;
+    renews: boolean;
+  } | null;
 };
