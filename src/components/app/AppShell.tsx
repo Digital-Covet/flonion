@@ -233,6 +233,7 @@ function Shell(props: { children: JSX.Element }) {
           </Show>
           <AccountMenu
             collapsed={collapsed()}
+            canUpgrade={canUpgrade()}
             theme={theme()}
             onTheme={setTheme}
           />
@@ -663,11 +664,14 @@ const menuItemClass =
  */
 function AccountMenu(props: {
   collapsed: boolean;
+  /** False on the top plan, where there is nothing left to upsell. */
+  canUpgrade: boolean;
   theme: Theme;
   onTheme: (t: Theme) => void;
 }) {
   const navigate = useNavigate();
   const session = authClient.useSession();
+  const plan = useCurrentPlan();
 
   return (
     <Menu.Root
@@ -717,6 +721,23 @@ function AccountMenu(props: {
                   <Menu.Separator class="my-1 h-px border-0 bg-border" />
                 </>
               )}
+            </Show>
+            <Show when={props.canUpgrade}>
+              <Menu.Item
+                value={UPGRADE_HREF}
+                class={cn(menuItemClass, "font-medium text-primary")}
+              >
+                <IconRocket
+                  aria-hidden="true"
+                  stroke-width={1.75}
+                  class="size-4"
+                />
+                <span class="flex-1">Upgrade plan</span>
+                <span class="text-xs font-normal text-text-muted">
+                  {planName(plan())}
+                </span>
+              </Menu.Item>
+              <Menu.Separator class="my-1 h-px border-0 bg-border" />
             </Show>
             <For each={NAV_ACCOUNT}>
               {(item) => (
