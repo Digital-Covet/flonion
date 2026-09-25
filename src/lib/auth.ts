@@ -1,9 +1,12 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError } from "better-auth/api";
 import { admin } from "better-auth/plugins";
 import { adminAc, userAc } from "better-auth/plugins/admin/access";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { twoFactor } from "better-auth/plugins/two-factor";
+import { emailHarmony } from "better-auth-harmony";
+import normalizeEmail from "validator/lib/normalizeEmail.js";
 
 import { prisma } from "@/db/prisma";
 import { sendEmail } from "@/services/email";
@@ -106,7 +109,41 @@ export const auth = betterAuth({
     },
   },
 
+  databaseHooks: {
+    user: {
+      create: {
+        // Runs after emailHarmony's hook (plugin hooks run first), so
+        // `normalizedEmail` is already set. Sign-up only matches the exact
+        // email before creating, so an alias of an existing account
+        // (`jo.hn+1@gmail.com` vs `john@gmail.com`) would reach the unique
+        // index and fail with a 422, revealing the account exists. A 403 here
+        // makes sign-up return its generic duplicate response instead.
+        before: async (user) => {
+          const { normalizedEmail } = user as { normalizedEmail?: unknown };
+          if (typeof normalizedEmail !== "string") return;
+
+          const existing = await prisma.user.findUnique({
+            where: { normalizedEmail },
+            select: { id: true },
+          });
+          if (existing) {
+            throw new APIError("FORBIDDEN", {
+              message: "An account already uses this email address.",
+            });
+          }
+        },
+      },
+    },
+  },
+
   plugins: [
+    // Normalizes emails into User.normalizedEmail (unique) and rejects
+    // malformed and disposable addresses on sign-up, sign-in, password reset,
+    // OTP and change-email routes. The normalizer is the plugin's default,
+    // passed explicitly so scripts/backfill-normalized-email.ts provably
+    // computes the same value.
+    emailHarmony({ normalizer: normalizeEmail }),
+
     // Team roles ("admin", "member", ...) live in the same User.role column the
     // admin plugin reads. Left at its defaults, the plugin treats a team "admin"
     // as a platform admin, which any signup can become by inviting a second

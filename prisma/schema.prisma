@@ -16,6 +16,10 @@ model User {
   id                   String           @id
   name                 String
   email                String
+  /// Written by better-auth-harmony on every create/update that sets `email`
+  /// (`foo.bar+x@gmail.com` -> `foobar@gmail.com`). Unique so one inbox can't
+  /// hold several accounts. NULL for users not yet backfilled.
+  normalizedEmail      String?          @unique
   emailVerified        Boolean          @default(false)
   image                String?
   role                 String           @default("member")

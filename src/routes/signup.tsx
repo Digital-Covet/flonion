@@ -26,7 +26,12 @@ import {
 } from "~/components/auth/AuthShell";
 import { PageMeta } from "~/components/meta/PageMeta";
 import { authClient } from "~/lib/auth-client";
-import { authErrorMessage, isRateLimitError } from "~/lib/auth-errors";
+import {
+  authErrorMessage,
+  isRateLimitError,
+  isRejectedEmailError,
+  REJECTED_EMAIL_MESSAGE,
+} from "~/lib/auth-errors";
 import { cn } from "~/lib/cn";
 import {
   inviteCallbackUrl,
@@ -140,6 +145,10 @@ export default function SignupPage() {
           setFieldErrors({
             email: "Enter an email address like name@business.com.",
           });
+          refs.email?.focus();
+          return;
+        } else if (isRejectedEmailError(error)) {
+          setFieldErrors({ email: REJECTED_EMAIL_MESSAGE });
           refs.email?.focus();
           return;
         } else {

@@ -30,7 +30,9 @@ import { authClient } from "~/lib/auth-client";
 import {
   authErrorCode,
   isRateLimitError,
+  isRejectedEmailError,
   RATE_LIMIT_MESSAGE,
+  REJECTED_EMAIL_MESSAGE,
 } from "~/lib/auth-errors";
 import { cn } from "~/lib/cn";
 
@@ -107,6 +109,11 @@ export function EmailPanel(props: {
       if (error) {
         if (isRateLimitError(error)) {
           setBanner({ tone: "error", text: RATE_LIMIT_MESSAGE });
+          return;
+        }
+        if (isRejectedEmailError(error)) {
+          setFieldError(REJECTED_EMAIL_MESSAGE);
+          inputRef?.focus();
           return;
         }
         setBanner({

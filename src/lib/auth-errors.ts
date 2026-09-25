@@ -55,3 +55,16 @@ export function isRateLimitError(error: unknown): boolean {
 
 export const RATE_LIMIT_MESSAGE =
   "Too many attempts. Wait a minute and try again.";
+
+/**
+ * better-auth-harmony rejects malformed and disposable addresses with a 400
+ * that carries only this message, no code. Client-side validation already
+ * catches malformed input, so in practice this means a throwaway inbox.
+ */
+export function isRejectedEmailError(error: unknown): boolean {
+  const err = error as { status?: unknown; message?: unknown } | null;
+  return err?.status === 400 && err.message === "Invalid email";
+}
+
+export const REJECTED_EMAIL_MESSAGE =
+  "Use a permanent email address. Temporary inboxes aren't accepted.";
