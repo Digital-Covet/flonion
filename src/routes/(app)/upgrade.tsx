@@ -6,7 +6,7 @@ import {
   IconRocket,
   IconShieldCheck,
 } from "@tabler/icons-solidjs";
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createEffect, createSignal, For, onMount, Show } from "solid-js";
 import { type BusinessInfo, useApp } from "~/components/app/context";
 import { inputBase, labelClass } from "~/components/auth/AuthShell";
 import {
@@ -138,6 +138,29 @@ export default function UpgradePage() {
     setReturned(state);
     setParams({ subscription_id: undefined }, { replace: true, scroll: false });
     await refetchBusiness();
+  });
+
+  // A checkout that still looks pending may have been authorised without the
+  // redirect above ever running (a QR paid on the phone, the tab closed) and
+  // without the webhook arriving. Ask once; the server syncs the live one.
+  let reconciled = false;
+  createEffect(() => {
+    const status = b()?.subscription?.status;
+    if (reconciled || returned() || !status || !PENDING.has(status)) return;
+    reconciled = true;
+    void (async () => {
+      try {
+        const res = await fetch("/api/billing/status");
+        const data = (await res.json().catch(() => ({}))) as {
+          status?: string;
+        };
+        if (!res.ok || data.status === status) return;
+        if (data.status === "ACTIVE") setReturned("success");
+        await refetchBusiness();
+      } catch {
+        // The webhook or the next visit will catch up.
+      }
+    })();
   });
 
   return (

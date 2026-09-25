@@ -16,8 +16,8 @@ const STATUS_RATE_LIMIT = 30;
 const STATUS_WINDOW_MS = 60 * 1000;
 
 const Query = Schema.Struct({
-  subscription_id: Schema.String.pipe(
-    Schema.check(Schema.isPattern(/^flo_[a-f0-9]{32}$/)),
+  subscription_id: Schema.optionalKey(
+    Schema.String.pipe(Schema.check(Schema.isPattern(/^flo_[a-f0-9]{32}$/))),
   ),
 });
 
@@ -26,6 +26,11 @@ const Query = Schema.Struct({
  * doesn't have to wait for the webhook. It goes through the same `sync` as
  * the webhook and trusts nothing in the URL beyond which subscription to
  * look at.
+ *
+ * Without `subscription_id` it syncs the business's live subscription. The
+ * page calls it that way while a checkout still looks pending, so a mandate
+ * authorised without the redirect back (the tab closed, a QR paid on the
+ * phone) and without a delivered webhook still switches the plan on.
  */
 export const GET = handler(
   "billing.status",
@@ -51,7 +56,9 @@ export const GET = handler(
     // Scoped to the caller's business: another business's id is a 404.
     const sub = yield* db.use((p) =>
       p.billingSubscription.findFirst({
-        where: { subscriptionId, businessId: ctx.businessId },
+        where: subscriptionId
+          ? { subscriptionId, businessId: ctx.businessId }
+          : { liveBusinessId: ctx.businessId },
       }),
     );
     if (!sub) return yield* notFound;
