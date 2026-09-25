@@ -1,113 +1,109 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
-import { createMeetLink } from "~/lib/google-meet";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { Effect, Option } from "effect";
+import { BadRequest } from "~/server/effect/errors";
+import {
+  readJsonObject,
+  recoverUnexpected,
+  requireMemberBusinessId,
+  requireSession,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
+import { Db } from "~/server/effect/services/db";
+import { Google } from "~/server/effect/services/google";
 
-export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = handler(
+  "team-meetings.list",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const businessId = yield* requireMemberBusinessId(session.user.id);
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { businessId: true },
-  });
+    const { url } = yield* RequestContext;
+    const dateParam = url.searchParams.get("date");
 
-  if (!user?.businessId) {
-    return Response.json({ error: "No business found" }, { status: 404 });
-  }
-
-  const url = new URL(event.request.url);
-  const dateParam = url.searchParams.get("date");
-
-  const where: Record<string, unknown> = { businessId: user.businessId };
-
-  if (dateParam) {
-    const date = new Date(dateParam);
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    where.date = { gte: startOfDay, lte: endOfDay };
-  }
-
-  const meetings = await prisma.teamMeeting.findMany({
-    where,
-    orderBy: [{ date: "asc" }, { startTime: "asc" }],
-  });
-
-  return Response.json(meetings);
-}
-
-export async function POST(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { businessId: true },
-  });
-
-  if (!user?.businessId) {
-    return Response.json({ error: "No business found" }, { status: 404 });
-  }
-
-  try {
-    const body = await event.request.json();
-    const { title, date, startTime, endTime, location } = body;
-
-    if (typeof title !== "string" || !title.trim()) {
-      return Response.json({ error: "Title is required" }, { status: 400 });
+    let date: { gte: Date; lte: Date } | undefined;
+    if (dateParam) {
+      const day = new Date(dateParam);
+      const startOfDay = new Date(day);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(day);
+      endOfDay.setHours(23, 59, 59, 999);
+      date = { gte: startOfDay, lte: endOfDay };
     }
 
-    if (typeof date !== "string" || !date) {
-      return Response.json({ error: "Date is required" }, { status: 400 });
-    }
+    const db = yield* Db;
+    return yield* db.use((p) =>
+      p.teamMeeting.findMany({
+        where: { businessId, ...(date ? { date } : {}) },
+        orderBy: [{ date: "asc" }, { startTime: "asc" }],
+      }),
+    );
+  }),
+);
 
-    if (typeof startTime !== "string" || !startTime) {
-      return Response.json(
-        { error: "Start time is required" },
-        { status: 400 },
+const REQUIRED_FIELDS = [
+  ["date", "Date is required"],
+  ["startTime", "Start time is required"],
+  ["endTime", "End time is required"],
+] as const;
+
+export const POST = handler(
+  "team-meetings.create",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const businessId = yield* requireMemberBusinessId(session.user.id);
+
+    return yield* Effect.gen(function* () {
+      const body = yield* readJsonObject(
+        () => new BadRequest({ message: "Invalid request body" }),
       );
-    }
+      const { title, date, startTime, endTime, location } = body;
 
-    if (typeof endTime !== "string" || !endTime) {
-      return Response.json({ error: "End time is required" }, { status: 400 });
-    }
+      if (typeof title !== "string" || !title.trim()) {
+        return yield* new BadRequest({ message: "Title is required" });
+      }
+      for (const [field, message] of REQUIRED_FIELDS) {
+        const value = body[field];
+        if (typeof value !== "string" || !value) {
+          return yield* new BadRequest({ message });
+        }
+      }
+      if (typeof location !== "string" || !location.trim()) {
+        return yield* new BadRequest({ message: "Location is required" });
+      }
 
-    if (typeof location !== "string" || !location.trim()) {
-      return Response.json({ error: "Location is required" }, { status: 400 });
-    }
+      const db = yield* Db;
+      const meeting = yield* db.use((p) =>
+        p.teamMeeting.create({
+          data: {
+            title: title.trim(),
+            date: new Date(date as string),
+            startTime: startTime as string,
+            endTime: endTime as string,
+            location: location.trim(),
+            businessId,
+          },
+        }),
+      );
 
-    const meeting = await prisma.teamMeeting.create({
-      data: {
-        title: title.trim(),
-        date: new Date(date),
-        startTime,
-        endTime,
-        location: location.trim(),
-        businessId: user.businessId,
-      },
-    });
+      // A Google Meet link is a bonus: the meeting is already saved without
+      // one, and `createMeetLink` never fails, only comes back empty.
+      const google = yield* Google;
+      const meetLink = yield* google.createMeetLink(session.user.id);
+      if (Option.isSome(meetLink)) {
+        const { meetUri, spaceId } = meetLink.value;
+        yield* db.use((p) =>
+          p.teamMeeting.update({
+            where: { id: meeting.id },
+            data: { meetUri, meetSpaceId: spaceId },
+          }),
+        );
+        meeting.meetUri = meetUri;
+        meeting.meetSpaceId = spaceId;
+      }
 
-    // Attempt to create a Google Meet link. Graceful failure --
-    // the meeting is already persisted without one.
-    const meetLink = await createMeetLink(session.user.id);
-    if (meetLink) {
-      await prisma.teamMeeting.update({
-        where: { id: meeting.id },
-        data: { meetUri: meetLink.meetUri, meetSpaceId: meetLink.spaceId },
-      });
-      meeting.meetUri = meetLink.meetUri;
-      meeting.meetSpaceId = meetLink.spaceId;
-    }
-
-    return Response.json(meeting, { status: 201 });
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
-  }
-}
+      return Response.json(meeting, { status: 201 });
+    }).pipe(
+      recoverUnexpected(new BadRequest({ message: "Invalid request body" })),
+    );
+  }),
+);

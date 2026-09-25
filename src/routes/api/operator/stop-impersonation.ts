@@ -1,6 +1,14 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { Config, Effect, Option } from "effect";
+import { currentSession } from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { Db } from "~/server/effect/services/db";
+
+const redirect = (location: string) =>
+  new Response(null, { status: 302, headers: { Location: location } });
+
+const deskUrl = Config.String("DESK_APP_URL").pipe(
+  Effect.orElseSucceed(() => "http://localhost:5174"),
+);
 
 /**
  * Stop impersonation — destroys the impersonated session and redirects
@@ -10,34 +18,25 @@ import { getSessionFromHeaders } from "~/lib/server-auth";
  * session. Deleting it and redirecting to the desk effectively "returns"
  * the operator to their own console.
  */
-export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
+export const GET = handler(
+  "operator.stop-impersonation",
+  Effect.gen(function* () {
+    const session = yield* currentSession;
+    if (Option.isNone(session)) return redirect("/login");
+    const sessionId = session.value.session.id;
 
-  if (!session) {
-    return new Response(null, { status: 302, headers: { Location: "/login" } });
-  }
+    const db = yield* Db;
+    const row = yield* db.use((p) =>
+      p.session.findUnique({
+        where: { id: sessionId },
+        select: { impersonatedBy: true },
+      }),
+    );
 
-  // Check if this session is impersonated
-  const sessionRow = await prisma.session.findUnique({
-    where: { id: session.session.id },
-    select: { impersonatedBy: true },
-  });
+    // Not impersonated — just back to the dashboard.
+    if (!row?.impersonatedBy) return redirect("/dashboard");
 
-  if (!sessionRow?.impersonatedBy) {
-    // Not impersonated — just redirect to dashboard
-    return new Response(null, {
-      status: 302,
-      headers: { Location: "/dashboard" },
-    });
-  }
-
-  // Delete the impersonated session
-  await prisma.session.delete({ where: { id: session.session.id } });
-
-  // Redirect to the desk console
-  const deskUrl = process.env.DESK_APP_URL ?? "http://localhost:5174";
-  return new Response(null, {
-    status: 302,
-    headers: { Location: deskUrl },
-  });
-}
+    yield* db.use((p) => p.session.delete({ where: { id: sessionId } }));
+    return redirect(yield* deskUrl);
+  }),
+);

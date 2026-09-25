@@ -1,14 +1,28 @@
-import type { APIEvent } from "@solidjs/start/server";
+import { Effect } from "effect";
 import { getPartners, parsePartnersQuery } from "~/lib/partners-query";
+import { UpstreamError } from "~/server/effect/errors";
+import { recoverAll } from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
 
 export type { Partner } from "~/lib/partners-query";
 
-export async function GET(event: APIEvent) {
-  const url = new URL(event.request.url);
-  const query = parsePartnersQuery(url);
-
-  try {
-    const { payload, cached } = await getPartners(query);
+export const GET = handler(
+  "marketplace.partners",
+  Effect.gen(function* () {
+    const { url } = yield* RequestContext;
+    const { payload, cached } = yield* getPartners(
+      parsePartnersQuery(url),
+    ).pipe(
+      Effect.tapCause((cause) =>
+        Effect.sync(() =>
+          console.error("[marketplace/partners] query failed:", cause),
+        ),
+      ),
+      recoverAll(
+        new UpstreamError({ status: 500, message: "Failed to load partners" }),
+      ),
+    );
 
     return Response.json(payload, {
       headers: {
@@ -21,8 +35,5 @@ export async function GET(event: APIEvent) {
         "X-Cache": cached ? "HIT" : "MISS",
       },
     });
-  } catch (err) {
-    console.error("[marketplace/partners] query failed:", err);
-    return Response.json({ error: "Failed to load partners" }, { status: 500 });
-  }
-}
+  }),
+);

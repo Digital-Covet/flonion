@@ -9,9 +9,6 @@ import type { BusinessInfo } from "~/types/business";
  */
 export const getBusiness = query(async (): Promise<BusinessInfo> => {
   "use server";
-  const { requireSession } = await import("~/server/session");
-  const { loadBusinessInfo } = await import("~/server/business-data");
-
-  const session = await requireSession();
-  return loadBusinessInfo(session.user.id);
+  const { loadBusinessInfoForSession } = await import("~/server/business-data");
+  return loadBusinessInfoForSession();
 }, "business");

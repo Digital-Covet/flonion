@@ -1,4 +1,4 @@
-import type { APIEvent } from "@solidjs/start/server";
+import { Effect, Option } from "effect";
 import { APP_DOMAIN } from "~/lib/constants";
 import {
   decideMeeting,
@@ -7,12 +7,31 @@ import {
   type MeetingDecisionResult,
   verifyMeetingDecision,
 } from "~/lib/meeting-decision";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import {
+  BadRequest,
+  Forbidden,
+  NotFound,
+  RawResponse,
+} from "~/server/effect/errors";
+import {
+  currentSession,
+  readJsonObject,
+  requireSession,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
 
-function meetingIdFrom(event: APIEvent): string | undefined {
-  const id = new URL(event.request.url).pathname.split("/").pop();
-  return id ? decodeURIComponent(id) : undefined;
-}
+/** The last path segment; `params` is not relied on for this nested route. */
+const meetingId = RequestContext.use(({ url }) =>
+  Effect.sync(() => {
+    const id = url.pathname.split("/").pop();
+    return id ? decodeURIComponent(id) : undefined;
+  }),
+);
+
+/** The plain-text answers this route has always given the confirmation form. */
+const text = (body: string, status: number) =>
+  new RawResponse({ response: new Response(body, { status }) });
 
 function escapeHtml(value: string): string {
   return value
@@ -45,37 +64,39 @@ function htmlPage(title: string, body: string, status = 200): Response {
  * scanner could decide the request before the owner saw it. The decision now
  * needs the POST that the page's button sends.
  */
-export async function GET(event: APIEvent) {
-  const url = new URL(event.request.url);
-  const id = meetingIdFrom(event);
-  const action = url.searchParams.get("action");
-  const exp = url.searchParams.get("exp");
-  const sig = url.searchParams.get("sig");
+export const GET = handler(
+  "marketplace.meetings.confirm-page",
+  Effect.gen(function* () {
+    const { url } = yield* RequestContext;
+    const id = yield* meetingId;
+    const action = url.searchParams.get("action");
+    const exp = url.searchParams.get("exp");
+    const sig = url.searchParams.get("sig");
 
-  if (!id || !isMeetingAction(action)) {
-    return new Response("Invalid request", { status: 400 });
-  }
+    if (!id || !isMeetingAction(action)) {
+      return yield* text("Invalid request", 400);
+    }
 
-  const signed = verifyMeetingDecision(id, action, exp, sig);
-  if (!signed && !(await getSessionFromHeaders(event.request.headers))) {
-    return htmlPage(
-      "Link expired",
-      `<h2>This link is no longer valid</h2>
+    const signed = verifyMeetingDecision(id, action, exp, sig);
+    if (!signed && Option.isNone(yield* currentSession)) {
+      return htmlPage(
+        "Link expired",
+        `<h2>This link is no longer valid</h2>
       <p>Sign in to accept or reject the request from your dashboard.</p>
       <p><a href="${APP_DOMAIN}/collaborations/meeting-schedular">Open dashboard</a></p>`,
-      401,
-    );
-  }
+        401,
+      );
+    }
 
-  const verb = action === "accept" ? "Accept" : "Reject";
-  const hiddenFields = signed
-    ? `<input type="hidden" name="exp" value="${escapeHtml(exp ?? "")}" />
+    const verb = action === "accept" ? "Accept" : "Reject";
+    const hiddenFields = signed
+      ? `<input type="hidden" name="exp" value="${escapeHtml(exp ?? "")}" />
        <input type="hidden" name="sig" value="${escapeHtml(sig ?? "")}" />`
-    : "";
+      : "";
 
-  return htmlPage(
-    `${verb} meeting request`,
-    `<h2>${verb} this meeting request?</h2>
+    return htmlPage(
+      `${verb} meeting request`,
+      `<h2>${verb} this meeting request?</h2>
     <p>${
       action === "accept"
         ? "The requester will be notified and a Google Meet link created if your Google account is connected."
@@ -86,74 +107,78 @@ export async function GET(event: APIEvent) {
       ${hiddenFields}
       <button type="submit" class="${action}">${verb} meeting</button>
     </form>`,
-  );
-}
+    );
+  }),
+);
 
 /**
  * Form target of the confirmation page. Authorized by the signed link fields
  * or, when they are absent or invalid, by the meeting owner's session.
  */
-export async function POST(event: APIEvent) {
-  const id = meetingIdFrom(event);
-  if (!id) return new Response("Invalid request", { status: 400 });
+export const POST = handler(
+  "marketplace.meetings.decide-form",
+  Effect.gen(function* () {
+    const id = yield* meetingId;
+    if (!id) return yield* text("Invalid request", 400);
 
-  let form: FormData;
-  try {
-    form = await event.request.formData();
-  } catch {
-    return new Response("Invalid request", { status: 400 });
-  }
+    const { request } = yield* RequestContext;
+    const form = yield* Effect.tryPromise({
+      try: () => request.formData(),
+      catch: () => text("Invalid request", 400),
+    });
 
-  const action = form.get("action");
-  if (!isMeetingAction(action)) {
-    return new Response("Invalid action", { status: 400 });
-  }
+    const action = form.get("action");
+    if (!isMeetingAction(action)) return yield* text("Invalid action", 400);
 
-  const exp = form.get("exp");
-  const sig = form.get("sig");
-  let ownerUserId: string | null = null;
+    const exp = form.get("exp");
+    const sig = form.get("sig");
+    let ownerUserId: string | null = null;
 
-  // A present-but-invalid signature must NOT bypass the ownership check.
-  if (
-    !verifyMeetingDecision(
-      id,
-      action,
-      typeof exp === "string" ? exp : null,
-      typeof sig === "string" ? sig : null,
-    )
-  ) {
-    const session = await getSessionFromHeaders(event.request.headers);
-    if (!session) return new Response("Unauthorized", { status: 401 });
-    ownerUserId = session.user.id;
-  }
+    // A present-but-invalid signature must NOT bypass the ownership check.
+    if (
+      !verifyMeetingDecision(
+        id,
+        action,
+        typeof exp === "string" ? exp : null,
+        typeof sig === "string" ? sig : null,
+      )
+    ) {
+      const session = yield* currentSession;
+      if (Option.isNone(session)) return yield* text("Unauthorized", 401);
+      ownerUserId = session.value.user.id;
+    }
 
-  const result = await decideMeeting(id, action, ownerUserId);
-  return decisionPage(result, action);
-}
+    const result = yield* decideMeeting(id, action, ownerUserId);
+    return yield* decisionPage(result, action);
+  }),
+);
 
 function decisionPage(
   result: MeetingDecisionResult,
   action: MeetingAction,
-): Response {
+): Effect.Effect<Response, RawResponse> {
   if (!result.ok) {
     if (result.reason === "not_found") {
-      return new Response("Meeting not found", { status: 404 });
+      return Effect.fail(text("Meeting not found", 404));
     }
     if (result.reason === "forbidden") {
-      return new Response("Forbidden", { status: 403 });
+      return Effect.fail(text("Forbidden", 403));
     }
-    return htmlPage(
-      "Already decided",
-      `<h2>Already ${escapeHtml(result.status)}</h2>
+    return Effect.succeed(
+      htmlPage(
+        "Already decided",
+        `<h2>Already ${escapeHtml(result.status)}</h2>
       <p>This meeting request has already been ${escapeHtml(result.status)}.</p>`,
-      409,
+        409,
+      ),
     );
   }
 
   const dashboardUrl = `${APP_DOMAIN}/collaborations/meeting-schedular`;
-  return htmlPage(
-    `Meeting ${result.status}`,
-    `<meta http-equiv="refresh" content="3;url=${dashboardUrl}" />
+  return Effect.succeed(
+    htmlPage(
+      `Meeting ${result.status}`,
+      `<meta http-equiv="refresh" content="3;url=${dashboardUrl}" />
     <h2>Meeting ${action === "accept" ? "Accepted" : "Rejected"}</h2>
     <p>${
       action === "accept"
@@ -161,48 +186,42 @@ function decisionPage(
         : "You have rejected the meeting request. The slot has been freed."
     }</p>
     <p style="font-size:13px;color:#999;">Redirecting to dashboard...</p>`,
+    ),
   );
 }
 
-export async function PATCH(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PATCH = handler(
+  "marketplace.meetings.decide",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
 
-  const id = meetingIdFrom(event);
-  if (!id) {
-    return Response.json({ error: "Meeting ID is required" }, { status: 400 });
-  }
-
-  let action: unknown;
-  try {
-    ({ action } = await event.request.json());
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
-  }
-
-  if (!isMeetingAction(action)) {
-    return Response.json(
-      { error: "action must be 'accept' or 'reject'" },
-      { status: 400 },
-    );
-  }
-
-  const result = await decideMeeting(id, action, session.user.id);
-
-  if (!result.ok) {
-    if (result.reason === "not_found") {
-      return Response.json({ error: "Meeting not found" }, { status: 404 });
+    const id = yield* meetingId;
+    if (!id) {
+      return yield* new BadRequest({ message: "Meeting ID is required" });
     }
-    if (result.reason === "forbidden") {
-      return Response.json({ error: "Unauthorized" }, { status: 403 });
-    }
-    return Response.json(
-      { error: `Meeting has already been ${result.status}` },
-      { status: 400 },
-    );
-  }
 
-  return Response.json({ meeting: { id, status: result.status } });
-}
+    const { action } = yield* readJsonObject(
+      () => new BadRequest({ message: "Invalid request body" }),
+    );
+    if (!isMeetingAction(action)) {
+      return yield* new BadRequest({
+        message: "action must be 'accept' or 'reject'",
+      });
+    }
+
+    const result = yield* decideMeeting(id, action, session.user.id);
+    if (!result.ok) {
+      if (result.reason === "not_found") {
+        return yield* new NotFound({ message: "Meeting not found" });
+      }
+      if (result.reason === "forbidden") {
+        return yield* new Forbidden({ message: "Unauthorized" });
+      }
+      return yield* new BadRequest({
+        message: `Meeting has already been ${result.status}`,
+      });
+    }
+
+    return { meeting: { id, status: result.status } };
+  }),
+);

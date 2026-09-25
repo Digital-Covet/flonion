@@ -1,66 +1,69 @@
-import { z } from "zod";
-import { extractUsage, type UsageMeta } from "./ledger";
-import { getModel } from "./model";
-import type { SentimentAnalysis } from "./sentiment-analyzer";
+import { Effect, Schema } from "effect";
+import {
+  decodeModelJson,
+  type LlmError,
+  LlmModel,
+} from "~/server/effect/services/llm";
+import type { SentimentAnalysis } from "~/types/ai";
+import type { UsageMeta } from "./ledger";
 
-const draftReplySchema = z.object({
-  draftReply: z.string().describe("The drafted reply to the customer review"),
-});
+const DraftReply = Schema.Struct({ draftReply: Schema.String });
 
-export type DraftReplyResult = z.infer<typeof draftReplySchema>;
+export type DraftReplyResult = typeof DraftReply.Type;
 
 export interface DraftReplyWithUsage extends DraftReplyResult {
   usage: UsageMeta;
 }
 
-function getModelInstance(apiKey: string) {
-  return getModel(apiKey, 0.7);
-}
-
-const suggestReviewSchema = z.object({
-  suggestedReviews: z
-    .array(z.string())
-    .length(3)
-    .describe("Three distinct improved versions of the user's review"),
+/** Exactly three distinct improved versions of the user's review. */
+const SuggestReview = Schema.Struct({
+  suggestedReviews: Schema.Array(Schema.String).pipe(
+    Schema.check(Schema.isLengthBetween(3, 3)),
+  ),
 });
 
-export type SuggestReviewResult = z.infer<typeof suggestReviewSchema>;
+export type SuggestReviewResult = typeof SuggestReview.Type;
 
 export interface SuggestReviewWithUsage extends SuggestReviewResult {
   usage: UsageMeta;
 }
 
-export async function suggestImprovedReview(params: {
-  draftText: string;
-  starRating: number;
-  sentiment: SentimentAnalysis;
-  keywords?: string;
-  businessName?: string;
-  apiKey: string;
-}): Promise<SuggestReviewWithUsage> {
-  const model = getModelInstance(params.apiKey);
+/** Both drafting stages write, so they run warmer than the analyzer. */
+const DRAFT_TEMPERATURE = 0.7;
 
-  const hasDraft = params.draftText.trim().length > 0;
+export const suggestImprovedReview = Effect.fn("suggestImprovedReview")(
+  function* (params: {
+    draftText: string;
+    starRating: number;
+    sentiment: SentimentAnalysis;
+    keywords?: string;
+    businessName?: string;
+  }): Effect.fn.Return<SuggestReviewWithUsage, LlmError, LlmModel> {
+    const llm = yield* LlmModel;
 
-  const sentimentSummary = params.sentiment.sentimentWords
-    .map((s) => `[${s.category}] "${s.word}" (intensity: ${s.intensity})`)
-    .join(", ");
+    const hasDraft = params.draftText.trim().length > 0;
 
-  const keywordsBlock = params.keywords
-    ? `
+    const sentimentSummary = params.sentiment.sentimentWords
+      .map((s) => `[${s.category}] "${s.word}" (intensity: ${s.intensity})`)
+      .join(", ");
+
+    const keywordsBlock = params.keywords
+      ? `
 - Business Keywords: ${params.keywords}
   IMPORTANT: The business has highlighted specific keywords above. When generating suggestions, naturally weave these keywords/topics into the review text where they fit authentically. Do NOT force them — if they don't fit the draft's intent, focus on the original content. The keywords represent aspects the business cares about most.`
-    : "";
+      : "";
 
-  const businessBlock = params.businessName
-    ? `\n- Business Name: ${params.businessName}`
-    : "";
+    const businessBlock = params.businessName
+      ? `\n- Business Name: ${params.businessName}`
+      : "";
 
-  if (!hasDraft) {
-    const response = await model.invoke([
-      {
-        role: "system",
-        content: `You are an expert Customer Experience Copywriter. A customer has selected a ${params.starRating}/5 star rating${params.businessName ? ` for ${params.businessName}` : ""} but has not written any review text yet. Your job is to generate 3 distinct, high-quality review drafts from scratch that match the customer's likely experience based on the star rating.${keywordsBlock}${businessBlock}
+    if (!hasDraft) {
+      const { text, usage } = yield* llm.complete({
+        temperature: DRAFT_TEMPERATURE,
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert Customer Experience Copywriter. A customer has selected a ${params.starRating}/5 star rating${params.businessName ? ` for ${params.businessName}` : ""} but has not written any review text yet. Your job is to generate 3 distinct, high-quality review drafts from scratch that match the customer's likely experience based on the star rating.${keywordsBlock}${businessBlock}
 
 ### STAR RATING ANCHORS
 
@@ -95,26 +98,24 @@ Return ONLY valid JSON:
 }
 
 No markdown. No explanation.`,
-      },
-      {
-        role: "user",
-        content: `Generate 3 review drafts for a ${params.starRating}/5 star experience${params.businessName ? ` at ${params.businessName}` : ""}.${params.keywords ? ` Keywords to consider: ${params.keywords}` : ""}`,
-      },
-    ]);
+          },
+          {
+            role: "user",
+            content: `Generate 3 review drafts for a ${params.starRating}/5 star experience${params.businessName ? ` at ${params.businessName}` : ""}.${params.keywords ? ` Keywords to consider: ${params.keywords}` : ""}`,
+          },
+        ],
+      });
 
-    const content =
-      typeof response.content === "string"
-        ? response.content
-        : response.content.map((c) => ("text" in c ? c.text : "")).join("");
+      const parsed = yield* decodeModelJson(SuggestReview)(text);
+      return { ...parsed, usage };
+    }
 
-    const usage = extractUsage(response);
-    return { ...suggestReviewSchema.parse(JSON.parse(content)), usage };
-  }
-
-  const response = await model.invoke([
-    {
-      role: "system",
-      content: `You are an expert Customer Experience Copywriter and Review Enhancement Specialist. Your purpose is to analyze raw, unpolished, or incomplete customer drafts and transform them into clear, authentic, and highly useful public reviews that accurately convey the reviewer's real experience.
+    const { text, usage } = yield* llm.complete({
+      temperature: DRAFT_TEMPERATURE,
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert Customer Experience Copywriter and Review Enhancement Specialist. Your purpose is to analyze raw, unpolished, or incomplete customer drafts and transform them into clear, authentic, and highly useful public reviews that accurately convey the reviewer's real experience.
 
 ### CONTEXT & INPUT DATA
 
@@ -124,17 +125,17 @@ No markdown. No explanation.`,
 - Key Topics: ${params.sentiment.keyTopics.join(", ")}
 - Sentiment Details: ${sentimentSummary || "none"}
 - Original Draft: "${params.draftText}"${
-        params.businessName
-          ? `
+            params.businessName
+              ? `
 - Business Name: ${params.businessName}`
-          : ""
-      }${
-        params.keywords
-          ? `
+              : ""
+          }${
+            params.keywords
+              ? `
 - Business Keywords: ${params.keywords}
   IMPORTANT: The business has highlighted specific keywords above. When generating suggestions, naturally weave these keywords/topics into the review text where they fit authentically. Do NOT force them — if they don't fit the draft's intent, focus on the original content. The keywords represent aspects the business cares about most.`
-          : ""
-      }
+              : ""
+          }
 
 ### CORE TASK
 
@@ -198,62 +199,61 @@ Return JSON matching the following structure:
     "<Option 3: Casual Version>"
   ]
 }`,
-    },
-    {
-      role: "user",
-      content: `Original review:
+        },
+        {
+          role: "user",
+          content: `Original review:
 
 "${params.draftText}"`,
-    },
-  ]);
+        },
+      ],
+    });
 
-  const content =
-    typeof response.content === "string"
-      ? response.content
-      : response.content.map((c) => ("text" in c ? c.text : "")).join("");
+    const parsed = yield* decodeModelJson(SuggestReview)(text);
+    return { ...parsed, usage };
+  },
+);
 
-  const usage = extractUsage(response);
-  return { ...suggestReviewSchema.parse(JSON.parse(content)), usage };
-}
+export const draftReviewReply = Effect.fn("draftReviewReply")(
+  function* (params: {
+    comment: string;
+    starRating: number;
+    reviewerName: string;
+    sentiment: SentimentAnalysis;
+    tone?: "professional" | "friendly" | "formal";
+  }): Effect.fn.Return<DraftReplyWithUsage, LlmError, LlmModel> {
+    const llm = yield* LlmModel;
 
-export async function draftReviewReply(params: {
-  comment: string;
-  starRating: number;
-  reviewerName: string;
-  sentiment: SentimentAnalysis;
-  apiKey: string;
-  tone?: "professional" | "friendly" | "formal";
-}): Promise<DraftReplyWithUsage> {
-  const model = getModelInstance(params.apiKey);
+    const toneInstructions: Record<string, string> = {
+      professional:
+        "Use a professional, business-appropriate tone. Be concise and solution-oriented.",
+      friendly:
+        "Use a warm, conversational tone. Be personable and approachable.",
+      formal:
+        "Use a formal, courteous tone. Follow traditional business etiquette.",
+    };
 
-  const toneInstructions: Record<string, string> = {
-    professional:
-      "Use a professional, business-appropriate tone. Be concise and solution-oriented.",
-    friendly:
-      "Use a warm, conversational tone. Be personable and approachable.",
-    formal:
-      "Use a formal, courteous tone. Follow traditional business etiquette.",
-  };
+    const intentGuide = {
+      complaint:
+        "Acknowledge their frustration, apologize sincerely, and offer a concrete resolution or way to make it right.",
+      compliment:
+        "Thank them warmly, reinforce the positive experience they described, and invite them back.",
+      suggestion:
+        "Acknowledge their feedback as valuable, explain what action is being taken or considered.",
+      question:
+        "Address their question directly, provide helpful information, and offer further assistance.",
+    };
 
-  const intentGuide = {
-    complaint:
-      "Acknowledge their frustration, apologize sincerely, and offer a concrete resolution or way to make it right.",
-    compliment:
-      "Thank them warmly, reinforce the positive experience they described, and invite them back.",
-    suggestion:
-      "Acknowledge their feedback as valuable, explain what action is being taken or considered.",
-    question:
-      "Address their question directly, provide helpful information, and offer further assistance.",
-  };
+    const sentimentSummary = params.sentiment.sentimentWords
+      .map((s) => `[${s.category}] "${s.word}" (intensity: ${s.intensity})`)
+      .join(", ");
 
-  const sentimentSummary = params.sentiment.sentimentWords
-    .map((s) => `[${s.category}] "${s.word}" (intensity: ${s.intensity})`)
-    .join(", ");
-
-  const response = await model.invoke([
-    {
-      role: "system",
-      content: `You are an expert customer review response writer.
+    const { text, usage } = yield* llm.complete({
+      temperature: DRAFT_TEMPERATURE,
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert customer review response writer.
 
 TONE:
 ${toneInstructions[params.tone ?? "professional"]}
@@ -283,21 +283,18 @@ Return ONLY valid JSON:
 
 No markdown.
 No explanation.`,
-    },
-    {
-      role: "user",
-      content: `Customer: ${params.reviewerName}
+        },
+        {
+          role: "user",
+          content: `Customer: ${params.reviewerName}
 Rating: ${params.starRating}/5
 
 "${params.comment}"`,
-    },
-  ]);
+        },
+      ],
+    });
 
-  const content =
-    typeof response.content === "string"
-      ? response.content
-      : response.content.map((c) => ("text" in c ? c.text : "")).join("");
-
-  const draftUsage = extractUsage(response);
-  return { ...draftReplySchema.parse(JSON.parse(content)), usage: draftUsage };
-}
+    const parsed = yield* decodeModelJson(DraftReply)(text);
+    return { ...parsed, usage };
+  },
+);

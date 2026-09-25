@@ -4,7 +4,7 @@ import {
   sentimentOf,
   stars,
 } from "~/components/dashboard/data";
-import type { SentimentAnalysis } from "~/lib/agents/sentiment-analyzer";
+import type { SentimentAnalysis } from "~/types/ai";
 import type { GoogleReview } from "~/types/google";
 
 // ─── Filters (kept in the URL so a filtered inbox can be shared or reloaded) ─

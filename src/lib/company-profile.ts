@@ -1,14 +1,14 @@
-import { prisma } from "~/db/prisma";
+import { Effect } from "effect";
+import type { DbError } from "~/server/effect/errors";
+import { Db } from "~/server/effect/services/db";
 
 /**
  * Public company-profile reads.
  *
  * Lives here rather than inside the route handlers because the SSR pass of
- * `/company/[companyname]` needs them too. On the server the page calls these
- * directly; in the browser it goes through `/api/marketplace/*`. Same reasoning
- * as `~/lib/partners-query` -- the caller guards the import with
- * `import.meta.env.SSR` so Vite folds the branch and Prisma never reaches the
- * client bundle.
+ * `/company/[companyname]` needs them too: `getCompanyPage` runs them through
+ * `runServerFn`, the `/api/marketplace/*` routes through `handler`. Server
+ * only: reach it through `await import(...)` from a `"use server"` body.
  */
 
 export interface CompanyProfile {
@@ -49,24 +49,25 @@ export interface CompanyContact {
 }
 
 /** Looks a business up by its vanity username, falling back to its id. */
-export async function getCompanyProfile(
+export const getCompanyProfile = Effect.fn("getCompanyProfile")(function* (
   identifier: string,
-): Promise<CompanyProfile | null> {
+) {
   const key = identifier.trim();
   if (!key) return null;
 
   // A suspended business has no public profile: it reads as not found.
+  const db = yield* Db;
   const business =
-    (await prisma.business.findUnique({
-      where: { username: key, status: "active" },
-    })) ||
-    (await prisma.business.findUnique({
-      where: { id: key, status: "active" },
-    }));
+    (yield* db.use((p) =>
+      p.business.findUnique({ where: { username: key, status: "active" } }),
+    )) ||
+    (yield* db.use((p) =>
+      p.business.findUnique({ where: { id: key, status: "active" } }),
+    ));
 
   if (!business) return null;
 
-  return {
+  const profile: CompanyProfile = {
     id: business.id,
     name: business.name,
     username: business.username,
@@ -78,52 +79,62 @@ export async function getCompanyProfile(
     address: business.address,
     phone: business.phone,
   };
-}
+  return profile;
+});
 
-export function getCompanyServices(
+export const getCompanyServices = (
   businessId: string,
-): Promise<CompanyService[]> {
-  return prisma.service.findMany({
-    where: { businessId },
-    orderBy: { position: "asc" },
-    select: {
-      id: true,
-      icon: true,
-      title: true,
-      description: true,
-      position: true,
-    },
-  });
-}
+): Effect.Effect<CompanyService[], DbError, Db> =>
+  Db.use((db) =>
+    db.use((p) =>
+      p.service.findMany({
+        where: { businessId },
+        orderBy: { position: "asc" },
+        select: {
+          id: true,
+          icon: true,
+          title: true,
+          description: true,
+          position: true,
+        },
+      }),
+    ),
+  );
 
-export function getCompanyProjects(
+export const getCompanyProjects = (
   businessId: string,
-): Promise<CompanyProject[]> {
-  return prisma.project.findMany({
-    where: { businessId },
-    orderBy: { position: "asc" },
-    select: {
-      id: true,
-      imageUrl: true,
-      altText: true,
-      position: true,
-    },
-  });
-}
+): Effect.Effect<CompanyProject[], DbError, Db> =>
+  Db.use((db) =>
+    db.use((p) =>
+      p.project.findMany({
+        where: { businessId },
+        orderBy: { position: "asc" },
+        select: {
+          id: true,
+          imageUrl: true,
+          altText: true,
+          position: true,
+        },
+      }),
+    ),
+  );
 
-export function getCompanyContacts(
+export const getCompanyContacts = (
   businessId: string,
-): Promise<CompanyContact[]> {
-  return prisma.businessContact.findMany({
-    where: { businessId },
-    orderBy: { position: "asc" },
-    select: {
-      id: true,
-      name: true,
-      role: true,
-      avatarUrl: true,
-      email: true,
-      position: true,
-    },
-  });
-}
+): Effect.Effect<CompanyContact[], DbError, Db> =>
+  Db.use((db) =>
+    db.use((p) =>
+      p.businessContact.findMany({
+        where: { businessId },
+        orderBy: { position: "asc" },
+        select: {
+          id: true,
+          name: true,
+          role: true,
+          avatarUrl: true,
+          email: true,
+          position: true,
+        },
+      }),
+    ),
+  );

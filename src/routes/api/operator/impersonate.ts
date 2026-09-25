@@ -1,8 +1,13 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
+import { Effect, Option, Redacted } from "effect";
 import { auth } from "~/lib/auth";
 import { PLATFORM_ADMIN_ROLE } from "~/lib/roles";
+import { optionalSecret } from "~/server/effect/config";
+import { RawResponse } from "~/server/effect/errors";
+import { recoverAll } from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
+import { Db } from "~/server/effect/services/db";
 
 const IMPERSONATION_SESSION_SECONDS = 60 * 60;
 
@@ -16,130 +21,133 @@ const IMPERSONATION_SESSION_SECONDS = 60 * 60;
  *
  * Query params: token (`userId.operatorId.expiresAt.nonce`), sig
  */
-export async function GET(event: APIEvent) {
-  const url = new URL(event.request.url);
-  const token = url.searchParams.get("token");
-  const sig = url.searchParams.get("sig");
+/** The plain-text refusals the desk's handoff has always received. */
+const refuse = (body: string, status: number) =>
+  new RawResponse({ response: new Response(body, { status }) });
 
-  if (!token || !sig) {
-    return new Response("Missing token or signature", { status: 403 });
-  }
+export const GET = handler(
+  "operator.impersonate",
+  Effect.gen(function* () {
+    const { url, request } = yield* RequestContext;
+    const token = url.searchParams.get("token");
+    const sig = url.searchParams.get("sig");
 
-  const handoffSecret = process.env.OPERATOR_HANDOFF_SECRET;
-  if (!handoffSecret) {
-    return new Response("Impersonation not configured", { status: 500 });
-  }
-
-  // Verify HMAC
-  const expectedBuf = createHmac("sha256", handoffSecret)
-    .update(token)
-    .digest();
-  const actualBuf = Buffer.from(sig, "hex");
-  if (
-    expectedBuf.length !== actualBuf.length ||
-    !timingSafeEqual(expectedBuf, actualBuf)
-  ) {
-    return new Response("Invalid signature", { status: 403 });
-  }
-
-  const parts = token.split(".");
-  if (parts.length !== 4) {
-    return new Response("Malformed token", { status: 403 });
-  }
-
-  const [userId, operatorId, expiresAtStr, nonce] = parts;
-  const expiresAt = Number(expiresAtStr);
-
-  if (
-    !userId ||
-    !operatorId ||
-    !nonce ||
-    !Number.isFinite(expiresAt) ||
-    Date.now() > expiresAt
-  ) {
-    return new Response("Token expired", { status: 403 });
-  }
-
-  // Consume the nonce atomically. A findFirst-then-delete would let two
-  // concurrent requests both see the row; deleteMany's count settles it. The
-  // `value` match binds the nonce to the user it was minted for.
-  const consumed = await prisma.verification.deleteMany({
-    where: {
-      identifier: `impersonate:${nonce}`,
-      value: userId,
-      expiresAt: { gt: new Date() },
-    },
-  });
-
-  if (consumed.count !== 1) {
-    return new Response("Token already used", { status: 403 });
-  }
-
-  const target = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true, banned: true, banExpires: true },
-  });
-
-  if (!target) {
-    return new Response("User not found", { status: 404 });
-  }
-
-  // Operator impersonation must not become a path to platform-admin rights.
-  if (target.role?.split(",").includes(PLATFORM_ADMIN_ROLE)) {
-    return new Response("Cannot impersonate a platform admin", {
-      status: 403,
-    });
-  }
-
-  // better-auth's ban check runs only inside its own endpoints, so repeat it.
-  if (
-    target.banned &&
-    (!target.banExpires || target.banExpires.getTime() > Date.now())
-  ) {
-    return new Response("User is banned", { status: 403 });
-  }
-
-  try {
-    const ctx = await auth.$context;
-    const session = await ctx.internalAdapter.createSession(
-      userId,
-      false,
-      {
-        impersonatedBy: operatorId,
-        expiresAt: new Date(Date.now() + IMPERSONATION_SESSION_SECONDS * 1000),
-      },
-      true,
-    );
-
-    if (!session) {
-      throw new Error("createSession returned no session");
+    if (!token || !sig) {
+      return yield* refuse("Missing token or signature", 403);
     }
 
-    const cookie = ctx.authCookies.sessionToken;
-    const response = new Response(null, {
-      status: 302,
-      headers: {
-        Location: new URL("/dashboard", event.request.url).toString(),
-      },
-    });
-    response.headers.append(
-      "Set-Cookie",
-      serializeSignedCookie(
-        cookie.name,
-        session.token,
-        ctx.secret,
-        cookie.attributes,
-        IMPERSONATION_SESSION_SECONDS,
-      ),
+    const handoffSecret = yield* optionalSecret("OPERATOR_HANDOFF_SECRET");
+    if (Option.isNone(handoffSecret)) {
+      return yield* refuse("Impersonation not configured", 500);
+    }
+
+    // Verify HMAC
+    const expectedBuf = createHmac(
+      "sha256",
+      Redacted.value(handoffSecret.value),
+    )
+      .update(token)
+      .digest();
+    const actualBuf = Buffer.from(sig, "hex");
+    if (
+      expectedBuf.length !== actualBuf.length ||
+      !timingSafeEqual(expectedBuf, actualBuf)
+    ) {
+      return yield* refuse("Invalid signature", 403);
+    }
+
+    const parts = token.split(".");
+    if (parts.length !== 4) return yield* refuse("Malformed token", 403);
+
+    const [userId, operatorId, expiresAtStr, nonce] = parts;
+    const expiresAt = Number(expiresAtStr);
+    if (
+      !userId ||
+      !operatorId ||
+      !nonce ||
+      !Number.isFinite(expiresAt) ||
+      Date.now() > expiresAt
+    ) {
+      return yield* refuse("Token expired", 403);
+    }
+
+    // Consume the nonce atomically. A findFirst-then-delete would let two
+    // concurrent requests both see the row; deleteMany's count settles it.
+    // The `value` match binds the nonce to the user it was minted for.
+    const db = yield* Db;
+    const consumed = yield* db.use((p) =>
+      p.verification.deleteMany({
+        where: {
+          identifier: `impersonate:${nonce}`,
+          value: userId,
+          expiresAt: { gt: new Date() },
+        },
+      }),
     );
-    return response;
-  } catch (err) {
-    console.error("[impersonate] failed to create session:", err);
-    return new Response("Failed to create impersonated session", {
-      status: 500,
-    });
-  }
-}
+    if (consumed.count !== 1) return yield* refuse("Token already used", 403);
+
+    const target = yield* db.use((p) =>
+      p.user.findUnique({
+        where: { id: userId },
+        select: { role: true, banned: true, banExpires: true },
+      }),
+    );
+    if (!target) return yield* refuse("User not found", 404);
+
+    // Operator impersonation must not become a path to platform-admin rights.
+    if (target.role?.split(",").includes(PLATFORM_ADMIN_ROLE)) {
+      return yield* refuse("Cannot impersonate a platform admin", 403);
+    }
+
+    // better-auth's ban check runs only inside its own endpoints, so repeat it.
+    if (
+      target.banned &&
+      (!target.banExpires || target.banExpires.getTime() > Date.now())
+    ) {
+      return yield* refuse("User is banned", 403);
+    }
+
+    return yield* Effect.tryPromise(async () => {
+      const ctx = await auth.$context;
+      const session = await ctx.internalAdapter.createSession(
+        userId,
+        false,
+        {
+          impersonatedBy: operatorId,
+          expiresAt: new Date(
+            Date.now() + IMPERSONATION_SESSION_SECONDS * 1000,
+          ),
+        },
+        true,
+      );
+      if (!session) throw new Error("createSession returned no session");
+
+      const cookie = ctx.authCookies.sessionToken;
+      const response = new Response(null, {
+        status: 302,
+        headers: { Location: new URL("/dashboard", request.url).toString() },
+      });
+      response.headers.append(
+        "Set-Cookie",
+        serializeSignedCookie(
+          cookie.name,
+          session.token,
+          ctx.secret,
+          cookie.attributes,
+          IMPERSONATION_SESSION_SECONDS,
+        ),
+      );
+      return response;
+    }).pipe(
+      Effect.tapCause((cause) =>
+        Effect.sync(() =>
+          console.error("[impersonate] failed to create session:", cause),
+        ),
+      ),
+      recoverAll(refuse("Failed to create impersonated session", 500)),
+    );
+  }),
+);
 
 interface CookieAttributes {
   path?: string;

@@ -1,72 +1,80 @@
 import { randomUUID } from "node:crypto";
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "@/db/prisma";
+import { Effect, Predicate, Schema } from "effect";
 import { REVIEW_PLATFORMS } from "~/features/settings/review-platforms";
-import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
+import { BadRequest, NotFound } from "~/server/effect/errors";
+import {
+  clientIp,
+  rateLimit,
+  readJsonBody,
+  recoverAll,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { Db } from "~/server/effect/services/db";
 
-const PLATFORM_SLUGS = new Set<string>(REVIEW_PLATFORMS.map((p) => p.slug));
+const ReviewId = Schema.NonEmptyString;
+const TrackType = Schema.Literals(["visit", "review", "redirect", "ai_copy"]);
+// Each platform becomes a key in the review's JSON column, so only known
+// slugs are accepted; free-form strings let a caller grow it without bound.
+const Platform = Schema.NullishOr(
+  Schema.Literals(REVIEW_PLATFORMS.map((p) => p.slug)),
+);
 
 // Public and unauthenticated, and every call is a DB write. Capped per IP so a
 // single caller cannot inflate a business's metrics or use it as write load.
 const TRACK_RATE_LIMIT = 60;
 const TRACK_WINDOW_MS = 60 * 60 * 1000;
 
-export async function POST(event: APIEvent) {
-  const limit = checkRateLimit(
-    `track:${getClientIp(event.request)}`,
-    TRACK_RATE_LIMIT,
-    TRACK_WINDOW_MS,
-  );
+/** What this route has always answered for a malformed body or a failed write. */
+const invalidRequest = new BadRequest({ message: "Invalid request" });
 
-  if (!limit.allowed) {
-    return Response.json({ error: "Rate limit exceeded" }, { status: 429 });
-  }
-
-  try {
-    const body = await event.request.json();
-    const { reviewId, type, platform } = body;
-
-    if (!reviewId || typeof reviewId !== "string") {
-      return Response.json({ error: "reviewId is required" }, { status: 400 });
-    }
-
-    if (
-      type !== "visit" &&
-      type !== "review" &&
-      type !== "redirect" &&
-      type !== "ai_copy"
-    ) {
-      return Response.json(
-        { error: "type must be 'visit', 'review', 'redirect', or 'ai_copy'" },
-        { status: 400 },
-      );
-    }
-
-    // Each platform becomes a key in the review's JSON column, so only known
-    // slugs are accepted; free-form strings let a caller grow it without bound.
-    if (
-      type === "redirect" &&
-      platform !== undefined &&
-      platform !== null &&
-      !(typeof platform === "string" && PLATFORM_SLUGS.has(platform))
-    ) {
-      return Response.json({ error: "Unknown platform" }, { status: 400 });
-    }
-
-    // Hidden or flagged requests are not public, so they are not counted.
-    const review = await prisma.sharedReview.findUnique({
-      where: { id: reviewId, status: "visible" },
-      select: { id: true },
+export const POST = handler(
+  "reviews.track",
+  Effect.gen(function* () {
+    const ip = yield* clientIp;
+    yield* rateLimit(`track:${ip}`, TRACK_RATE_LIMIT, TRACK_WINDOW_MS, {
+      message: "Rate limit exceeded",
     });
 
-    if (!review) {
-      return Response.json({ error: "Review not found" }, { status: 404 });
+    const body = yield* readJsonBody(() => invalidRequest);
+    if (body === null || body === undefined) return yield* invalidRequest;
+    const { reviewId, type, platform } = (
+      Predicate.isObject(body) ? body : {}
+    ) as Record<string, unknown>;
+
+    if (!Schema.is(ReviewId)(reviewId)) {
+      return yield* new BadRequest({ message: "reviewId is required" });
+    }
+    if (!Schema.is(TrackType)(type)) {
+      return yield* new BadRequest({
+        message: "type must be 'visit', 'review', 'redirect', or 'ai_copy'",
+      });
+    }
+    if (type === "redirect" && !Schema.is(Platform)(platform)) {
+      return yield* new BadRequest({ message: "Unknown platform" });
     }
 
-    if (type === "redirect" && platform) {
+    const db = yield* Db;
+
+    // Hidden or flagged requests are not public, so they are not counted.
+    const review = yield* db
+      .use((p) =>
+        p.sharedReview.findUnique({
+          where: { id: reviewId, status: "visible" },
+          select: { id: true },
+        }),
+      )
+      .pipe(recoverAll(invalidRequest));
+
+    if (!review) {
+      return yield* new NotFound({ message: "Review not found" });
+    }
+
+    if (type === "redirect" && typeof platform === "string" && platform) {
       // One statement, so concurrent redirects cannot overwrite each other's
       // increments the way a read-modify-write of the JSON did.
-      await prisma.$executeRaw`
+      yield* db
+        .use(
+          (p) => p.$executeRaw`
         INSERT INTO review_analytics
           (id, "reviewId", "visitCount", "reviewCount", "redirectCount", "aiCopyCount", "platformRedirects", "createdAt", "updatedAt")
         VALUES
@@ -79,31 +87,35 @@ export async function POST(event: APIEvent) {
             to_jsonb(COALESCE((review_analytics."platformRedirects" ->> ${platform}::text)::int, 0) + 1)
           ),
           "updatedAt" = now()
-      `;
+      `,
+        )
+        .pipe(recoverAll(invalidRequest));
     } else {
-      await prisma.reviewAnalytics.upsert({
-        where: { reviewId },
-        create: {
-          reviewId,
-          visitCount: type === "visit" ? 1 : 0,
-          reviewCount: type === "review" ? 1 : 0,
-          redirectCount: type === "redirect" ? 1 : 0,
-          aiCopyCount: type === "ai_copy" ? 1 : 0,
-        },
-        update: {
-          ...(type === "visit"
-            ? { visitCount: { increment: 1 } }
-            : type === "redirect"
-              ? { redirectCount: { increment: 1 } }
-              : type === "ai_copy"
-                ? { aiCopyCount: { increment: 1 } }
-                : { reviewCount: { increment: 1 } }),
-        },
-      });
+      yield* db
+        .use((p) =>
+          p.reviewAnalytics.upsert({
+            where: { reviewId },
+            create: {
+              reviewId,
+              visitCount: type === "visit" ? 1 : 0,
+              reviewCount: type === "review" ? 1 : 0,
+              redirectCount: type === "redirect" ? 1 : 0,
+              aiCopyCount: type === "ai_copy" ? 1 : 0,
+            },
+            update: {
+              ...(type === "visit"
+                ? { visitCount: { increment: 1 } }
+                : type === "redirect"
+                  ? { redirectCount: { increment: 1 } }
+                  : type === "ai_copy"
+                    ? { aiCopyCount: { increment: 1 } }
+                    : { reviewCount: { increment: 1 } }),
+            },
+          }),
+        )
+        .pipe(recoverAll(invalidRequest));
     }
 
-    return Response.json({ ok: true });
-  } catch {
-    return Response.json({ error: "Invalid request" }, { status: 400 });
-  }
-}
+    return { ok: true };
+  }),
+);

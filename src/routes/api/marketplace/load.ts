@@ -1,6 +1,8 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { Effect } from "effect";
+import { RawResponse } from "~/server/effect/errors";
+import { catchAll, requireSession } from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { Db } from "~/server/effect/services/db";
 
 const DAY_NAMES = [
   "Sunday",
@@ -81,117 +83,133 @@ function computeWeekStats(
   };
 }
 
-export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const userBusiness = await prisma.business.findUnique({
-      where: { userId: session.user.id },
-      select: { id: true },
-    });
-
-    if (!userBusiness) {
-      return Response.json({
-        thisWeek: { value: 0, detail: "No business", tone: "primary" },
-        nextWeek: { value: 0, detail: "No business", tone: "primary" },
-        tip: "Set up your business profile to see load data.",
-      });
-    }
-
-    const now = new Date();
-    const thisMonday = startOfWeek(now);
-    const thisSunday = endOfWeek(now);
-    const nextMonday = new Date(thisMonday);
-    nextMonday.setDate(nextMonday.getDate() + 7);
-    const nextSunday = endOfWeek(nextMonday);
-
-    const [thisWeekSlots, nextWeekSlots] = await Promise.all([
-      prisma.availabilitySlot.findMany({
-        where: {
-          businessId: userBusiness.id,
-          date: { gte: thisMonday, lte: thisSunday },
-        },
-        orderBy: [{ date: "asc" }, { startTime: "asc" }],
-        select: { date: true, startTime: true, endTime: true, isBooked: true },
-      }),
-      prisma.availabilitySlot.findMany({
-        where: {
-          businessId: userBusiness.id,
-          date: { gte: nextMonday, lte: nextSunday },
-        },
-        orderBy: [{ date: "asc" }, { startTime: "asc" }],
-        select: { date: true, startTime: true, endTime: true, isBooked: true },
-      }),
-    ]);
-
-    const thisWeekStats = computeWeekStats(thisWeekSlots);
-    const nextWeekStats = computeWeekStats(nextWeekSlots);
-
-    // Per-day load for this week to find the peak day
-    const dayLoads: { day: string; percent: number }[] = [];
-    for (let i = 0; i < 7; i++) {
-      const dayDate = new Date(thisMonday);
-      dayDate.setDate(dayDate.getDate() + i);
-      const daySlots = thisWeekSlots.filter((s) => {
-        const slotDate = new Date(s.date);
-        return slotDate.toDateString() === dayDate.toDateString();
-      });
-      if (daySlots.length === 0) continue;
-
-      let dayTotal = 0;
-      let dayBusy = 0;
-      for (const s of daySlots) {
-        const dur = timeToMinutes(s.endTime) - timeToMinutes(s.startTime);
-        dayTotal += dur;
-        if (s.isBooked) dayBusy += dur;
-      }
-      const pct = dayTotal > 0 ? Math.round((dayBusy / dayTotal) * 100) : 0;
-      if (pct > 0) {
-        dayLoads.push({ day: DAY_NAMES[dayDate.getDay()], percent: pct });
-      }
-    }
-
-    dayLoads.sort((a, b) => b.percent - a.percent);
-    const peakDay = dayLoads.length > 0 ? dayLoads[0] : null;
-
-    let tip: string;
-    if (thisWeekSlots.length === 0 && nextWeekSlots.length === 0) {
-      tip =
-        "No availability slots configured yet. Add slots to start tracking your load.";
-    } else if (peakDay && peakDay.percent >= 50) {
-      tip = `Consider opening more slots on ${peakDay.day} to balance your load.`;
-    } else if (thisWeekStats.value >= 70) {
-      tip =
-        "Your schedule is heavily booked this week. Consider blocking some focus time.";
-    } else {
-      tip = "Your schedule looks well-balanced. Keep it up!";
-    }
-
-    return Response.json({
-      thisWeek: {
-        value: thisWeekStats.value,
-        detail: thisWeekStats.detail,
-        tone: thisWeekStats.tone,
-      },
-      nextWeek: {
-        value: nextWeekStats.value,
-        detail: nextWeekStats.detail,
-        tone: nextWeekStats.tone,
-      },
-      tip,
-    });
-  } catch (err) {
-    console.error("[marketplace/load] query failed:", err);
-    return Response.json(
+const failedResponse = () =>
+  new RawResponse({
+    response: Response.json(
       {
         thisWeek: { value: 0, detail: "Error", tone: "primary" },
         nextWeek: { value: 0, detail: "Error", tone: "primary" },
         tip: "Failed to load schedule data.",
       },
       { status: 500 },
-    );
+    ),
+  });
+
+const slotSelect = {
+  date: true,
+  startTime: true,
+  endTime: true,
+  isBooked: true,
+} as const;
+
+const loadStats = Effect.fn("marketplace.load.stats")(function* (
+  userId: string,
+) {
+  const db = yield* Db;
+  const userBusiness = yield* db.use((p) =>
+    p.business.findUnique({ where: { userId }, select: { id: true } }),
+  );
+
+  if (!userBusiness) {
+    return {
+      thisWeek: { value: 0, detail: "No business", tone: "primary" },
+      nextWeek: { value: 0, detail: "No business", tone: "primary" },
+      tip: "Set up your business profile to see load data.",
+    };
   }
-}
+
+  const now = new Date();
+  const thisMonday = startOfWeek(now);
+  const thisSunday = endOfWeek(now);
+  const nextMonday = new Date(thisMonday);
+  nextMonday.setDate(nextMonday.getDate() + 7);
+  const nextSunday = endOfWeek(nextMonday);
+
+  const slotsBetween = (from: Date, to: Date) =>
+    db.use((p) =>
+      p.availabilitySlot.findMany({
+        where: { businessId: userBusiness.id, date: { gte: from, lte: to } },
+        orderBy: [{ date: "asc" }, { startTime: "asc" }],
+        select: slotSelect,
+      }),
+    );
+
+  const [thisWeekSlots, nextWeekSlots] = yield* Effect.all(
+    [
+      slotsBetween(thisMonday, thisSunday),
+      slotsBetween(nextMonday, nextSunday),
+    ],
+    { concurrency: "unbounded" },
+  );
+
+  const thisWeekStats = computeWeekStats(thisWeekSlots);
+  const nextWeekStats = computeWeekStats(nextWeekSlots);
+
+  // Per-day load for this week to find the peak day
+  const dayLoads: { day: string; percent: number }[] = [];
+  for (let i = 0; i < 7; i++) {
+    const dayDate = new Date(thisMonday);
+    dayDate.setDate(dayDate.getDate() + i);
+    const daySlots = thisWeekSlots.filter((s) => {
+      const slotDate = new Date(s.date);
+      return slotDate.toDateString() === dayDate.toDateString();
+    });
+    if (daySlots.length === 0) continue;
+
+    let dayTotal = 0;
+    let dayBusy = 0;
+    for (const s of daySlots) {
+      const dur = timeToMinutes(s.endTime) - timeToMinutes(s.startTime);
+      dayTotal += dur;
+      if (s.isBooked) dayBusy += dur;
+    }
+    const pct = dayTotal > 0 ? Math.round((dayBusy / dayTotal) * 100) : 0;
+    if (pct > 0) {
+      dayLoads.push({ day: DAY_NAMES[dayDate.getDay()], percent: pct });
+    }
+  }
+
+  dayLoads.sort((a, b) => b.percent - a.percent);
+  const peakDay = dayLoads.length > 0 ? dayLoads[0] : null;
+
+  let tip: string;
+  if (thisWeekSlots.length === 0 && nextWeekSlots.length === 0) {
+    tip =
+      "No availability slots configured yet. Add slots to start tracking your load.";
+  } else if (peakDay && peakDay.percent >= 50) {
+    tip = `Consider opening more slots on ${peakDay.day} to balance your load.`;
+  } else if (thisWeekStats.value >= 70) {
+    tip =
+      "Your schedule is heavily booked this week. Consider blocking some focus time.";
+  } else {
+    tip = "Your schedule looks well-balanced. Keep it up!";
+  }
+
+  return {
+    thisWeek: {
+      value: thisWeekStats.value,
+      detail: thisWeekStats.detail,
+      tone: thisWeekStats.tone,
+    },
+    nextWeek: {
+      value: nextWeekStats.value,
+      detail: nextWeekStats.detail,
+      tone: nextWeekStats.tone,
+    },
+    tip,
+  };
+});
+
+export const GET = handler(
+  "marketplace.load",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    return yield* loadStats(session.user.id).pipe(
+      catchAll((_, cause) =>
+        Effect.sync(() =>
+          console.error("[marketplace/load] query failed:", cause),
+        ).pipe(Effect.andThen(Effect.fail(failedResponse()))),
+      ),
+    );
+  }),
+);

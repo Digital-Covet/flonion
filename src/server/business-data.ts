@@ -1,23 +1,31 @@
+import { Effect } from "effect";
 import { effectivePlan, isBilling } from "~/lib/plans";
+import type { DbError } from "~/server/effect/errors";
+import { requireSessionOrLogin } from "~/server/effect/guards";
+import { runServerFn } from "~/server/effect/server-fn";
+import { Db } from "~/server/effect/services/db";
 import type { BusinessInfo } from "~/types/business";
 
 /**
  * The single reader of a user's business. `getBusiness()` and
  * `GET /api/business` both go through this so the two can never drift.
  */
-export async function loadBusinessInfo(userId: string): Promise<BusinessInfo> {
-  const { prisma } = await import("~/db/prisma");
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      onboardingCompleted: true,
-      role: true,
-      businessId: true,
-      business: true,
-      team: true,
-    },
-  });
+export const loadBusinessInfo = Effect.fn("loadBusinessInfo")(function* (
+  userId: string,
+): Effect.fn.Return<BusinessInfo, DbError, Db> {
+  const db = yield* Db;
+  const user = yield* db.use((p) =>
+    p.user.findUnique({
+      where: { id: userId },
+      select: {
+        onboardingCompleted: true,
+        role: true,
+        businessId: true,
+        business: true,
+        team: true,
+      },
+    }),
+  );
 
   // Members have no `business` of their own — the business they work in is the
   // one `businessId` points at. Reading only the owner relation is what left
@@ -32,19 +40,26 @@ export async function loadBusinessInfo(userId: string): Promise<BusinessInfo> {
       ? (business.reviewLinks as Record<string, string>)
       : {};
 
-  const teamMembers = business?.id
-    ? await prisma.user.findMany({
-        where: { businessId: business.id },
-        select: { id: true, name: true, email: true, image: true },
-      })
-    : [];
-
-  const liveSub = business?.id
-    ? await prisma.billingSubscription.findUnique({
-        where: { liveBusinessId: business.id },
-        select: { status: true, billing: true },
-      })
-    : null;
+  const businessId = business?.id;
+  const [teamMembers, liveSub] = businessId
+    ? yield* Effect.all(
+        [
+          db.use((p) =>
+            p.user.findMany({
+              where: { businessId },
+              select: { id: true, name: true, email: true, image: true },
+            }),
+          ),
+          db.use((p) =>
+            p.billingSubscription.findUnique({
+              where: { liveBusinessId: businessId },
+              select: { status: true, billing: true },
+            }),
+          ),
+        ],
+        { concurrency: "unbounded" },
+      )
+    : [[], null];
 
   return {
     currentUserId: userId,
@@ -78,4 +93,14 @@ export async function loadBusinessInfo(userId: string): Promise<BusinessInfo> {
           }
         : null,
   };
+});
+
+/** Server-only body of `getBusiness`. */
+export function loadBusinessInfoForSession(): Promise<BusinessInfo> {
+  return runServerFn(
+    Effect.gen(function* () {
+      const session = yield* requireSessionOrLogin;
+      return yield* loadBusinessInfo(session.user.id);
+    }),
+  );
 }

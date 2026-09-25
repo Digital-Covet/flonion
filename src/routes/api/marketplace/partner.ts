@@ -1,27 +1,37 @@
-import type { APIEvent } from "@solidjs/start/server";
+import { Effect } from "effect";
 import { getCompanyProfile } from "~/lib/company-profile";
+import { BadRequest, RawResponse, UpstreamError } from "~/server/effect/errors";
+import { recoverAll } from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
 
-export async function GET(event: APIEvent) {
-  const url = new URL(event.request.url);
-  const identifier = url.searchParams.get("username")?.trim();
-
-  if (!identifier) {
-    return Response.json(
-      { error: "username query parameter is required" },
-      { status: 400 },
-    );
-  }
-
-  try {
-    const partner = await getCompanyProfile(identifier);
-
-    if (!partner) {
-      return Response.json({ partner: null }, { status: 404 });
+export const GET = handler(
+  "marketplace.partner",
+  Effect.gen(function* () {
+    const { url } = yield* RequestContext;
+    const identifier = url.searchParams.get("username")?.trim();
+    if (!identifier) {
+      return yield* new BadRequest({
+        message: "username query parameter is required",
+      });
     }
 
-    return Response.json({ partner });
-  } catch (err) {
-    console.error("[marketplace/partner] query failed:", err);
-    return Response.json({ error: "Failed to load partner" }, { status: 500 });
-  }
-}
+    const partner = yield* getCompanyProfile(identifier).pipe(
+      Effect.tapCause((cause) =>
+        Effect.sync(() =>
+          console.error("[marketplace/partner] query failed:", cause),
+        ),
+      ),
+      recoverAll(
+        new UpstreamError({ status: 500, message: "Failed to load partner" }),
+      ),
+    );
+
+    if (!partner) {
+      return yield* new RawResponse({
+        response: Response.json({ partner: null }, { status: 404 }),
+      });
+    }
+    return { partner };
+  }),
+);

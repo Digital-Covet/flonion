@@ -1,4 +1,5 @@
 import type { Prisma } from "@generated/prisma/client";
+import { Data } from "effect";
 import type { prisma } from "~/db/prisma";
 
 /**
@@ -29,25 +30,19 @@ export interface OwnedBusinessInspection {
 /**
  * Aborts a claim transaction.
  *
- * Prisma's interactive `$transaction` commits everything already written unless
- * the callback *throws* — returning a value commits. Both claim paths write
- * before they can discover a conflict, so every abort has to throw and be
- * mapped to a status code outside the transaction.
+ * Both claim paths write before they can discover a conflict, so every abort
+ * must roll back what was written. Failing with this inside `Db.transaction`
+ * does that, and the route maps it to a status code outside the transaction.
  */
-export class ClaimConflictError extends Error {
-  constructor(
-    readonly code:
-      | "not_pending"
-      | "user_gone"
-      | "joined_elsewhere"
-      | "needs_consent"
-      | "owns_business",
-    readonly blockers: string[] = [],
-  ) {
-    super(code);
-    this.name = "ClaimConflictError";
-  }
-}
+export class ClaimConflictError extends Data.TaggedError("ClaimConflictError")<{
+  readonly code:
+    | "not_pending"
+    | "user_gone"
+    | "joined_elsewhere"
+    | "needs_consent"
+    | "owns_business";
+  readonly blockers: string[];
+}> {}
 
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;

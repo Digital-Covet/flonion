@@ -1,8 +1,11 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
+import { Effect } from "effect";
 import { inspectOwnedBusiness } from "~/lib/empty-business";
 import { isInviteToken } from "~/lib/invite-redirect";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { NotFound } from "~/server/effect/errors";
+import { requireSession } from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
+import { Db } from "~/server/effect/services/db";
 
 const INVITATION_SELECT = {
   id: true,
@@ -32,73 +35,79 @@ type InviteState =
   | "declined"
   | "cancelled";
 
-export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      email: true,
-      onboardingCompleted: true,
-      businessId: true,
-      business: { select: { id: true } },
-    },
-  });
-
-  if (!user) {
-    return Response.json({ error: "User not found" }, { status: 404 });
-  }
-
-  const token = new URL(event.request.url).searchParams.get("token");
-  if (token !== null) {
-    return checkToken(token, session.user.id, user);
-  }
-
-  // Members of someone else's team can't accept anything. Owners still can --
-  // accept-invite offers to discard an untouched business for them -- so this
-  // no longer short-circuits on `businessId` alone, which for an owner points at
-  // the business they own.
-  if (user.businessId && user.businessId !== user.business?.id) {
-    return Response.json({ invitation: null, ownedBusiness: null });
-  }
-
-  const invitation = await prisma.invitation.findFirst({
-    where: {
-      email: user.email.toLowerCase(),
-      status: "pending",
-      expiresAt: { gt: new Date() },
-    },
-    select: INVITATION_SELECT,
-    orderBy: { createdAt: "desc" },
-  });
-
-  // Surfaced alongside the invitation so the UI can warn about the trade before
-  // the user clicks accept, rather than after a 409 round-trip.
-  const ownedBusiness =
-    invitation && user.business
-      ? await inspectOwnedBusiness(prisma, user.business.id, session.user.id)
-      : null;
-
-  return Response.json({ invitation, ownedBusiness });
+interface Account {
+  email: string;
+  onboardingCompleted: boolean;
+  businessId: string | null;
+  business: { id: string } | null;
 }
+
+export const GET = handler(
+  "team.check-invite",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const db = yield* Db;
+
+    const user = yield* db.use((p) =>
+      p.user.findUnique({
+        where: { id: session.user.id },
+        select: {
+          email: true,
+          onboardingCompleted: true,
+          businessId: true,
+          business: { select: { id: true } },
+        },
+      }),
+    );
+    if (!user) return yield* new NotFound({ message: "User not found" });
+
+    const { url } = yield* RequestContext;
+    const token = url.searchParams.get("token");
+    if (token !== null) return yield* checkToken(token, session.user.id, user);
+
+    // Members of someone else's team can't accept anything. Owners still can
+    // -- accept-invite offers to discard an untouched business for them -- so
+    // this does not short-circuit on `businessId` alone, which for an owner
+    // points at the business they own.
+    if (user.businessId && user.businessId !== user.business?.id) {
+      return { invitation: null, ownedBusiness: null };
+    }
+
+    const invitation = yield* db.use((p) =>
+      p.invitation.findFirst({
+        where: {
+          email: user.email.toLowerCase(),
+          status: "pending",
+          expiresAt: { gt: new Date() },
+        },
+        select: INVITATION_SELECT,
+        orderBy: { createdAt: "desc" },
+      }),
+    );
+
+    // Surfaced alongside the invitation so the UI can warn about the trade
+    // before the user clicks accept, rather than after a 409 round-trip.
+    const owned = user.business;
+    const ownedBusiness =
+      invitation && owned
+        ? yield* db.use((p) =>
+            inspectOwnedBusiness(p, owned.id, session.user.id),
+          )
+        : null;
+
+    return { invitation, ownedBusiness };
+  }),
+);
 
 /**
  * Resolves the invitation behind an emailed link, including the ones that can
  * no longer be accepted, so the page can say *why* rather than showing a
  * generic "not found".
  */
-async function checkToken(
+const checkToken = Effect.fn("team.check-invite.token")(function* (
   token: string,
   userId: string,
-  user: {
-    email: string;
-    onboardingCompleted: boolean;
-    businessId: string | null;
-    business: { id: string } | null;
-  },
+  user: Account,
 ) {
   const account = {
     email: user.email,
@@ -108,20 +117,22 @@ async function checkToken(
     state: InviteState,
     invitation: unknown = null,
     ownedBusiness: unknown = null,
-  ) => Response.json({ state, invitation, ownedBusiness, account });
+  ) => ({ state, invitation, ownedBusiness, account });
 
   if (!isInviteToken(token)) return respond("invalid");
 
-  const found = await prisma.invitation.findUnique({
-    where: { token },
-    select: {
-      ...INVITATION_SELECT,
-      email: true,
-      businessId: true,
-      status: true,
-    },
-  });
-
+  const db = yield* Db;
+  const found = yield* db.use((p) =>
+    p.invitation.findUnique({
+      where: { token },
+      select: {
+        ...INVITATION_SELECT,
+        email: true,
+        businessId: true,
+        status: true,
+      },
+    }),
+  );
   if (!found) return respond("invalid");
 
   // Nothing about the business is returned to another account: the token was
@@ -149,9 +160,10 @@ async function checkToken(
     return respond("in_other_team", invitation);
   }
 
-  const ownedBusiness = user.business
-    ? await inspectOwnedBusiness(prisma, user.business.id, userId)
+  const owned = user.business;
+  const ownedBusiness = owned
+    ? yield* db.use((p) => inspectOwnedBusiness(p, owned.id, userId))
     : null;
 
   return respond("pending", invitation, ownedBusiness);
-}
+});

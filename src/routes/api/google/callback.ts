@@ -1,14 +1,10 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { storeTokens } from "~/lib/google-tokens";
-import { fetchWithTimeout } from "~/lib/http";
+import { Effect } from "effect";
 import { clearOAuthStateCookie, consumeOAuthState } from "~/lib/oauth-state";
-import { getSessionFromHeaders } from "~/lib/server-auth";
-
-function getEnv(key: string): string {
-  const value = process.env[key];
-  if (!value) throw new Error(`Missing environment variable: ${key}`);
-  return value;
-}
+import { requiredEnv } from "~/server/effect/config";
+import { catchAll, requireSession } from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
+import { Google, request } from "~/server/effect/services/google";
 
 /**
  * Every exit from this handler is a redirect to an allowlisted in-app path.
@@ -32,68 +28,71 @@ function redirect(path: string, params: Record<string, string> = {}): Response {
   });
 }
 
-export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const exchangeCode = Effect.fn("google.callback.exchangeCode")(function* (
+  userId: string,
+  code: string,
+  returnTo: string,
+) {
+  const response = yield* request("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      code,
+      client_id: yield* requiredEnv("GOOGLE_CLIENT_ID"),
+      client_secret: yield* requiredEnv("GOOGLE_CLIENT_SECRET"),
+      redirect_uri: yield* requiredEnv("GOOGLE_REDIRECT_URI"),
+      grant_type: "authorization_code",
+    }),
+  });
 
-  const url = new URL(event.request.url);
-
-  // Validated against the signed, HttpOnly state cookie issued by
-  // /api/google/auth. A mismatch means the flow was not started by this user.
-  const returnTo = consumeOAuthState(
-    event.request.headers,
-    url.searchParams.get("state"),
-  );
-
-  if (!returnTo) {
-    return redirect("/settings", { google: "invalid_state" });
-  }
-
-  if (url.searchParams.get("error")) {
-    return redirect(returnTo, { google: "denied" });
-  }
-
-  const code = url.searchParams.get("code");
-  if (!code) {
-    return redirect(returnTo, { google: "missing_code" });
-  }
-
-  try {
-    const tokenResponse = await fetchWithTimeout(
-      "https://oauth2.googleapis.com/token",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          code,
-          client_id: getEnv("GOOGLE_CLIENT_ID"),
-          client_secret: getEnv("GOOGLE_CLIENT_SECRET"),
-          redirect_uri: getEnv("GOOGLE_REDIRECT_URI"),
-          grant_type: "authorization_code",
-        }),
-      },
+  if (!response.ok) {
+    const details = yield* Effect.promise(() =>
+      response.text().catch(() => ""),
     );
+    console.error("[google/callback] token exchange failed:", details);
+    return redirect(returnTo, { google: "exchange_failed" });
+  }
 
-    if (!tokenResponse.ok) {
-      const details = await tokenResponse.text().catch(() => "");
-      console.error("[google/callback] token exchange failed:", details);
-      return redirect(returnTo, { google: "exchange_failed" });
+  const tokenData = yield* Effect.promise(() => response.json());
+  const google = yield* Google;
+  yield* google.storeTokens(userId, {
+    accessToken: tokenData.access_token,
+    refreshToken: tokenData.refresh_token,
+    expiresAt: Date.now() + tokenData.expires_in * 1000,
+    tokenType: tokenData.token_type,
+  });
+
+  return redirect(returnTo, { connected: "true" });
+});
+
+export const GET = handler(
+  "google.callback",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const { request: req, url } = yield* RequestContext;
+
+    // Validated against the signed, HttpOnly state cookie issued by
+    // /api/google/auth. A mismatch means the flow was not started by this user.
+    const returnTo = consumeOAuthState(
+      req.headers,
+      url.searchParams.get("state"),
+    );
+    if (!returnTo) return redirect("/settings", { google: "invalid_state" });
+
+    if (url.searchParams.get("error")) {
+      return redirect(returnTo, { google: "denied" });
     }
 
-    const tokenData = await tokenResponse.json();
+    const code = url.searchParams.get("code");
+    if (!code) return redirect(returnTo, { google: "missing_code" });
 
-    await storeTokens(session.user.id, {
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
-      expiresAt: Date.now() + tokenData.expires_in * 1000,
-      tokenType: tokenData.token_type,
-    });
-
-    return redirect(returnTo, { connected: "true" });
-  } catch (err) {
-    console.error("[google/callback] unexpected failure:", err);
-    return redirect(returnTo, { google: "error" });
-  }
-}
+    return yield* exchangeCode(session.user.id, code, returnTo).pipe(
+      Effect.tapCause((cause) =>
+        Effect.sync(() =>
+          console.error("[google/callback] unexpected failure:", cause),
+        ),
+      ),
+      catchAll(() => Effect.succeed(redirect(returnTo, { google: "error" }))),
+    );
+  }),
+);

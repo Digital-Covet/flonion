@@ -1,77 +1,96 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { Effect, Schema } from "effect";
+import { BadRequest, NotFound, UpstreamError } from "~/server/effect/errors";
+import {
+  readJsonObject,
+  recoverAll,
+  recoverUnexpected,
+  requireSession,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { Db } from "~/server/effect/services/db";
 
-export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const favorites = await prisma.favoritePartner.findMany({
-      where: { userId: session.user.id },
-      select: { businessId: true },
-    });
-
-    return Response.json({ favorites: favorites.map((f) => f.businessId) });
-  } catch (err) {
-    console.error("[marketplace/favorites] GET failed:", err);
-    return Response.json(
-      { error: "Failed to load favorites" },
-      { status: 500 },
+const logFailure =
+  (label: string) =>
+  <A, E, R>(self: Effect.Effect<A, E, R>) =>
+    self.pipe(
+      Effect.tapCause((cause) =>
+        Effect.sync(() =>
+          console.error(`[marketplace/favorites] ${label} failed:`, cause),
+        ),
+      ),
     );
-  }
-}
 
-export async function POST(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const body = await event.request.json();
-    const { businessId } = body;
-
-    if (typeof businessId !== "string" || !businessId) {
-      return Response.json(
-        { error: "businessId is required" },
-        { status: 400 },
+export const GET = handler(
+  "marketplace.favorites.list",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const db = yield* Db;
+    const favorites = yield* db
+      .use((p) =>
+        p.favoritePartner.findMany({
+          where: { userId: session.user.id },
+          select: { businessId: true },
+        }),
+      )
+      .pipe(
+        logFailure("GET"),
+        recoverAll(
+          new UpstreamError({
+            status: 500,
+            message: "Failed to load favorites",
+          }),
+        ),
       );
-    }
+    return { favorites: favorites.map((f) => f.businessId) };
+  }),
+);
 
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { id: true },
-    });
-    if (!business) {
-      return Response.json({ error: "Business not found" }, { status: 404 });
-    }
-
-    const existing = await prisma.favoritePartner.findUnique({
-      where: {
-        userId_businessId: { userId: session.user.id, businessId },
-      },
-    });
-
-    if (existing) {
-      await prisma.favoritePartner.delete({ where: { id: existing.id } });
-      return Response.json({ favorited: false });
-    }
-
-    await prisma.favoritePartner.create({
-      data: { userId: session.user.id, businessId },
-    });
-    return Response.json({ favorited: true });
-  } catch (err) {
-    if (err instanceof SyntaxError) {
-      return Response.json({ error: "Invalid request body" }, { status: 400 });
-    }
-    console.error("[marketplace/favorites] POST failed:", err);
-    return Response.json(
-      { error: "Failed to update favorite" },
-      { status: 500 },
+/** Toggles `businessId` in the caller's favourites. */
+export const POST = handler(
+  "marketplace.favorites.toggle",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const body = yield* readJsonObject(
+      () => new BadRequest({ message: "Invalid request body" }),
     );
-  }
-}
+    const { businessId } = body;
+    if (!Schema.is(Schema.NonEmptyString)(businessId)) {
+      return yield* new BadRequest({ message: "businessId is required" });
+    }
+
+    const db = yield* Db;
+    const business = yield* db.use((p) =>
+      p.business.findUnique({
+        where: { id: businessId },
+        select: { id: true },
+      }),
+    );
+    if (!business) {
+      return yield* new NotFound({ message: "Business not found" });
+    }
+
+    const existing = yield* db.use((p) =>
+      p.favoritePartner.findUnique({
+        where: { userId_businessId: { userId: session.user.id, businessId } },
+      }),
+    );
+    if (existing) {
+      yield* db.use((p) =>
+        p.favoritePartner.delete({ where: { id: existing.id } }),
+      );
+      return { favorited: false };
+    }
+
+    yield* db.use((p) =>
+      p.favoritePartner.create({
+        data: { userId: session.user.id, businessId },
+      }),
+    );
+    return { favorited: true };
+  }).pipe(
+    recoverUnexpected(
+      new UpstreamError({ status: 500, message: "Failed to update favorite" }),
+      "[marketplace/favorites] POST failed:",
+    ),
+  ),
+);

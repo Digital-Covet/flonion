@@ -1,49 +1,45 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
-import { canManageTeam, getBusinessContext } from "~/lib/business-context";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { Effect } from "effect";
+import {
+  requireBusinessContext,
+  requireSession,
+  requireTeamManager,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { Db } from "~/server/effect/services/db";
 
-export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = handler(
+  "team.invitations.list",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const ctx = yield* requireBusinessContext(session.user.id);
 
-  const ctx = await getBusinessContext(session.user.id);
-
-  if (!ctx) {
-    return Response.json({ error: "No business found" }, { status: 404 });
-  }
-
-  // Pending invitee addresses are management data, and this listing is only
-  // consumed by the admin-gated section of the team settings page.
-  if (!canManageTeam(ctx)) {
-    return Response.json(
-      { error: "Only admins or the business owner can view invitations" },
-      { status: 403 },
+    // Pending invitee addresses are management data, and this listing is only
+    // consumed by the admin-gated section of the team settings page.
+    yield* requireTeamManager(
+      ctx,
+      "Only admins or the business owner can view invitations",
     );
-  }
 
-  // Declined invites are listed alongside pending ones so the inviter sees the
-  // outcome instead of watching an invitation that will never resolve.
-  const invitations = await prisma.invitation.findMany({
-    where: {
-      businessId: ctx.businessId,
-      status: { in: ["pending", "declined"] },
-    },
-    select: {
-      id: true,
-      email: true,
-      role: true,
-      status: true,
-      expiresAt: true,
-      createdAt: true,
-      invitedBy: {
-        select: { name: true, email: true },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  return Response.json(invitations);
-}
+    // Declined invites are listed alongside pending ones so the inviter sees
+    // the outcome instead of watching an invitation that will never resolve.
+    const db = yield* Db;
+    return yield* db.use((p) =>
+      p.invitation.findMany({
+        where: {
+          businessId: ctx.businessId,
+          status: { in: ["pending", "declined"] },
+        },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          status: true,
+          expiresAt: true,
+          createdAt: true,
+          invitedBy: { select: { name: true, email: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    );
+  }),
+);

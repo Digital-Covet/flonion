@@ -216,11 +216,11 @@ export default createMiddleware({
     // Server functions are not navigations, so they must never be redirected:
     // a 302 to /login would be parsed as the function's result. Public pages
     // call queries from here too, so authenticate optionally and let each
-    // query decide for itself via `requireSession()`.
+    // query decide for itself via `requireSessionOrLogin`.
     if (isServerFunction(pathname)) {
       const session = await getSessionFromHeaders(event.request.headers);
       // A suspended member is treated as signed out, so every query's own
-      // `requireSession()` refuses them without knowing about suspension.
+      // `requireSessionOrLogin` refuses them without knowing about suspension.
       const gate = session ? await loadAccountGate(session.user.id) : null;
       event.locals.session = gate?.suspended ? null : session;
       return;

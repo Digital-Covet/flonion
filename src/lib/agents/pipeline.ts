@@ -1,6 +1,8 @@
+import { Effect } from "effect";
+import type { SentimentAnalysis } from "~/types/ai";
 import type { UsageMeta } from "./ledger";
 import { draftReviewReply, suggestImprovedReview } from "./review-drafter";
-import { analyzeSentiment, type SentimentAnalysis } from "./sentiment-analyzer";
+import { analyzeSentiment } from "./sentiment-analyzer";
 
 export interface ReviewPipelineResult {
   sentiment: SentimentAnalysis;
@@ -9,34 +11,34 @@ export interface ReviewPipelineResult {
   usage: UsageMeta[];
 }
 
-export async function runReviewPipeline(params: {
-  comment: string;
-  starRating: number;
-  reviewerName?: string;
-  tone?: "professional" | "friendly" | "formal";
-  apiKey: string;
-}): Promise<ReviewPipelineResult> {
-  const sentimentResult = await analyzeSentiment({
-    comment: params.comment,
-    starRating: params.starRating,
-    apiKey: params.apiKey,
-  });
+/** Sentiment first, then a reply drafted from it. */
+export const runReviewPipeline = Effect.fn("runReviewPipeline")(
+  function* (params: {
+    comment: string;
+    starRating: number;
+    reviewerName?: string;
+    tone?: "professional" | "friendly" | "formal";
+  }) {
+    const sentiment = yield* analyzeSentiment({
+      comment: params.comment,
+      starRating: params.starRating,
+    });
 
-  const draftResult = await draftReviewReply({
-    comment: params.comment,
-    starRating: params.starRating,
-    reviewerName: params.reviewerName || "valued customer",
-    sentiment: sentimentResult.analysis,
-    tone: params.tone,
-    apiKey: params.apiKey,
-  });
+    const draft = yield* draftReviewReply({
+      comment: params.comment,
+      starRating: params.starRating,
+      reviewerName: params.reviewerName || "valued customer",
+      sentiment: sentiment.analysis,
+      tone: params.tone,
+    });
 
-  return {
-    sentiment: sentimentResult.analysis,
-    draft: draftResult.draftReply,
-    usage: [sentimentResult.usage, draftResult.usage],
-  };
-}
+    return {
+      sentiment: sentiment.analysis,
+      draft: draft.draftReply,
+      usage: [sentiment.usage, draft.usage],
+    } satisfies ReviewPipelineResult;
+  },
+);
 
 export interface SuggestionPipelineResult {
   sentiment: SentimentAnalysis;
@@ -45,33 +47,33 @@ export interface SuggestionPipelineResult {
   usage: UsageMeta[];
 }
 
-export async function runSuggestionPipeline(params: {
-  draftText: string;
-  starRating: number;
-  keywords?: string;
-  businessName?: string;
-  apiKey: string;
-}): Promise<SuggestionPipelineResult> {
-  const hasText = params.draftText.trim().length > 0;
+/** Sentiment first, then three improved versions of the draft. */
+export const runSuggestionPipeline = Effect.fn("runSuggestionPipeline")(
+  function* (params: {
+    draftText: string;
+    starRating: number;
+    keywords?: string;
+    businessName?: string;
+  }) {
+    const hasText = params.draftText.trim().length > 0;
 
-  const sentimentResult = await analyzeSentiment({
-    comment: hasText ? params.draftText : "",
-    starRating: params.starRating,
-    apiKey: params.apiKey,
-  });
+    const sentiment = yield* analyzeSentiment({
+      comment: hasText ? params.draftText : "",
+      starRating: params.starRating,
+    });
 
-  const suggestionResult = await suggestImprovedReview({
-    draftText: params.draftText,
-    starRating: params.starRating,
-    sentiment: sentimentResult.analysis,
-    keywords: params.keywords,
-    businessName: params.businessName,
-    apiKey: params.apiKey,
-  });
+    const suggestion = yield* suggestImprovedReview({
+      draftText: params.draftText,
+      starRating: params.starRating,
+      sentiment: sentiment.analysis,
+      keywords: params.keywords,
+      businessName: params.businessName,
+    });
 
-  return {
-    sentiment: sentimentResult.analysis,
-    suggestedReviews: suggestionResult.suggestedReviews,
-    usage: [sentimentResult.usage, suggestionResult.usage],
-  };
-}
+    return {
+      sentiment: sentiment.analysis,
+      suggestedReviews: [...suggestion.suggestedReviews],
+      usage: [sentiment.usage, suggestion.usage],
+    } satisfies SuggestionPipelineResult;
+  },
+);

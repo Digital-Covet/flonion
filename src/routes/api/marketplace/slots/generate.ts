@@ -1,9 +1,19 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { Effect, Schema } from "effect";
+import { BadRequest } from "~/server/effect/errors";
+import {
+  readJsonObject,
+  recoverUnexpected,
+  requireSession,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { Db } from "~/server/effect/services/db";
 
 const MAX_RANGE_DAYS = 90;
-const VALID_DAYS = new Set([0, 1, 2, 3, 4, 5, 6]);
+
+/** A non-empty list of weekday numbers, 0 (Sunday) to 6. */
+const DayPicker = Schema.Array(Schema.Literals([0, 1, 2, 3, 4, 5, 6])).pipe(
+  Schema.check(Schema.isMinLength(1)),
+);
 
 function parseTime(time: string): number {
   const [h, m] = time.split(":").map(Number);
@@ -24,21 +34,19 @@ function getDayOfWeek(date: Date): number {
   return date.getUTCDay();
 }
 
-export async function POST(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const body = await event.request.json();
+export const POST = handler(
+  "marketplace.slots.generate",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const body = yield* readJsonObject(
+      () => new BadRequest({ message: "Invalid request body" }),
+    );
     const { startDate, endDate, days } = body;
 
     if (typeof startDate !== "string" || typeof endDate !== "string") {
-      return Response.json(
-        { error: "startDate and endDate are required" },
-        { status: 400 },
-      );
+      return yield* new BadRequest({
+        message: "startDate and endDate are required",
+      });
     }
 
     /**
@@ -48,61 +56,53 @@ export async function POST(event: APIEvent) {
      */
     let chosenDays: number[] | null = null;
     if (days !== undefined) {
-      if (
-        !Array.isArray(days) ||
-        days.length === 0 ||
-        !days.every((d: unknown) => typeof d === "number" && VALID_DAYS.has(d))
-      ) {
-        return Response.json(
-          { error: "days must be a non-empty array of day numbers (0-6)" },
-          { status: 400 },
-        );
+      if (!Schema.is(DayPicker)(days)) {
+        return yield* new BadRequest({
+          message: "days must be a non-empty array of day numbers (0-6)",
+        });
       }
-      chosenDays = [...new Set(days as number[])];
+      chosenDays = [...new Set(days)];
     }
 
     const rangeStart = new Date(startDate);
     const rangeEnd = new Date(endDate);
-
     if (
       Number.isNaN(rangeStart.getTime()) ||
       Number.isNaN(rangeEnd.getTime())
     ) {
-      return Response.json({ error: "Invalid date format" }, { status: 400 });
+      return yield* new BadRequest({ message: "Invalid date format" });
     }
 
     const diffMs = rangeEnd.getTime() - rangeStart.getTime();
     const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
     if (diffDays > MAX_RANGE_DAYS) {
-      return Response.json(
-        { error: `Date range cannot exceed ${MAX_RANGE_DAYS} days` },
-        { status: 400 },
-      );
+      return yield* new BadRequest({
+        message: `Date range cannot exceed ${MAX_RANGE_DAYS} days`,
+      });
     }
-
     if (diffDays < 1) {
-      return Response.json(
-        { error: "endDate must be after startDate" },
-        { status: 400 },
-      );
+      return yield* new BadRequest({
+        message: "endDate must be after startDate",
+      });
     }
 
-    const business = await prisma.business.findUnique({
-      where: { userId: session.user.id },
-      select: {
-        id: true,
-        workingDays: true,
-        workingStartTime: true,
-        workingEndTime: true,
-        bookingStartTime: true,
-        bookingEndTime: true,
-        slotDuration: true,
-      },
-    });
-
+    const db = yield* Db;
+    const business = yield* db.use((p) =>
+      p.business.findUnique({
+        where: { userId: session.user.id },
+        select: {
+          id: true,
+          workingDays: true,
+          workingStartTime: true,
+          workingEndTime: true,
+          bookingStartTime: true,
+          bookingEndTime: true,
+          slotDuration: true,
+        },
+      }),
+    );
     if (!business) {
-      return Response.json({ error: "No business found" }, { status: 400 });
+      return yield* new BadRequest({ message: "No business found" });
     }
 
     const workingDays = business.workingDays
@@ -115,10 +115,9 @@ export async function POST(event: APIEvent) {
     const duration = business.slotDuration;
 
     if (bookingStart >= bookingEnd) {
-      return Response.json(
-        { error: "Booking start time must be before end time" },
-        { status: 400 },
-      );
+      return yield* new BadRequest({
+        message: "Booking start time must be before end time",
+      });
     }
 
     const targetDays = chosenDays ?? workingDays;
@@ -137,15 +136,17 @@ export async function POST(event: APIEvent) {
     // Clearing is scoped to what is about to be rebuilt: picking Wednesday
     // only must not wipe the free slots already open on Monday. Without a day
     // picker the whole range is rebuilt, as this endpoint always did.
-    await prisma.availabilitySlot.deleteMany({
-      where: {
-        businessId: business.id,
-        isBooked: false,
-        ...(chosenDays
-          ? { date: { in: targetDates } }
-          : { date: { gte: rangeStart, lte: rangeEnd } }),
-      },
-    });
+    yield* db.use((p) =>
+      p.availabilitySlot.deleteMany({
+        where: {
+          businessId: business.id,
+          isBooked: false,
+          ...(chosenDays
+            ? { date: { in: targetDates } }
+            : { date: { gte: rangeStart, lte: rangeEnd } }),
+        },
+      }),
+    );
 
     const newSlots: {
       businessId: string;
@@ -168,14 +169,13 @@ export async function POST(event: APIEvent) {
     }
 
     if (newSlots.length > 0) {
-      await prisma.availabilitySlot.createMany({
-        data: newSlots,
-        skipDuplicates: true,
-      });
+      yield* db.use((p) =>
+        p.availabilitySlot.createMany({ data: newSlots, skipDuplicates: true }),
+      );
     }
 
-    return Response.json({ created: newSlots.length });
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
-  }
-}
+    return { created: newSlots.length };
+  }).pipe(
+    recoverUnexpected(new BadRequest({ message: "Invalid request body" })),
+  ),
+);

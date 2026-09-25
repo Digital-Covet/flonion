@@ -1,29 +1,41 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
+import { Effect } from "effect";
 import { meetingDecisionUrl } from "~/lib/meeting-decision";
-import { getSessionFromHeaders } from "~/lib/server-auth";
-import { sendEmail } from "~/services/email";
+import {
+  BadRequest,
+  Conflict,
+  NotFound,
+  UpstreamError,
+} from "~/server/effect/errors";
+import {
+  orElseAll,
+  readJsonObject,
+  recoverUnexpected,
+  requireSession,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
+import { Db } from "~/server/effect/services/db";
+import { Mailer } from "~/server/effect/services/mailer";
 import { renderMeetingRequestEmail } from "~/services/email-templates";
 
-export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = handler(
+  "marketplace.meetings.list",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const { url } = yield* RequestContext;
+    const type = url.searchParams.get("type") ?? "all";
+    const category = url.searchParams.get("category") ?? "all";
+    const statusFilter = url.searchParams.get("status") ?? undefined;
 
-  const url = new URL(event.request.url);
-  const type = url.searchParams.get("type") ?? "all";
-  const category = url.searchParams.get("category") ?? "all";
-  const statusFilter = url.searchParams.get("status") ?? undefined;
-
-  try {
-    const userBusiness = await prisma.business.findUnique({
-      where: { userId: session.user.id },
-      select: { id: true },
-    });
+    const db = yield* Db;
+    const userBusiness = yield* db.use((p) =>
+      p.business.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      }),
+    );
 
     const where: Record<string, unknown> = {};
-
     if (type === "incoming" && userBusiness) {
       where.businessId = userBusiness.id;
     } else if (type === "outgoing") {
@@ -34,33 +46,32 @@ export async function GET(event: APIEvent) {
         ...(userBusiness ? [{ businessId: userBusiness.id }] : []),
       ];
     }
+    if (statusFilter) where.status = statusFilter;
 
-    if (statusFilter) {
-      where.status = statusFilter;
-    }
-
-    const meetings = await prisma.meetingRequest.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: {
-        slot: { select: { date: true, startTime: true, endTime: true } },
-        business: {
-          select: { id: true, name: true, logo: true, username: true },
-        },
-        requester: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            image: true,
-            businessId: true,
+    const meetings = yield* db.use((p) =>
+      p.meetingRequest.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        include: {
+          slot: { select: { date: true, startTime: true, endTime: true } },
+          business: {
+            select: { id: true, name: true, logo: true, username: true },
+          },
+          requester: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+              businessId: true,
+            },
           },
         },
-      },
-    });
+      }),
+    );
 
-    // Enrich meetings with category based on requester's business relationship
-    const enrichedMeetings = meetings.map((meeting) => {
+    // Category from the requester's relationship to the business.
+    const enriched = meetings.map((meeting) => {
       const requesterBusinessId = meeting.requester?.businessId;
       const meetingCategory =
         requesterBusinessId && requesterBusinessId === meeting.businessId
@@ -73,148 +84,151 @@ export async function GET(event: APIEvent) {
       return { ...meeting, category: meetingCategory, direction };
     });
 
-    // Filter by category if requested
-    const filteredMeetings =
-      category === "all"
-        ? enrichedMeetings
-        : enrichedMeetings.filter((m) => m.category === category);
+    return {
+      meetings:
+        category === "all"
+          ? enriched
+          : enriched.filter((m) => m.category === category),
+    };
+  }).pipe(
+    recoverUnexpected(
+      new UpstreamError({ status: 500, message: "Failed to load meetings" }),
+      "[marketplace/meetings] query failed:",
+    ),
+  ),
+);
 
-    return Response.json({ meetings: filteredMeetings });
-  } catch (err) {
-    console.error("[marketplace/meetings] query failed:", err);
-    return Response.json({ error: "Failed to load meetings" }, { status: 500 });
-  }
-}
-
-export async function POST(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const body = await event.request.json();
+export const POST = handler(
+  "marketplace.meetings.request",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const body = yield* readJsonObject(
+      () => new BadRequest({ message: "Invalid request body" }),
+    );
     const { slotId, businessId, message } = body;
 
     if (typeof slotId !== "string" || typeof businessId !== "string") {
-      return Response.json(
-        { error: "slotId and businessId are required" },
-        { status: 400 },
-      );
+      return yield* new BadRequest({
+        message: "slotId and businessId are required",
+      });
     }
 
-    const slot = await prisma.availabilitySlot.findUnique({
-      where: { id: slotId },
-      include: {
-        business: {
-          select: {
-            id: true,
-            name: true,
-            userId: true,
-            status: true,
-            user: { select: { email: true, name: true } },
+    const db = yield* Db;
+    const slot = yield* db.use((p) =>
+      p.availabilitySlot.findUnique({
+        where: { id: slotId },
+        include: {
+          business: {
+            select: {
+              id: true,
+              name: true,
+              userId: true,
+              status: true,
+              user: { select: { email: true, name: true } },
+            },
           },
         },
-      },
-    });
+      }),
+    );
 
     // A suspended business takes no bookings; its slots read as missing.
     if (!slot || slot.business.status !== "active") {
-      return Response.json({ error: "Slot not found" }, { status: 404 });
+      return yield* new NotFound({ message: "Slot not found" });
     }
-
     if (slot.businessId !== businessId) {
-      return Response.json(
-        { error: "Slot does not belong to this business" },
-        { status: 400 },
-      );
+      return yield* new BadRequest({
+        message: "Slot does not belong to this business",
+      });
     }
-
     if (slot.isBooked) {
-      return Response.json(
-        { error: "This slot is no longer available" },
-        { status: 409 },
-      );
+      return yield* new Conflict({
+        message: "This slot is no longer available",
+      });
     }
-
     if (slot.date < new Date()) {
-      return Response.json(
-        { error: "Cannot book a slot in the past" },
-        { status: 400 },
-      );
+      return yield* new BadRequest({
+        message: "Cannot book a slot in the past",
+      });
     }
-
     if (slot.business.userId === session.user.id) {
-      return Response.json(
-        { error: "You cannot book a meeting with yourself" },
-        { status: 400 },
-      );
+      return yield* new BadRequest({
+        message: "You cannot book a meeting with yourself",
+      });
     }
 
-    const meeting = await prisma.$transaction(async (tx) => {
-      const updatedSlot = await tx.availabilitySlot.update({
-        where: { id: slotId, isBooked: false },
-        data: { isBooked: true },
-      });
+    // `isBooked: false` in the update makes a concurrent booking of the same
+    // slot fail here (P2025) and roll back, rather than double-book it.
+    const meeting = yield* db.transaction(
+      Effect.gen(function* () {
+        const tx = yield* Db;
+        const updatedSlot = yield* tx.use((p) =>
+          p.availabilitySlot.update({
+            where: { id: slotId, isBooked: false },
+            data: { isBooked: true },
+          }),
+        );
+        return yield* tx.use((p) =>
+          p.meetingRequest.create({
+            data: {
+              slotId: updatedSlot.id,
+              businessId,
+              requesterId: session.user.id,
+              message:
+                typeof message === "string" && message.trim()
+                  ? message.trim()
+                  : null,
+            },
+            include: {
+              slot: true,
+              business: { select: { name: true } },
+            },
+          }),
+        );
+      }),
+    );
 
-      return tx.meetingRequest.create({
-        data: {
-          slotId: updatedSlot.id,
-          businessId,
-          requesterId: session.user.id,
-          message:
-            typeof message === "string" && message.trim()
-              ? message.trim()
-              : null,
-        },
-        include: {
-          slot: true,
-          business: { select: { name: true } },
-        },
-      });
-    });
-
-    const ownerEmail = slot.business.user.email;
-    const ownerName = slot.business.user.name;
-    const requesterName = session.user.name || session.user.email;
-    const slotDate = new Date(slot.date).toLocaleDateString("en-US", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-
-    try {
-      // Signed decision links work without a session (the GET handler shows a
-      // confirmation page; its POST verifies the signature and expiry).
+    // Best-effort: the booking stands whether or not the owner is emailed.
+    // Signed decision links work without a session (the GET handler shows a
+    // confirmation page; its POST verifies the signature and expiry).
+    const mailer = yield* Mailer;
+    yield* Effect.suspend(() => {
       const { html, text } = renderMeetingRequestEmail({
-        ownerName,
-        requesterName,
+        ownerName: slot.business.user.name,
+        requesterName: session.user.name || session.user.email,
         businessName: slot.business.name,
-        date: slotDate,
+        date: new Date(slot.date).toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
         startTime: slot.startTime,
         endTime: slot.endTime,
         message: meeting.message ?? undefined,
         acceptUrl: meetingDecisionUrl(meeting.id, "accept"),
         rejectUrl: meetingDecisionUrl(meeting.id, "reject"),
       });
-
-      await sendEmail({
-        to: ownerEmail,
-        toName: ownerName,
-        subject: `New meeting request from ${requesterName}`,
+      return mailer.send({
+        to: slot.business.user.email,
+        toName: slot.business.user.name,
+        subject: `New meeting request from ${session.user.name || session.user.email}`,
         text,
         html,
       });
-    } catch (err) {
-      console.error(
-        "[marketplace/meetings] Failed to send notification email:",
-        err,
-      );
-    }
+    }).pipe(
+      Effect.tapCause((cause) =>
+        Effect.sync(() =>
+          console.error(
+            "[marketplace/meetings] Failed to send notification email:",
+            cause,
+          ),
+        ),
+      ),
+      orElseAll(() => undefined),
+    );
 
-    return Response.json({ meeting });
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
-  }
-}
+    return { meeting };
+  }).pipe(
+    recoverUnexpected(new BadRequest({ message: "Invalid request body" })),
+  ),
+);

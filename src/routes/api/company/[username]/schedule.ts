@@ -1,54 +1,63 @@
-import type { APIEvent } from "@solidjs/start/server";
+import { Effect } from "effect";
 import {
   getCompanySchedule,
   MAX_SCHEDULE_RANGE_DAYS,
 } from "~/lib/company-schedule";
+import { BadRequest, NotFound, UpstreamError } from "~/server/effect/errors";
+import { recoverAll } from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
 
-export async function GET(event: APIEvent) {
-  const username = event.params.username;
-
-  if (!username) {
-    return Response.json({ error: "Username is required" }, { status: 400 });
-  }
-
-  const url = new URL(event.request.url);
-
-  const startDateParam = url.searchParams.get("startDate");
-  const endDateParam = url.searchParams.get("endDate");
-
-  const now = new Date();
-  const defaultStart = new Date(now);
-  defaultStart.setHours(0, 0, 0, 0);
-  const defaultEnd = new Date(defaultStart);
-  defaultEnd.setDate(defaultEnd.getDate() + 7);
-
-  const startDate = startDateParam ? new Date(startDateParam) : defaultStart;
-  const endDate = endDateParam ? new Date(endDateParam) : defaultEnd;
-
-  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-    return Response.json({ error: "Invalid date format" }, { status: 400 });
-  }
-
-  const diffMs = endDate.getTime() - startDate.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays > MAX_SCHEDULE_RANGE_DAYS) {
-    return Response.json(
-      { error: `Date range cannot exceed ${MAX_SCHEDULE_RANGE_DAYS} days` },
-      { status: 400 },
-    );
-  }
-
-  try {
-    const schedule = await getCompanySchedule(username, startDate, endDate);
-
-    if (!schedule) {
-      return Response.json({ error: "Business not found" }, { status: 404 });
+export const GET = handler(
+  "company.schedule",
+  Effect.gen(function* () {
+    const { params, url } = yield* RequestContext;
+    const username = params.username;
+    if (!username) {
+      return yield* new BadRequest({ message: "Username is required" });
     }
 
-    return Response.json(schedule);
-  } catch (err) {
-    console.error("[company/schedule] query failed:", err);
-    return Response.json({ error: "Failed to load schedule" }, { status: 500 });
-  }
-}
+    const startDateParam = url.searchParams.get("startDate");
+    const endDateParam = url.searchParams.get("endDate");
+
+    const defaultStart = new Date();
+    defaultStart.setHours(0, 0, 0, 0);
+    const defaultEnd = new Date(defaultStart);
+    defaultEnd.setDate(defaultEnd.getDate() + 7);
+
+    const startDate = startDateParam ? new Date(startDateParam) : defaultStart;
+    const endDate = endDateParam ? new Date(endDateParam) : defaultEnd;
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      return yield* new BadRequest({ message: "Invalid date format" });
+    }
+
+    const diffDays = Math.ceil(
+      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (diffDays > MAX_SCHEDULE_RANGE_DAYS) {
+      return yield* new BadRequest({
+        message: `Date range cannot exceed ${MAX_SCHEDULE_RANGE_DAYS} days`,
+      });
+    }
+
+    const schedule = yield* getCompanySchedule(
+      username,
+      startDate,
+      endDate,
+    ).pipe(
+      Effect.tapCause((cause) =>
+        Effect.sync(() =>
+          console.error("[company/schedule] query failed:", cause),
+        ),
+      ),
+      recoverAll(
+        new UpstreamError({ status: 500, message: "Failed to load schedule" }),
+      ),
+    );
+    if (!schedule) {
+      return yield* new NotFound({ message: "Business not found" });
+    }
+    return schedule;
+  }),
+);

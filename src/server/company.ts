@@ -28,26 +28,8 @@ export type CompanyPage = {
 export const getCompanyPage = query(
   async (identifier: string): Promise<CompanyPage | null> => {
     "use server";
-    const { requireSession } = await import("~/server/session");
-    await requireSession();
-
-    const {
-      getCompanyContacts,
-      getCompanyProfile,
-      getCompanyProjects,
-      getCompanyServices,
-    } = await import("~/lib/company-profile");
-
-    const profile = await getCompanyProfile(identifier);
-    if (!profile) return null;
-
-    const [services, projects, contacts] = await Promise.all([
-      getCompanyServices(profile.id),
-      getCompanyProjects(profile.id),
-      getCompanyContacts(profile.id),
-    ]);
-
-    return { profile, services, projects, contacts };
+    const { loadCompanyPage } = await import("~/server/company-data");
+    return loadCompanyPage(identifier);
   },
   "company-page",
 );

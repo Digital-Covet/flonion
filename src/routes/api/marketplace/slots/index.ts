@@ -1,123 +1,127 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { z } from "zod";
-import { prisma } from "~/db/prisma";
+import { Effect, Schema } from "effect";
 import { MAX_BULK_SLOTS } from "~/lib/input-limits";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { BadRequest, UpstreamError } from "~/server/effect/errors";
+import {
+  decodeJsonBody,
+  recoverAll,
+  recoverUnexpected,
+  requireQueryParam,
+  requireSession,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
+import { Db } from "~/server/effect/services/db";
+
+const HourMinute = Schema.Trim.pipe(
+  Schema.check(Schema.isPattern(/^\d{2}:\d{2}$/)),
+);
 
 /**
  * Slots are published a month at a time, hence the larger ceiling than the
- * other bulk endpoints. `date` was previously fed to `new Date()` untyped, so
- * a non-date reached Prisma as `Invalid Date`.
+ * other bulk endpoints. `date` was once fed to `new Date()` untyped, so a
+ * non-date reached Prisma as `Invalid Date`; it is decoded here instead,
+ * from a date string or epoch milliseconds, as Zod's `coerce.date` allowed.
  */
-const createSlotsSchema = z.object({
-  slots: z
-    .array(
-      z.object({
-        date: z.coerce.date(),
-        startTime: z
-          .string()
-          .trim()
-          .regex(/^\d{2}:\d{2}$/),
-        endTime: z
-          .string()
-          .trim()
-          .regex(/^\d{2}:\d{2}$/),
-      }),
-    )
-    .min(1)
-    .max(MAX_BULK_SLOTS),
+const CreateSlots = Schema.Struct({
+  slots: Schema.Array(
+    Schema.Struct({
+      date: Schema.Union([Schema.DateFromString, Schema.DateFromMillis]),
+      startTime: HourMinute,
+      endTime: HourMinute,
+    }),
+  ).pipe(Schema.check(Schema.isLengthBetween(1, MAX_BULK_SLOTS))),
 });
 
-export async function GET(event: APIEvent) {
-  const url = new URL(event.request.url);
-  const businessId = url.searchParams.get("businessId");
-  const dateParam = url.searchParams.get("date");
+const slotSelect = {
+  id: true,
+  date: true,
+  startTime: true,
+  endTime: true,
+  isBooked: true,
+} as const;
 
-  if (!businessId) {
-    return Response.json({ error: "businessId is required" }, { status: 400 });
-  }
+export const GET = handler(
+  "marketplace.slots.list",
+  Effect.gen(function* () {
+    const businessId = yield* requireQueryParam(
+      "businessId",
+      "businessId is required",
+    );
+    const { url } = yield* RequestContext;
+    const dateParam = url.searchParams.get("date");
 
-  const now = new Date();
-  const where: Record<string, unknown> = {
-    businessId,
-    isBooked: false,
-    date: { gte: now },
-  };
-
-  if (dateParam) {
-    const targetDate = new Date(dateParam);
-    if (Number.isNaN(targetDate.getTime())) {
-      return Response.json(
-        { error: "Invalid date parameter" },
-        { status: 400 },
-      );
-    }
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
-    where.date = { gte: startOfDay, lte: endOfDay };
-  }
-
-  try {
-    const slots = await prisma.availabilitySlot.findMany({
-      where,
-      orderBy: [{ date: "asc" }, { startTime: "asc" }],
-      select: {
-        id: true,
-        date: true,
-        startTime: true,
-        endTime: true,
-        isBooked: true,
-      },
-    });
-
-    return Response.json({ slots });
-  } catch (err) {
-    console.error("[marketplace/slots] query failed:", err);
-    return Response.json({ error: "Failed to load slots" }, { status: 500 });
-  }
-}
-
-export async function POST(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const parsed = createSlotsSchema.safeParse(await event.request.json());
-
-    if (!parsed.success) {
-      return Response.json(
-        { error: `Between 1 and ${MAX_BULK_SLOTS} valid slots are required` },
-        { status: 400 },
-      );
+    let date: { gte: Date; lte?: Date } = { gte: new Date() };
+    if (dateParam) {
+      const targetDate = new Date(dateParam);
+      if (Number.isNaN(targetDate.getTime())) {
+        return yield* new BadRequest({ message: "Invalid date parameter" });
+      }
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      date = { gte: startOfDay, lte: endOfDay };
     }
 
-    const { slots } = parsed.data;
+    const db = yield* Db;
+    const slots = yield* db
+      .use((p) =>
+        p.availabilitySlot.findMany({
+          where: { businessId, isBooked: false, date },
+          orderBy: [{ date: "asc" }, { startTime: "asc" }],
+          select: slotSelect,
+        }),
+      )
+      .pipe(
+        Effect.tapCause((cause) =>
+          Effect.sync(() =>
+            console.error("[marketplace/slots] query failed:", cause),
+          ),
+        ),
+        recoverAll(
+          new UpstreamError({ status: 500, message: "Failed to load slots" }),
+        ),
+      );
+    return { slots };
+  }),
+);
 
-    const business = await prisma.business.findUnique({
-      where: { userId: session.user.id },
-      select: { id: true },
-    });
+export const POST = handler(
+  "marketplace.slots.create",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const { slots } = yield* decodeJsonBody(
+      CreateSlots,
+      () =>
+        new BadRequest({
+          message: `Between 1 and ${MAX_BULK_SLOTS} valid slots are required`,
+        }),
+    );
 
+    const db = yield* Db;
+    const business = yield* db.use((p) =>
+      p.business.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      }),
+    );
     if (!business) {
-      return Response.json({ error: "No business found" }, { status: 400 });
+      return yield* new BadRequest({ message: "No business found" });
     }
 
-    const created = await prisma.availabilitySlot.createMany({
-      data: slots.map((slot) => ({
-        businessId: business.id,
-        date: slot.date,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-      })),
-      skipDuplicates: true,
-    });
-
-    return Response.json({ created: created.count });
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
-  }
-}
+    const created = yield* db.use((p) =>
+      p.availabilitySlot.createMany({
+        data: slots.map((slot) => ({
+          businessId: business.id,
+          date: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        })),
+        skipDuplicates: true,
+      }),
+    );
+    return { created: created.count };
+  }).pipe(
+    recoverUnexpected(new BadRequest({ message: "Invalid request body" })),
+  ),
+);

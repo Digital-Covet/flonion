@@ -1,89 +1,109 @@
-import type { APIEvent } from "@solidjs/start/server";
+import { Effect, Option, Schema } from "effect";
+import { BadRequest, RawResponse, UpstreamError } from "~/server/effect/errors";
 import {
-  GoogleAuthRequiredError,
-  getValidAccessToken,
-  isGoogleConnected,
-} from "~/lib/google-tokens";
-import { fetchWithTimeout } from "~/lib/http";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+  catchAll,
+  decodeSearchParams,
+  requireSession,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { Google, request } from "~/server/effect/services/google";
 import type { GoogleReview, GoogleReviewsResponse } from "~/types/google";
 
-export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!(await isGoogleConnected(session.user.id))) {
-    return Response.json(
+const notAuthenticated = () =>
+  new RawResponse({
+    response: Response.json(
       { error: "Not authenticated", authUrl: "/api/google/auth" },
       { status: 401 },
+    ),
+  });
+
+const Query = Schema.Struct({
+  accountId: Schema.NonEmptyString,
+  locationId: Schema.NonEmptyString,
+  pageToken: Schema.optionalKey(Schema.String),
+  pageSize: Schema.optionalKey(Schema.String),
+});
+
+const fetchReviews = Effect.fn("google.reviews.fetch")(function* (
+  userId: string,
+  query: typeof Query.Type,
+) {
+  const google = yield* Google;
+  const accessToken = yield* google.accessToken(userId);
+
+  const parent = `accounts/${query.accountId}/locations/${query.locationId}`;
+  const params = new URLSearchParams({ pageSize: query.pageSize || "50" });
+  if (query.pageToken) params.set("pageToken", query.pageToken);
+
+  const response = yield* request(
+    `https://mybusiness.googleapis.com/v4/${parent}/reviews?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+    { retry: true },
+  );
+
+  if (!response.ok) {
+    const errorData = yield* Effect.promise(() =>
+      response.json().catch(() => ({})),
     );
-  }
-
-  const url = new URL(event.request.url);
-  const accountId = url.searchParams.get("accountId");
-  const locationId = url.searchParams.get("locationId");
-  const pageToken = url.searchParams.get("pageToken") || undefined;
-  const pageSize = url.searchParams.get("pageSize") || "50";
-
-  if (!accountId || !locationId) {
     return Response.json(
-      { error: "Missing required parameters: accountId and locationId" },
-      { status: 400 },
-    );
-  }
-
-  try {
-    const accessToken = await getValidAccessToken(session.user.id);
-
-    const parent = `accounts/${accountId}/locations/${locationId}`;
-    const params = new URLSearchParams({ pageSize });
-    if (pageToken) params.set("pageToken", pageToken);
-
-    const reviewResponse = await fetchWithTimeout(
-      `https://mybusiness.googleapis.com/v4/${parent}/reviews?${params.toString()}`,
       {
-        headers: { Authorization: `Bearer ${accessToken}` },
+        error: "Failed to fetch reviews",
+        details: errorData.error?.message || response.statusText,
       },
+      { status: response.status },
+    );
+  }
+
+  const data: {
+    reviews?: GoogleReview[];
+    averageRating?: number;
+    totalReviewCount?: number;
+    nextPageToken?: string;
+  } = yield* Effect.promise(() => response.json());
+
+  const body: GoogleReviewsResponse = {
+    reviews: data.reviews || [],
+    averageRating: data.averageRating || 0,
+    totalReviewCount: data.totalReviewCount || 0,
+    nextPageToken: data.nextPageToken,
+  };
+  return Response.json(body);
+});
+
+export const GET = handler(
+  "google.reviews",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const google = yield* Google;
+
+    if (!(yield* google.isConnected(session.user.id))) {
+      return yield* notAuthenticated();
+    }
+
+    const query = yield* decodeSearchParams(
+      Query,
+      () =>
+        new BadRequest({
+          message: "Missing required parameters: accountId and locationId",
+        }),
     );
 
-    if (!reviewResponse.ok) {
-      const errorData = await reviewResponse.json().catch(() => ({}));
-      return Response.json(
-        {
-          error: "Failed to fetch reviews",
-          details: errorData.error?.message || reviewResponse.statusText,
-        },
-        { status: reviewResponse.status },
-      );
-    }
-
-    const data: {
-      reviews?: GoogleReview[];
-      averageRating?: number;
-      totalReviewCount?: number;
-      nextPageToken?: string;
-    } = await reviewResponse.json();
-
-    const response: GoogleReviewsResponse = {
-      reviews: data.reviews || [],
-      averageRating: data.averageRating || 0,
-      totalReviewCount: data.totalReviewCount || 0,
-      nextPageToken: data.nextPageToken,
-    };
-
-    return Response.json(response);
-  } catch (err) {
-    console.error("[google/reviews] request failed:", err);
-
-    if (err instanceof GoogleAuthRequiredError) {
-      return Response.json(
-        { error: "Not authenticated", authUrl: "/api/google/auth" },
-        { status: 401 },
-      );
-    }
-
-    return Response.json({ error: "Failed to fetch reviews" }, { status: 500 });
-  }
-}
+    return yield* fetchReviews(session.user.id, query).pipe(
+      Effect.tapCause((cause) =>
+        Effect.sync(() =>
+          console.error("[google/reviews] request failed:", cause),
+        ),
+      ),
+      catchAll((error) =>
+        Effect.fail(
+          Option.isSome(error) && error.value._tag === "GoogleAuthRequired"
+            ? notAuthenticated()
+            : new UpstreamError({
+                status: 500,
+                message: "Failed to fetch reviews",
+              }),
+        ),
+      ),
+    );
+  }),
+);

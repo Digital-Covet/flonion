@@ -1,5 +1,3 @@
-import { prisma } from "~/db/prisma";
-
 /**
  * The business a user is currently acting in, plus their standing within it.
  *
@@ -17,18 +15,21 @@ export interface BusinessContext {
   isOwner: boolean;
 }
 
-export async function getBusinessContext(
-  userId: string,
-): Promise<BusinessContext | null> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      businessId: true,
-      role: true,
-      business: { select: { id: true } },
-    },
-  });
+/** What `requireBusinessContext` reads to build a `BusinessContext`. */
+export const businessContextSelect = {
+  businessId: true,
+  role: true,
+  business: { select: { id: true } },
+} as const;
 
+export function toBusinessContext(
+  userId: string,
+  user: {
+    businessId: string | null;
+    role: string;
+    business: { id: string } | null;
+  } | null,
+): BusinessContext | null {
   if (!user) return null;
 
   // Owners are resolved from the business they own even when `businessId` is

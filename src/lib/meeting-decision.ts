@@ -1,11 +1,13 @@
 import type { Prisma } from "@generated/prisma/client";
-import { prisma } from "~/db/prisma";
+import { Effect, Option } from "effect";
 import { APP_DOMAIN } from "~/lib/constants";
 import { sign, verifySignature } from "~/lib/crypto";
-import { createMeetLink } from "~/lib/google-meet";
 import { generateIcsInvite } from "~/lib/ics";
 import { zonedWallTimeToUtc } from "~/lib/timezone-label";
-import { sendEmail } from "~/services/email";
+import { orElseAll } from "~/server/effect/guards";
+import { Db } from "~/server/effect/services/db";
+import { Google } from "~/server/effect/services/google";
+import { Mailer } from "~/server/effect/services/mailer";
 import {
   renderMeetingConfirmationOwnerEmail,
   renderMeetingConfirmationVisitorEmail,
@@ -109,72 +111,96 @@ export type MeetingDecisionResult =
  * @param ownerUserId - When set, the meeting must belong to this user. Pass
  *   null only when the caller holds a verified signed decision link.
  */
-export async function decideMeeting(
+export const decideMeeting = Effect.fn("decideMeeting")(function* (
   meetingId: string,
   action: MeetingAction,
   ownerUserId: string | null,
-): Promise<MeetingDecisionResult> {
-  const meeting = await prisma.meetingRequest.findUnique({
-    where: { id: meetingId },
-    select: MEETING_SELECT,
-  });
+) {
+  const db = yield* Db;
+  const meeting = yield* db.use((p) =>
+    p.meetingRequest.findUnique({
+      where: { id: meetingId },
+      select: MEETING_SELECT,
+    }),
+  );
 
-  if (!meeting) return { ok: false, reason: "not_found" };
+  if (!meeting) {
+    return { ok: false, reason: "not_found" } as MeetingDecisionResult;
+  }
 
   if (ownerUserId !== null && meeting.business.userId !== ownerUserId) {
-    return { ok: false, reason: "forbidden" };
+    return { ok: false, reason: "forbidden" } as MeetingDecisionResult;
   }
 
   const newStatus = action === "accept" ? "accepted" : "rejected";
 
-  const claimed = await prisma.$transaction(async (tx) => {
-    const { count } = await tx.meetingRequest.updateMany({
-      where: { id: meetingId, status: "pending" },
-      data: { status: newStatus },
-    });
-    if (count === 0) return false;
+  const claimed = yield* db.transaction(
+    Effect.gen(function* () {
+      const tx = yield* Db;
+      const { count } = yield* tx.use((p) =>
+        p.meetingRequest.updateMany({
+          where: { id: meetingId, status: "pending" },
+          data: { status: newStatus },
+        }),
+      );
+      if (count === 0) return false;
 
-    if (action === "reject") {
-      await tx.availabilitySlot.update({
-        where: { id: meeting.slotId },
-        data: { isBooked: false },
-      });
-    }
-    return true;
-  });
+      if (action === "reject") {
+        yield* tx.use((p) =>
+          p.availabilitySlot.update({
+            where: { id: meeting.slotId },
+            data: { isBooked: false },
+          }),
+        );
+      }
+      return true;
+    }),
+  );
 
   if (!claimed) {
-    const current = await prisma.meetingRequest.findUnique({
-      where: { id: meetingId },
-      select: { status: true },
-    });
+    const current = yield* db.use((p) =>
+      p.meetingRequest.findUnique({
+        where: { id: meetingId },
+        select: { status: true },
+      }),
+    );
     return {
       ok: false,
       reason: "already_decided",
       status: current?.status ?? meeting.status,
-    };
+    } as MeetingDecisionResult;
   }
 
   let meetUri: string | undefined;
   if (action === "accept") {
-    const meetLink = await createMeetLink(meeting.business.userId);
-    if (meetLink) {
-      await prisma.meetingRequest.update({
-        where: { id: meetingId },
-        data: { meetUri: meetLink.meetUri, meetSpaceId: meetLink.spaceId },
-      });
-      meetUri = meetLink.meetUri;
+    const google = yield* Google;
+    const meetLink = yield* google.createMeetLink(meeting.business.userId);
+    if (Option.isSome(meetLink)) {
+      yield* db.use((p) =>
+        p.meetingRequest.update({
+          where: { id: meetingId },
+          data: {
+            meetUri: meetLink.value.meetUri,
+            meetSpaceId: meetLink.value.spaceId,
+          },
+        }),
+      );
+      meetUri = meetLink.value.meetUri;
     }
   }
 
-  try {
-    await sendDecisionEmails(meeting, action, meetUri);
-  } catch (err) {
-    console.error("[marketplace/meetings] Failed to send email:", err);
-  }
+  // Best-effort: the decision stands whether or not the emails go out.
+  yield* sendDecisionEmails(meeting, action, meetUri).pipe(
+    Effect.tapCause((cause) =>
+      Effect.sync(() =>
+        console.error("[marketplace/meetings] Failed to send email:", cause),
+      ),
+    ),
+    orElseAll(() => undefined),
+  );
 
-  return { ok: true, status: newStatus };
-}
+  return { ok: true, status: newStatus } as MeetingDecisionResult;
+});
 
 /**
  * Slot dates are stored as the calendar day at UTC midnight and times as
@@ -193,11 +219,12 @@ function slotInstants(
   return null;
 }
 
-async function sendDecisionEmails(
+const sendDecisionEmails = Effect.fn("sendDecisionEmails")(function* (
   meeting: DecidedMeeting,
   action: MeetingAction,
   meetUri: string | undefined,
 ) {
+  const mailer = yield* Mailer;
   const slotDate = new Date(meeting.slot.date).toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
@@ -220,7 +247,7 @@ async function sendDecisionEmails(
       decision: "rejected",
     });
 
-    await sendEmail({
+    yield* mailer.send({
       to: visitorEmail,
       toName: visitorName ?? undefined,
       subject: `Your meeting request with ${meeting.business.name} was rejected`,
@@ -280,7 +307,7 @@ async function sendDecisionEmails(
       meetUri,
     });
 
-    await sendEmail({
+    yield* mailer.send({
       to: visitorEmail,
       toName: visitorName ?? undefined,
       subject: `Your meeting with ${meeting.business.name} is confirmed!`,
@@ -303,7 +330,7 @@ async function sendDecisionEmails(
     meetUri,
   });
 
-  await sendEmail({
+  yield* mailer.send({
     to: meeting.business.user.email,
     toName: meeting.business.user.name,
     subject: `Meeting confirmed with ${visitorName ?? "Guest"}`,
@@ -311,4 +338,4 @@ async function sendDecisionEmails(
     html,
     attachments,
   });
-}
+});

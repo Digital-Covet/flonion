@@ -1,6 +1,12 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { Effect, Schema } from "effect";
+import { BadRequest, NotFound } from "~/server/effect/errors";
+import {
+  readJsonObject,
+  recoverUnexpected,
+  requireSession,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { Db } from "~/server/effect/services/db";
 
 /**
  * Records that an invitee chose to create their own business instead of joining.
@@ -10,54 +16,54 @@ import { getSessionFromHeaders } from "~/lib/server-auth";
  * the invitation lingers as `pending` and the inviter never learns it was
  * turned down.
  */
-export async function POST(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const body = await event.request.json();
-    const { token } = body;
-
-    if (typeof token !== "string" || !token) {
-      return Response.json({ error: "Token is required" }, { status: 400 });
+export const POST = handler(
+  "team.decline-invite",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const { token } = yield* readJsonObject(
+      () => new BadRequest({ message: "Invalid request body" }),
+    );
+    if (!Schema.is(Schema.NonEmptyString)(token)) {
+      return yield* new BadRequest({ message: "Token is required" });
     }
 
-    const invitation = await prisma.invitation.findUnique({
-      where: { token },
-      select: { id: true, email: true, status: true },
-    });
-
+    const db = yield* Db;
+    const invitation = yield* db.use((p) =>
+      p.invitation.findUnique({
+        where: { token },
+        select: { id: true, email: true, status: true },
+      }),
+    );
     if (!invitation) {
-      return Response.json({ error: "Invalid invitation" }, { status: 404 });
+      return yield* new NotFound({ message: "Invalid invitation" });
     }
 
-    const currentUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { email: true },
-    });
-
+    const currentUser = yield* db.use((p) =>
+      p.user.findUnique({
+        where: { id: session.user.id },
+        select: { email: true },
+      }),
+    );
     if (currentUser?.email?.toLowerCase() !== invitation.email.toLowerCase()) {
-      return Response.json(
-        { error: "This invitation is for a different email address" },
-        { status: 400 },
-      );
+      return yield* new BadRequest({
+        message: "This invitation is for a different email address",
+      });
     }
 
-    // Already resolved one way or another — nothing to record, and no reason to
-    // block the user from getting on with their own onboarding.
+    // Already resolved one way or another — nothing to record, and no reason
+    // to block the user from getting on with their own onboarding.
     if (invitation.status !== "pending") {
-      return Response.json({ success: true, status: invitation.status });
+      return { success: true, status: invitation.status };
     }
 
-    await prisma.invitation.updateMany({
-      where: { id: invitation.id, status: "pending" },
-      data: { status: "declined" },
-    });
-
-    return Response.json({ success: true, status: "declined" });
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
-  }
-}
+    yield* db.use((p) =>
+      p.invitation.updateMany({
+        where: { id: invitation.id, status: "pending" },
+        data: { status: "declined" },
+      }),
+    );
+    return { success: true, status: "declined" };
+  }).pipe(
+    recoverUnexpected(new BadRequest({ message: "Invalid request body" })),
+  ),
+);

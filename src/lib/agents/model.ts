@@ -1,32 +1,7 @@
-import { ChatDeepSeek } from "@langchain/deepseek";
-
-/**
- * Shared model factory. The model id was hardcoded in both agent files;
- * extracting it here means a price change or model upgrade touches one line.
- *
- * The temperature differs per agent — sentiment analysis uses 0 (deterministic),
- * draft reply uses 0.7 (creative). Callers pass their own temperature.
+/*
+ * The model itself is the `LlmModel` service
+ * (`src/server/effect/services/llm.ts`), which reads `AI_MODEL_ID`.
  */
-const MODEL_ID = process.env.AI_MODEL_ID ?? "deepseek-v4-flash";
-
-/**
- * Deadline on a completion. Without one a hung upstream holds the request
- * handler open indefinitely, and the AI endpoints are the ones an anonymous
- * caller can reach. Generous because generation is genuinely slow.
- */
-const MODEL_TIMEOUT_MS = 60_000;
-
-export function getModel(apiKey: string, temperature = 0): ChatDeepSeek {
-  return new ChatDeepSeek({
-    model: MODEL_ID,
-    temperature,
-    apiKey,
-    timeout: MODEL_TIMEOUT_MS,
-    maxRetries: 2,
-  });
-}
-
-export { MODEL_ID as AI_MODEL_ID };
 
 /**
  * Pricing map keyed by model id. Prices are per million tokens.

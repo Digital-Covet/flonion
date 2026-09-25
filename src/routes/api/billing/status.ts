@@ -1,71 +1,76 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
-import { getBusinessContext } from "~/lib/business-context";
-import { syncSubscription } from "~/lib/payments/subscriptions";
+import { Effect, Schema } from "effect";
 import { effectivePlan } from "~/lib/plans";
-import { checkRateLimit } from "~/lib/rate-limit";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { NotFound } from "~/server/effect/errors";
+import {
+  decodeSearchParams,
+  orElseAll,
+  rateLimit,
+  requireBusinessContext,
+  requireSession,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { Billing } from "~/server/effect/services/billing";
+import { Db } from "~/server/effect/services/db";
 
 const STATUS_RATE_LIMIT = 30;
 const STATUS_WINDOW_MS = 60 * 1000;
 
+const Query = Schema.Struct({
+  subscription_id: Schema.String.pipe(
+    Schema.check(Schema.isPattern(/^flo_[a-f0-9]{32}$/)),
+  ),
+});
+
 /**
  * Called by `/upgrade` when Cashfree sends the customer back, so the page
- * doesn't have to wait for the webhook. It goes through the same
- * `syncSubscription` as the webhook and trusts nothing in the URL beyond
- * which subscription to look at.
+ * doesn't have to wait for the webhook. It goes through the same `sync` as
+ * the webhook and trusts nothing in the URL beyond which subscription to
+ * look at.
  */
-export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = handler(
+  "billing.status",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const ctx = yield* requireBusinessContext(session.user.id);
 
-  const ctx = await getBusinessContext(session.user.id);
-  if (!ctx) {
-    return Response.json({ error: "No business found" }, { status: 404 });
-  }
+    // Each call costs a Cashfree API request.
+    yield* rateLimit(
+      `billing-status:${ctx.businessId}`,
+      STATUS_RATE_LIMIT,
+      STATUS_WINDOW_MS,
+      { message: "Too many requests" },
+    );
 
-  // Each call costs a Cashfree API request.
-  const limit = checkRateLimit(
-    `billing-status:${ctx.businessId}`,
-    STATUS_RATE_LIMIT,
-    STATUS_WINDOW_MS,
-  );
-  if (!limit.allowed) {
-    return Response.json({ error: "Too many requests" }, { status: 429 });
-  }
+    const notFound = new NotFound({ message: "Not found" });
+    const { subscription_id: subscriptionId } = yield* decodeSearchParams(
+      Query,
+      () => notFound,
+    );
 
-  const subscriptionId = new URL(event.request.url).searchParams.get(
-    "subscription_id",
-  );
-  if (!subscriptionId || !/^flo_[a-f0-9]{32}$/.test(subscriptionId)) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
+    const db = yield* Db;
+    // Scoped to the caller's business: another business's id is a 404.
+    const sub = yield* db.use((p) =>
+      p.billingSubscription.findFirst({
+        where: { subscriptionId, businessId: ctx.businessId },
+      }),
+    );
+    if (!sub) return yield* notFound;
 
-  // Scoped to the caller's business: another business's id is a 404.
-  const sub = await prisma.billingSubscription.findFirst({
-    where: { subscriptionId, businessId: ctx.businessId },
-  });
-  if (!sub) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
+    // On failure, report what we last knew; the webhook will catch up.
+    const billing = yield* Billing;
+    const synced = yield* billing.sync(sub).pipe(orElseAll(() => sub));
 
-  let synced = sub;
-  try {
-    synced = await syncSubscription(sub);
-  } catch {
-    // Report what we last knew; the webhook will catch up.
-  }
+    const business = yield* db.use((p) =>
+      p.business.findUnique({
+        where: { id: ctx.businessId },
+        select: { plan: true, planExpiresAt: true },
+      }),
+    );
 
-  const business = await prisma.business.findUnique({
-    where: { id: ctx.businessId },
-    select: { plan: true, planExpiresAt: true },
-  });
-
-  return Response.json({
-    status: synced.status,
-    plan: business ? effectivePlan(business) : "starter",
-    planExpiresAt: business?.planExpiresAt ?? null,
-  });
-}
+    return {
+      status: synced.status,
+      plan: business ? effectivePlan(business) : "starter",
+      planExpiresAt: business?.planExpiresAt ?? null,
+    };
+  }),
+);

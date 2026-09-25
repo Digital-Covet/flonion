@@ -1,7 +1,7 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { isGoogleConnected } from "~/lib/google-tokens";
-import { getSessionFromHeaders } from "~/lib/server-auth";
-import { connectedCache } from "~/server/google-cache";
+import { Effect } from "effect";
+import { requireSession } from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { Google } from "~/server/effect/services/google";
 
 /**
  * Whether this user has a live Google connection.
@@ -13,17 +13,14 @@ import { connectedCache } from "~/server/google-cache";
  * "Connect Google" prompt on every visit. Connection state is a property of
  * the stored grant alone, so it is answered here from the grant alone.
  */
-export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // Several widgets ask this per page load; the cache collapses them into one
-  // read and is cleared outright whenever the grant changes.
-  const connected = await connectedCache.get(session.user.id, () =>
-    isGoogleConnected(session.user.id),
-  );
-
-  return Response.json({ connected });
-}
+export const GET = handler(
+  "google.status",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const google = yield* Google;
+    // Several widgets ask this per page load; the cache collapses them into
+    // one read and is cleared outright whenever the grant changes.
+    const connected = yield* google.isConnectedCached(session.user.id);
+    return { connected };
+  }),
+);

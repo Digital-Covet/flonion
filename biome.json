@@ -43,5 +43,43 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "src/app.tsx",
+        "src/entry-client.tsx",
+        "src/components/**",
+        "src/features/**",
+        "src/constants/**",
+        "src/types/**",
+        "src/routes/**/*.tsx",
+        "src/lib/public-review.ts",
+        "src/lib/impersonation.ts",
+        "src/server/analytics.ts",
+        "src/server/business.ts",
+        "src/server/company.ts"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "effect": "Effect is server-only here: reach it through `await import(...)` inside a \"use server\" body."
+                },
+                "patterns": [
+                  {
+                    "group": ["effect/*", "~/server/effect/**", "@/server/effect/**"],
+                    "message": "Server-only: reach it through `await import(...)` inside a \"use server\" body."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

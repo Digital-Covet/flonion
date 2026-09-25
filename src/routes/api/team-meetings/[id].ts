@@ -1,121 +1,100 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { Effect } from "effect";
+import { BadRequest, Forbidden, NotFound } from "~/server/effect/errors";
+import {
+  readJsonObject,
+  recoverUnexpected,
+  requireMemberBusinessId,
+  requireSession,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
+import { Db } from "~/server/effect/services/db";
 
-export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+const meetingId = RequestContext.use(({ params }) => Effect.succeed(params.id));
+
+/** The meeting, if it belongs to the caller's team; otherwise a 404. */
+const requireOwnMeeting = Effect.fn("requireOwnMeeting")(function* (
+  userId: string,
+  id: string,
+) {
+  const businessId = yield* requireMemberBusinessId(userId);
+  const db = yield* Db;
+  const existing = yield* db.use((p) =>
+    p.teamMeeting.findUnique({ where: { id }, select: { businessId: true } }),
+  );
+  if (!existing || existing.businessId !== businessId) {
+    return yield* new NotFound({ message: "Meeting not found" });
   }
+});
 
-  const meetingId = event.params.id;
+export const GET = handler(
+  "team-meetings.get",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const id = yield* meetingId;
 
-  const meeting = await prisma.teamMeeting.findUnique({
-    where: { id: meetingId },
-  });
+    const db = yield* Db;
+    const meeting = yield* db.use((p) =>
+      p.teamMeeting.findUnique({ where: { id } }),
+    );
+    if (!meeting) return yield* new NotFound({ message: "Meeting not found" });
 
-  if (!meeting) {
-    return Response.json({ error: "Meeting not found" }, { status: 404 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { businessId: true },
-  });
-
-  if (!user?.businessId || meeting.businessId !== user.businessId) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  return Response.json(meeting);
-}
-
-export async function PATCH(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const meetingId = event.params.id;
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { businessId: true },
-  });
-
-  if (!user?.businessId) {
-    return Response.json({ error: "No business found" }, { status: 404 });
-  }
-
-  const existing = await prisma.teamMeeting.findUnique({
-    where: { id: meetingId },
-    select: { businessId: true },
-  });
-
-  if (!existing || existing.businessId !== user.businessId) {
-    return Response.json({ error: "Meeting not found" }, { status: 404 });
-  }
-
-  try {
-    const body = await event.request.json();
-    const { title, date, startTime, endTime, location } = body;
-
-    const data: Record<string, unknown> = {};
-
-    if (typeof title === "string" && title.trim()) {
-      data.title = title.trim();
+    const user = yield* db.use((p) =>
+      p.user.findUnique({
+        where: { id: session.user.id },
+        select: { businessId: true },
+      }),
+    );
+    if (!user?.businessId || meeting.businessId !== user.businessId) {
+      return yield* new Forbidden({ message: "Forbidden" });
     }
-    if (typeof date === "string" && date) {
-      data.date = new Date(date);
-    }
-    if (typeof startTime === "string" && startTime) {
-      data.startTime = startTime;
-    }
-    if (typeof endTime === "string" && endTime) {
-      data.endTime = endTime;
-    }
-    if (typeof location === "string" && location.trim()) {
-      data.location = location.trim();
-    }
+    return meeting;
+  }),
+);
 
-    const meeting = await prisma.teamMeeting.update({
-      where: { id: meetingId },
-      data,
-    });
+export const PATCH = handler(
+  "team-meetings.update",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const id = yield* meetingId;
+    yield* requireOwnMeeting(session.user.id, id);
 
-    return Response.json(meeting);
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
-  }
-}
+    return yield* Effect.gen(function* () {
+      const { title, date, startTime, endTime, location } =
+        yield* readJsonObject(
+          () => new BadRequest({ message: "Invalid request body" }),
+        );
 
-export async function DELETE(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+      const data: Record<string, unknown> = {};
+      if (typeof title === "string" && title.trim()) data.title = title.trim();
+      if (typeof date === "string" && date) data.date = new Date(date);
+      if (typeof startTime === "string" && startTime) {
+        data.startTime = startTime;
+      }
+      if (typeof endTime === "string" && endTime) data.endTime = endTime;
+      if (typeof location === "string" && location.trim()) {
+        data.location = location.trim();
+      }
 
-  const meetingId = event.params.id;
+      const db = yield* Db;
+      return yield* db.use((p) =>
+        p.teamMeeting.update({ where: { id }, data }),
+      );
+    }).pipe(
+      recoverUnexpected(new BadRequest({ message: "Invalid request body" })),
+    );
+  }),
+);
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { businessId: true },
-  });
+export const DELETE = handler(
+  "team-meetings.delete",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const id = yield* meetingId;
+    yield* requireOwnMeeting(session.user.id, id);
 
-  if (!user?.businessId) {
-    return Response.json({ error: "No business found" }, { status: 404 });
-  }
-
-  const existing = await prisma.teamMeeting.findUnique({
-    where: { id: meetingId },
-    select: { businessId: true },
-  });
-
-  if (!existing || existing.businessId !== user.businessId) {
-    return Response.json({ error: "Meeting not found" }, { status: 404 });
-  }
-
-  await prisma.teamMeeting.delete({ where: { id: meetingId } });
-
-  return Response.json({ success: true });
-}
+    const db = yield* Db;
+    yield* db.use((p) => p.teamMeeting.delete({ where: { id } }));
+    return { success: true };
+  }),
+);

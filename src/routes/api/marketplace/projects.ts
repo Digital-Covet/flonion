@@ -1,198 +1,144 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { z } from "zod";
-import { prisma } from "~/db/prisma";
+import { Effect, Schema } from "effect";
 import { getCompanyProjects } from "~/lib/company-profile";
-import {
-  MAX_BULK_ITEMS,
-  MAX_MEDIUM_FIELD,
-  oversizedFieldResponse,
-} from "~/lib/input-limits";
+import { MAX_BULK_ITEMS, MAX_MEDIUM_FIELD } from "~/lib/input-limits";
 import { imageSrc } from "~/lib/safe-url";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { BadRequest, UpstreamError } from "~/server/effect/errors";
+import {
+  checkFieldLimits,
+  decodeJsonBody,
+  readJsonObject,
+  recoverAll,
+  recoverUnexpected,
+  requireItemRef,
+  requireOwnedBusiness,
+  requireQueryParam,
+  requireSession,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { bulk, Position, trimmedMax } from "~/server/effect/schemas";
+import { Db } from "~/server/effect/services/db";
 
 /**
- * Replaces a `projects.map((p: { imageUrl: string, ... }) => ...)` type
- * assertion TypeScript erased at runtime, and bounds both the array and each
- * field. `imageUrl` is rendered into `<img src>` on the public profile, so it
- * goes through the same gate as the logo rather than being stored as typed.
+ * Bounds both the array and each field. `imageUrl` is rendered into
+ * `<img src>` on the public profile, so it must pass the same gate as the
+ * logo rather than being stored as typed.
  */
-const createProjectsSchema = z.object({
-  businessId: z.string().min(1),
-  projects: z
-    .array(
-      z.object({
-        imageUrl: z
-          .string()
-          .refine((value) => imageSrc(value) !== null, {
-            message: "Image must be a full http(s) link or an inline image",
-          })
-          .transform((value) => imageSrc(value) as string),
-        altText: z.string().trim().max(MAX_MEDIUM_FIELD),
-        position: z.number().int().min(0).max(10_000).optional(),
-      }),
-    )
-    .min(1)
-    .max(MAX_BULK_ITEMS),
+const ImageUrl = Schema.String.pipe(
+  Schema.check(
+    Schema.makeFilter((value: string) => imageSrc(value) !== null, {
+      message: "Image must be a full http(s) link or an inline image",
+    }),
+  ),
+);
+
+const CreateProjects = Schema.Struct({
+  businessId: Schema.NonEmptyString,
+  projects: bulk(
+    Schema.Struct({
+      imageUrl: ImageUrl,
+      altText: trimmedMax(MAX_MEDIUM_FIELD),
+      position: Schema.optional(Position),
+    }),
+  ),
 });
 
-export async function GET(event: APIEvent) {
-  const url = new URL(event.request.url);
-  const businessId = url.searchParams.get("businessId");
+const invalidBody = new BadRequest({ message: "Invalid request body" });
 
-  if (!businessId) {
-    return Response.json({ error: "businessId is required" }, { status: 400 });
-  }
+export const GET = handler(
+  "marketplace.projects.list",
+  Effect.gen(function* () {
+    const businessId = yield* requireQueryParam(
+      "businessId",
+      "businessId is required",
+    );
+    const projects = yield* getCompanyProjects(businessId).pipe(
+      Effect.tapCause((cause) =>
+        Effect.sync(() =>
+          console.error("[marketplace/projects] query failed:", cause),
+        ),
+      ),
+      recoverAll(
+        new UpstreamError({ status: 500, message: "Failed to load projects" }),
+      ),
+    );
+    return { projects };
+  }),
+);
 
-  try {
-    const projects = await getCompanyProjects(businessId);
+export const POST = handler(
+  "marketplace.projects.create",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const { businessId, projects } = yield* decodeJsonBody(
+      CreateProjects,
+      () =>
+        new BadRequest({
+          message: `Between 1 and ${MAX_BULK_ITEMS} valid projects are required`,
+        }),
+    );
+    yield* requireOwnedBusiness(businessId, session.user.id);
 
-    return Response.json({ projects });
-  } catch (err) {
-    console.error("[marketplace/projects] query failed:", err);
-    return Response.json({ error: "Failed to load projects" }, { status: 500 });
-  }
-}
+    const db = yield* Db;
+    const created = yield* db.use((p) =>
+      p.project.createMany({
+        data: projects.map((project) => ({
+          businessId,
+          // Checked by `ImageUrl`, so never null here.
+          imageUrl: imageSrc(project.imageUrl) as string,
+          altText: project.altText,
+          position: project.position ?? 0,
+        })),
+      }),
+    );
+    return { created: created.count };
+  }).pipe(recoverUnexpected(invalidBody)),
+);
 
-export async function POST(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PATCH = handler(
+  "marketplace.projects.update",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const body = yield* readJsonObject(() => invalidBody);
+    const { id, businessId } = yield* requireItemRef(body);
 
-  try {
-    const parsed = createProjectsSchema.safeParse(await event.request.json());
-
-    if (!parsed.success) {
-      return Response.json(
-        {
-          error: `Between 1 and ${MAX_BULK_ITEMS} valid projects are required`,
-        },
-        { status: 400 },
-      );
-    }
-
-    const { businessId, projects } = parsed.data;
-
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { userId: true },
-    });
-
-    if (!business || business.userId !== session.user.id) {
-      return Response.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const created = await prisma.project.createMany({
-      data: projects.map((p) => ({
-        businessId,
-        imageUrl: p.imageUrl,
-        altText: p.altText,
-        position: p.position ?? 0,
-      })),
-    });
-
-    return Response.json({ created: created.count });
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
-  }
-}
-
-export async function PATCH(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const body = await event.request.json();
-    const { id, businessId, ...data } = body;
-
-    if (typeof id !== "string" || !id) {
-      return Response.json({ error: "id is required" }, { status: 400 });
-    }
-
-    if (typeof businessId !== "string" || !businessId) {
-      return Response.json(
-        { error: "businessId is required" },
-        { status: 400 },
-      );
-    }
-
-    const tooLong = oversizedFieldResponse([
-      { label: "Alt text", value: data.altText, max: MAX_MEDIUM_FIELD },
+    yield* checkFieldLimits([
+      { label: "Alt text", value: body.altText, max: MAX_MEDIUM_FIELD },
     ]);
-    if (tooLong) return tooLong;
-
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { userId: true },
-    });
-
-    if (!business || business.userId !== session.user.id) {
-      return Response.json({ error: "Unauthorized" }, { status: 403 });
-    }
+    yield* requireOwnedBusiness(businessId, session.user.id);
 
     // Scoped to the business the caller was just authorized for. Matching on
     // `id` alone let an owner pass their own `businessId` past the check above
     // and then edit a row belonging to someone else.
-    const updated = await prisma.project.update({
-      where: { id, businessId },
-      data: {
-        imageUrl:
-          typeof data.imageUrl === "string"
-            ? (imageSrc(data.imageUrl) ?? undefined)
-            : undefined,
-        altText: typeof data.altText === "string" ? data.altText : undefined,
-        position: typeof data.position === "number" ? data.position : undefined,
-      },
-      select: {
-        id: true,
-        imageUrl: true,
-        altText: true,
-        position: true,
-      },
-    });
+    const db = yield* Db;
+    const project = yield* db.use((p) =>
+      p.project.update({
+        where: { id, businessId },
+        data: {
+          imageUrl:
+            typeof body.imageUrl === "string"
+              ? (imageSrc(body.imageUrl) ?? undefined)
+              : undefined,
+          altText: typeof body.altText === "string" ? body.altText : undefined,
+          position:
+            typeof body.position === "number" ? body.position : undefined,
+        },
+        select: { id: true, imageUrl: true, altText: true, position: true },
+      }),
+    );
+    return { project };
+  }).pipe(recoverUnexpected(invalidBody)),
+);
 
-    return Response.json({ project: updated });
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
-  }
-}
+export const DELETE = handler(
+  "marketplace.projects.delete",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const body = yield* readJsonObject(() => invalidBody);
+    const { id, businessId } = yield* requireItemRef(body);
+    yield* requireOwnedBusiness(businessId, session.user.id);
 
-export async function DELETE(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const body = await event.request.json();
-    const { id, businessId } = body;
-
-    if (typeof id !== "string" || !id) {
-      return Response.json({ error: "id is required" }, { status: 400 });
-    }
-
-    if (typeof businessId !== "string" || !businessId) {
-      return Response.json(
-        { error: "businessId is required" },
-        { status: 400 },
-      );
-    }
-
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { userId: true },
-    });
-
-    if (!business || business.userId !== session.user.id) {
-      return Response.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    await prisma.project.delete({ where: { id, businessId } });
-
-    return Response.json({ deleted: true });
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
-  }
-}
+    const db = yield* Db;
+    yield* db.use((p) => p.project.delete({ where: { id, businessId } }));
+    return { deleted: true };
+  }).pipe(recoverUnexpected(invalidBody)),
+);

@@ -1,8 +1,21 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "@/db/prisma";
-import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
+import { Effect, Option } from "effect";
 import { issueReviewClaim, verifyReviewClaim } from "~/lib/review-claim";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import {
+  BadRequest,
+  Forbidden,
+  NotFound,
+  Unauthorized,
+} from "~/server/effect/errors";
+import {
+  clientIp,
+  currentSession,
+  rateLimit,
+  readJsonObject,
+  recoverUnexpected,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
+import { Db } from "~/server/effect/services/db";
 
 const MAX_TEXT_LENGTH = 5000;
 const MAX_NAME_LENGTH = 100;
@@ -15,12 +28,34 @@ const ANON_CREATE_IP_WINDOW_MS = 60 * 60 * 1000;
 const ANON_CREATE_BUSINESS_LIMIT = 1000;
 const ANON_CREATE_BUSINESS_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-export async function POST(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
+const tooManyReviews = "Too many reviews submitted. Please try again later.";
 
-  try {
-    const body = await event.request.json();
+/** `/company/<handle>/review` for the business this user owns. */
+const reviewPageFor = Effect.fn("reviewPageFor")(function* (userId: string) {
+  const db = yield* Db;
+  const user = yield* db.use((p) =>
+    p.user.findUnique({
+      where: { id: userId },
+      select: { business: { select: { id: true, username: true } } },
+    }),
+  );
+  const param = user?.business?.username || user?.business?.id || "unknown";
+  return `/company/${param}/review`;
+});
 
+const invalidRating = (range: "1 and 5" | "0 and 5") =>
+  new BadRequest({ message: `rating must be a number between ${range}` });
+
+const trimmedOr = (value: unknown, fallback: string) =>
+  typeof value === "string" && value.trim() ? value.trim() : fallback;
+
+export const POST = handler(
+  "reviews.share.save",
+  Effect.gen(function* () {
+    const session = Option.getOrNull(yield* currentSession);
+    const body = yield* readJsonObject(
+      () => new BadRequest({ message: "Invalid request body" }),
+    );
     const {
       text,
       rating,
@@ -38,318 +73,280 @@ export async function POST(event: APIEvent) {
       rating !== 0 &&
       (typeof rating !== "number" || rating < 1 || rating > 5)
     ) {
-      return Response.json(
-        { error: "rating must be a number between 1 and 5" },
-        { status: 400 },
-      );
+      return yield* invalidRating("1 and 5");
     }
-
     if (typeof text === "string" && text.length > MAX_TEXT_LENGTH) {
-      return Response.json({ error: "text is too long" }, { status: 400 });
+      return yield* new BadRequest({ message: "text is too long" });
     }
-
     if (
       typeof reviewerName === "string" &&
       reviewerName.length > MAX_NAME_LENGTH
     ) {
-      return Response.json(
-        { error: "reviewerName is too long" },
-        { status: 400 },
-      );
+      return yield* new BadRequest({ message: "reviewerName is too long" });
+    }
+    if (typeof keywords === "string" && keywords.length > MAX_KEYWORDS_LENGTH) {
+      return yield* new BadRequest({ message: "keywords is too long" });
     }
 
-    if (typeof keywords === "string" && keywords.length > MAX_KEYWORDS_LENGTH) {
-      return Response.json({ error: "keywords is too long" }, { status: 400 });
-    }
+    const db = yield* Db;
+    const bodyText = typeof text === "string" ? text.trim() : "";
 
     if (id) {
-      const existing = await prisma.sharedReview.findUnique({ where: { id } });
-      if (!existing) {
-        return Response.json({ error: "Review not found" }, { status: 404 });
+      // Prisma rejected a non-string id, which answered the generic 400.
+      if (typeof id !== "string") {
+        return yield* new BadRequest({ message: "Invalid request body" });
       }
+      const existing = yield* db.use((p) =>
+        p.sharedReview.findUnique({ where: { id } }),
+      );
+      if (!existing)
+        return yield* new NotFound({ message: "Review not found" });
 
-      const isOwner = session && existing.userId === session.session.userId;
+      const isOwner = !!session && existing.userId === session.session.userId;
 
       // Writing to an existing row requires either owning it or holding the
       // claim token handed out when it was created. Knowing the id is not
-      // enough: these rows render on the business's public review page, so an
-      // unauthenticated overwrite is content injection on a customer-facing
-      // surface.
+      // enough: these rows render on the business's public review page, so
+      // an unauthenticated overwrite is content injection on a
+      // customer-facing surface.
       if (!isOwner && !verifyReviewClaim(claimToken, id)) {
-        return Response.json({ error: "Forbidden" }, { status: 403 });
+        return yield* new Forbidden({ message: "Forbidden" });
       }
 
-      const review = await prisma.sharedReview.update({
-        where: { id },
-        data: {
-          text: typeof text === "string" ? text.trim() : "",
-          rating: rating !== 0 ? rating : existing.rating,
-          // Owners edit the composer's optional customer name as they type.
-          reviewerName: isOwner
-            ? typeof reviewerName === "string" && reviewerName.trim()
-              ? reviewerName.trim()
-              : session.user.name
-            : typeof reviewerName === "string" && reviewerName.trim()
-              ? reviewerName.trim()
-              : (session?.user.name ?? "Anonymous"),
-          // `keywords` is owner-configured SEO input that is served back to every
-          // visitor and fed into the AI prompt. Anonymous callers must not set it.
-          keywords:
-            isOwner && typeof keywords === "string"
-              ? keywords
-              : existing.keywords,
-        },
-        select: {
-          id: true,
-          userId: true,
-        },
-      });
+      const review = yield* db.use((p) =>
+        p.sharedReview.update({
+          where: { id },
+          data: {
+            text: bodyText,
+            rating: rating !== 0 ? (rating as number) : existing.rating,
+            // Owners edit the composer's optional customer name as they type.
+            reviewerName: isOwner
+              ? trimmedOr(reviewerName, session.user.name)
+              : trimmedOr(reviewerName, session?.user.name ?? "Anonymous"),
+            // `keywords` is owner-configured SEO input that is served back to
+            // every visitor and fed into the AI prompt. Anonymous callers
+            // must not set it.
+            keywords:
+              isOwner && typeof keywords === "string"
+                ? keywords
+                : existing.keywords,
+          },
+          select: { id: true, userId: true },
+        }),
+      );
 
-      const user = await prisma.user.findUnique({
-        where: { id: review.userId },
-        select: { business: { select: { id: true, username: true } } },
-      });
-
-      const param = user?.business?.username || user?.business?.id || "unknown";
-
-      return Response.json({
-        url: `/company/${param}/review`,
+      return {
+        url: yield* reviewPageFor(review.userId),
         reviewId: review.id,
-      });
+      };
     }
 
     if ((businessUsername || businessId) && !session) {
-      const businessWhere = businessUsername
-        ? { username: businessUsername }
-        : { id: businessId! };
-      const business = await prisma.business.findUnique({
-        where: businessWhere,
-        select: { id: true, userId: true, keywords: true },
-      });
-
+      const business = yield* db.use((p) =>
+        p.business.findUnique({
+          where: businessUsername
+            ? { username: businessUsername as string }
+            : { id: businessId as string },
+          select: { id: true, userId: true, keywords: true },
+        }),
+      );
       if (!business) {
-        return Response.json({ error: "Business not found" }, { status: 404 });
+        return yield* new NotFound({ message: "Business not found" });
       }
-
       if (typeof rating !== "number" || rating < 0 || rating > 5) {
-        return Response.json(
-          { error: "rating must be a number between 0 and 5" },
-          { status: 400 },
-        );
+        return yield* invalidRating("0 and 5");
       }
 
-      if (
-        !checkRateLimit(
-          `share-create-ip:${getClientIp(event.request)}`,
-          ANON_CREATE_IP_LIMIT,
-          ANON_CREATE_IP_WINDOW_MS,
-        ).allowed ||
-        !checkRateLimit(
-          `share-create-business:${business.id}`,
-          ANON_CREATE_BUSINESS_LIMIT,
-          ANON_CREATE_BUSINESS_WINDOW_MS,
-        ).allowed
-      ) {
-        return Response.json(
-          { error: "Too many reviews submitted. Please try again later." },
-          { status: 429 },
-        );
-      }
+      yield* rateLimit(
+        `share-create-ip:${yield* clientIp}`,
+        ANON_CREATE_IP_LIMIT,
+        ANON_CREATE_IP_WINDOW_MS,
+        { message: tooManyReviews },
+      );
+      yield* rateLimit(
+        `share-create-business:${business.id}`,
+        ANON_CREATE_BUSINESS_LIMIT,
+        ANON_CREATE_BUSINESS_WINDOW_MS,
+        { message: tooManyReviews },
+      );
 
-      const created = await prisma.sharedReview.create({
-        data: {
-          text: typeof text === "string" ? text.trim() : "",
-          rating,
-          reviewerName:
-            typeof reviewerName === "string" && reviewerName.trim()
-              ? reviewerName.trim()
-              : "Anonymous",
-          keywords: business.keywords || null,
-          userId: business.userId,
-          businessId: business.id,
-        },
-        select: { id: true },
-      });
+      const created = yield* db.use((p) =>
+        p.sharedReview.create({
+          data: {
+            text: bodyText,
+            rating,
+            reviewerName: trimmedOr(reviewerName, "Anonymous"),
+            keywords: business.keywords || null,
+            userId: business.userId,
+            businessId: business.id,
+          },
+          select: { id: true },
+        }),
+      );
 
       // The id and its claim token go back so the visitor can fill in the row
-      // they just created. Without them the page had no usable id and created a
-      // second row on submit, leaving an empty one behind and losing the visit.
-      return Response.json({
+      // they just created. Without them the page had no usable id and created
+      // a second row on submit, leaving an empty one behind and losing the
+      // visit.
+      return {
         ok: true,
         reviewId: created.id,
         claimToken: issueReviewClaim(created.id),
-      });
+      };
     }
 
-    if (!session) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!session) return yield* new Unauthorized({ message: "Unauthorized" });
+    const userId = session.session.userId;
 
     // Legacy callers get their latest link back; the composer sends
     // `fresh: true` because every request it creates is a new link and QR.
-    if (!id && fresh !== true) {
-      const existing = await prisma.sharedReview.findFirst({
-        where: { userId: session.session.userId },
-        orderBy: { createdAt: "desc" },
-        select: { id: true, userId: true },
-      });
+    if (fresh !== true) {
+      const existing = yield* db.use((p) =>
+        p.sharedReview.findFirst({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, userId: true },
+        }),
+      );
       if (existing) {
-        const existingUser = await prisma.user.findUnique({
-          where: { id: existing.userId },
-          select: { business: { select: { id: true, username: true } } },
-        });
-        const param =
-          existingUser?.business?.username ||
-          existingUser?.business?.id ||
-          "unknown";
-        return Response.json({
-          url: `/company/${param}/review`,
+        return {
+          url: yield* reviewPageFor(existing.userId),
           reviewId: existing.id,
-        });
+        };
       }
     }
 
     if (typeof rating !== "number" || rating < 0 || rating > 5) {
-      return Response.json(
-        { error: "rating must be a number between 0 and 5" },
-        { status: 400 },
-      );
+      return yield* invalidRating("0 and 5");
     }
 
-    // Resolve the businessId from the session user's owned business or team membership.
-    const sessionUser = await prisma.user.findUnique({
-      where: { id: session.session.userId },
-      select: { businessId: true, business: { select: { id: true } } },
-    });
-    const reviewBusinessId =
-      sessionUser?.business?.id ?? sessionUser?.businessId ?? null;
-
-    const review = await prisma.sharedReview.create({
-      data: {
-        text: typeof text === "string" ? text.trim() : "",
-        rating,
-        // The composer's optional customer name; the customer can change it
-        // when they submit.
-        reviewerName:
-          typeof reviewerName === "string" && reviewerName.trim()
-            ? reviewerName.trim()
-            : session.user.name,
-        keywords: typeof keywords === "string" ? keywords : null,
-        userId: session.session.userId,
-        businessId: reviewBusinessId,
-      },
-    });
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.session.userId },
-      select: { business: { select: { id: true, username: true } } },
-    });
-
-    const param = user?.business?.username || user?.business?.id || "unknown";
-
-    return Response.json({
-      url: `/company/${param}/review`,
-      reviewId: review.id,
-    });
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
-  }
-}
-
-export async function GET(event: APIEvent) {
-  const url = new URL(event.request.url);
-  const id = url.searchParams.get("id");
-  const username = url.searchParams.get("username");
-  const businessId = url.searchParams.get("businessId");
-
-  if (!id && !username && !businessId) {
-    return Response.json(
-      { error: "Missing id, username, or businessId parameter" },
-      { status: 400 },
+    // The business the review belongs to: the one the user owns, else the
+    // team they belong to.
+    const sessionUser = yield* db.use((p) =>
+      p.user.findUnique({
+        where: { id: userId },
+        select: { businessId: true, business: { select: { id: true } } },
+      }),
     );
-  }
 
-  if ((username || businessId) && !id) {
-    const businessWhere = username
-      ? { username, status: "active" }
-      : { id: businessId!, status: "active" };
-    const business = await prisma.business.findUnique({
-      where: businessWhere,
-      select: {
-        id: true,
-        logo: true,
-        name: true,
-        phone: true,
-        address: true,
-        placeId: true,
-        reviewLink: true,
-        reviewLinks: true,
-        keywords: true,
-        username: true,
-      },
-    });
+    const review = yield* db.use((p) =>
+      p.sharedReview.create({
+        data: {
+          text: bodyText,
+          rating,
+          // The composer's optional customer name; the customer can change it
+          // when they submit.
+          reviewerName: trimmedOr(reviewerName, session.user.name),
+          keywords: typeof keywords === "string" ? keywords : null,
+          userId,
+          businessId:
+            sessionUser?.business?.id ?? sessionUser?.businessId ?? null,
+        },
+      }),
+    );
 
-    if (!business) {
-      return Response.json({ error: "Business not found" }, { status: 404 });
+    return { url: yield* reviewPageFor(userId), reviewId: review.id };
+  }).pipe(
+    recoverUnexpected(new BadRequest({ message: "Invalid request body" })),
+  ),
+);
+
+export const GET = handler(
+  "reviews.share.get",
+  Effect.gen(function* () {
+    const { url } = yield* RequestContext;
+    const id = url.searchParams.get("id");
+    const username = url.searchParams.get("username");
+    const businessId = url.searchParams.get("businessId");
+
+    if (!id && !username && !businessId) {
+      return yield* new BadRequest({
+        message: "Missing id, username, or businessId parameter",
+      });
     }
 
-    return Response.json({
-      keywords: business.keywords,
-      business: {
-        logo: business.logo,
-        name: business.name,
-        phone: business.phone,
-        address: business.address,
-        placeId: business.placeId,
-        reviewLink: business.reviewLink,
-        reviewLinks: business.reviewLinks,
-        username: business.username,
-        id: business.id,
-      },
-    });
-  }
+    const db = yield* Db;
 
-  if (!id) {
-    return Response.json({ error: "Missing id parameter" }, { status: 400 });
-  }
+    if ((username || businessId) && !id) {
+      const business = yield* db.use((p) =>
+        p.business.findUnique({
+          where: username
+            ? { username, status: "active" }
+            : { id: businessId as string, status: "active" },
+          select: {
+            id: true,
+            logo: true,
+            name: true,
+            phone: true,
+            address: true,
+            placeId: true,
+            reviewLink: true,
+            reviewLinks: true,
+            keywords: true,
+            username: true,
+          },
+        }),
+      );
+      if (!business) {
+        return yield* new NotFound({ message: "Business not found" });
+      }
 
-  // Only a visible request is served; hidden or flagged ones read as missing.
-  const review = await prisma.sharedReview.findUnique({
-    where: { id, status: "visible" },
-    select: {
-      id: true,
-      text: true,
-      rating: true,
-      reviewerName: true,
-      keywords: true,
-      createdAt: true,
-      user: {
+      const { keywords, ...rest } = business;
+      return {
+        keywords,
+        business: {
+          logo: rest.logo,
+          name: rest.name,
+          phone: rest.phone,
+          address: rest.address,
+          placeId: rest.placeId,
+          reviewLink: rest.reviewLink,
+          reviewLinks: rest.reviewLinks,
+          username: rest.username,
+          id: rest.id,
+        },
+      };
+    }
+
+    if (!id) return yield* new BadRequest({ message: "Missing id parameter" });
+
+    // Only a visible request is served; hidden or flagged ones read as missing.
+    const review = yield* db.use((p) =>
+      p.sharedReview.findUnique({
+        where: { id, status: "visible" },
         select: {
-          business: {
+          id: true,
+          text: true,
+          rating: true,
+          reviewerName: true,
+          keywords: true,
+          createdAt: true,
+          user: {
             select: {
-              id: true,
-              username: true,
-              logo: true,
-              name: true,
-              phone: true,
-              address: true,
-              placeId: true,
-              reviewLink: true,
-              reviewLinks: true,
+              business: {
+                select: {
+                  id: true,
+                  username: true,
+                  logo: true,
+                  name: true,
+                  phone: true,
+                  address: true,
+                  placeId: true,
+                  reviewLink: true,
+                  reviewLinks: true,
+                },
+              },
             },
           },
         },
-      },
-    },
-  });
+      }),
+    );
+    if (!review) return yield* new NotFound({ message: "Review not found" });
 
-  if (!review) {
-    return Response.json({ error: "Review not found" }, { status: 404 });
-  }
-
-  return Response.json({
-    ...review,
-    business: review.user?.business ?? null,
-    user: undefined,
-  });
-}
+    return {
+      ...review,
+      business: review.user?.business ?? null,
+      user: undefined,
+    };
+  }),
+);

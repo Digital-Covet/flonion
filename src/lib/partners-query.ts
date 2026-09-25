@@ -1,9 +1,10 @@
+import { Effect } from "effect";
 import {
   CATEGORY_KEYWORDS,
   MARKETPLACE_CATEGORIES,
   matchBusinessToCategory,
 } from "~/constants/categories";
-import { prisma } from "~/db/prisma";
+import { Db } from "~/server/effect/services/db";
 import type {
   Partner,
   PartnersQuery,
@@ -143,15 +144,16 @@ function sortToOrderBy(sort: SortKey): Record<string, unknown>[] {
   }
 }
 
-export async function getPartners(
+export const getPartners = Effect.fn("getPartners")(function* (
   query: PartnersQuery,
-): Promise<{ payload: PartnersResult; cached: boolean }> {
+) {
   const { categories, search, minRating, maxRating, sort, page, pageSize } =
     query;
 
   const cacheKey = `cat=${categories.join("|")}&q=${search}&r=${minRating ?? ""}&rx=${maxRating ?? ""}&s=${sort}&p=${page}&ps=${pageSize}`;
   const cached = getFromCache<PartnersResult>(cacheKey);
   if (cached) return { payload: cached, cached: true };
+  const db = yield* Db;
 
   const conditions: Record<string, unknown>[] = [];
 
@@ -234,16 +236,23 @@ export async function getPartners(
     createdAt: true,
   };
 
-  const [businesses, totalCount] = await prisma.$transaction([
-    prisma.business.findMany({
-      where,
-      select,
-      orderBy: sortToOrderBy(sort),
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+  // One transaction so the page and the total come from the same snapshot.
+  const [businesses, totalCount] = yield* db.transaction(
+    Effect.gen(function* () {
+      const tx = yield* Db;
+      const rows = yield* tx.use((p) =>
+        p.business.findMany({
+          where,
+          select,
+          orderBy: sortToOrderBy(sort),
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+      );
+      const count = yield* tx.use((p) => p.business.count({ where }));
+      return [rows, count] as const;
     }),
-    prisma.business.count({ where }),
-  ]);
+  );
 
   const newArrivalCutoff = new Date(
     Date.now() - NEW_ARRIVAL_WINDOW_DAYS * 24 * 60 * 60 * 1000,
@@ -262,7 +271,7 @@ export async function getPartners(
   setInCache(cacheKey, payload);
 
   return { payload, cached: false };
-}
+});
 
 function parsePositiveInt(value: string | null, fallback: number): number {
   const parsed = Number(value);

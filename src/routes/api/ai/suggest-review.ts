@@ -1,10 +1,22 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
-import { writeLedger } from "~/lib/agents/ledger";
+import { Config, Effect, Option } from "effect";
 import { runSuggestionPipeline } from "~/lib/agents/pipeline";
-import { getBusinessContext } from "~/lib/business-context";
-import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import {
+  type Attribution,
+  recordFailure,
+  recordSuccess,
+} from "~/server/effect/ai-ledger";
+import { BadRequest, UpstreamError } from "~/server/effect/errors";
+import {
+  clientIp,
+  currentSession,
+  orElseAll,
+  rateLimit,
+  readJsonObject,
+  recoverUnexpected,
+  requireBusinessContext,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { Db } from "~/server/effect/services/db";
 
 const REVIEW_RATE_LIMIT = 10;
 const IP_RATE_LIMIT = 30;
@@ -43,10 +55,14 @@ function reserveDailyBudget() {
   reservedSinceFetch += ESTIMATED_TOKENS_PER_CALL;
 }
 
-async function isDailyBudgetExhausted(): Promise<boolean> {
-  const budget = Number(
-    process.env.AI_SUGGEST_DAILY_TOKEN_BUDGET ?? DEFAULT_DAILY_TOKEN_BUDGET,
-  );
+/** Unset uses the default; a non-number or non-positive value disables it. */
+const dailyBudget = Config.String("AI_SUGGEST_DAILY_TOKEN_BUDGET").pipe(
+  Effect.map(Number),
+  Effect.orElseSucceed(() => DEFAULT_DAILY_TOKEN_BUDGET),
+);
+
+const isDailyBudgetExhausted = Effect.gen(function* () {
+  const budget = yield* dailyBudget;
   if (!Number.isFinite(budget) || budget <= 0) return false;
 
   const now = new Date();
@@ -56,25 +72,28 @@ async function isDailyBudgetExhausted(): Promise<boolean> {
     budgetCache.day !== day ||
     now.getTime() - budgetCache.fetchedAt > BUDGET_CACHE_MS
   ) {
-    const totals = await prisma.aiUsage.aggregate({
-      where: {
-        endpoint: "suggest-review",
-        createdAt: { gte: new Date(`${day}T00:00:00.000Z`) },
-      },
-      _sum: { promptTokens: true, completionTokens: true },
-    });
+    const db = yield* Db;
+    const totals = yield* db.use((p) =>
+      p.aiUsage.aggregate({
+        where: {
+          endpoint: "suggest-review",
+          createdAt: { gte: new Date(`${day}T00:00:00.000Z`) },
+        },
+        _sum: { promptTokens: true, completionTokens: true },
+      }),
+    );
     budgetCache = {
       day,
       tokens:
         (totals._sum.promptTokens ?? 0) + (totals._sum.completionTokens ?? 0),
       fetchedAt: now.getTime(),
     };
-    // The aggregate now accounts for everything that finished, so the running
-    // reservation starts again from there.
+    // The aggregate now accounts for everything that finished, so the
+    // running reservation starts again from there.
     reservedSinceFetch = 0;
   }
   return budgetCache.tokens + reservedSinceFetch >= budget;
-}
+});
 
 /**
  * Truncates rather than rejects: review drafts can legitimately run longer
@@ -84,189 +103,145 @@ function capped(value: unknown, max: number): string | undefined {
   return typeof value === "string" ? value.slice(0, max) : undefined;
 }
 
-interface Attribution {
-  userId: string | null;
-  businessId: string | null;
-}
-
 /**
  * Who a suggestion's spend belongs to, for the ai_usage ledger.
  *
  * On the public review page the business is the one the shared review row was
  * created for, read from the database rather than taken from the request body,
  * which anyone can fill in. In the app, the caller is signed in and the
- * business is the one they act in. Never throws: attribution is bookkeeping and
+ * business is the one they act in. Never fails: attribution is bookkeeping and
  * must not fail a suggestion.
  */
-async function resolveAttribution(
-  headers: Headers,
-  reviewId: string | undefined,
-): Promise<Attribution> {
-  try {
-    const [review, session] = await Promise.all([
-      reviewId
-        ? prisma.sharedReview.findUnique({
-            where: { id: reviewId },
-            select: { businessId: true },
-          })
-        : null,
-      getSessionFromHeaders(headers).catch(() => null),
-    ]);
-    const userId = session?.user.id ?? null;
+const resolveAttribution = (reviewId: string | undefined) =>
+  Effect.gen(function* () {
+    const db = yield* Db;
+    const [review, session] = yield* Effect.all(
+      [
+        reviewId
+          ? db.use((p) =>
+              p.sharedReview.findUnique({
+                where: { id: reviewId },
+                select: { businessId: true },
+              }),
+            )
+          : Effect.succeed(null),
+        currentSession,
+      ],
+      { concurrency: "unbounded" },
+    );
+    const userId = Option.match(session, {
+      onNone: () => null,
+      onSome: (s) => s.user.id,
+    });
     if (review?.businessId) return { userId, businessId: review.businessId };
     if (!userId) return { userId: null, businessId: null };
-    const ctx = await getBusinessContext(userId);
-    return { userId, businessId: ctx?.businessId ?? null };
-  } catch (err) {
-    console.error("[ai/suggest-review] attribution failed:", err);
-    return { userId: null, businessId: null };
-  }
-}
+    const ctx = yield* requireBusinessContext(userId).pipe(
+      Effect.map(Option.some),
+      Effect.catchTag("NotFound", () => Effect.succeedNone),
+    );
+    return {
+      userId,
+      businessId: Option.match(ctx, {
+        onNone: () => null,
+        onSome: (c) => c.businessId,
+      }),
+    };
+  }).pipe(
+    Effect.tapCause((cause) =>
+      Effect.sync(() =>
+        console.error("[ai/suggest-review] attribution failed:", cause),
+      ),
+    ),
+    orElseAll((): Attribution => ({ userId: null, businessId: null })),
+  );
 
-function getApiKey(): string {
-  const key = process.env.DEEPSEEK_API_KEY;
-  if (!key) {
-    throw new Error("DEEPSEEK_API_KEY is not set in environment variables");
-  }
-  return key;
-}
+// Returning err.message leaked internals to this public endpoint -- a missing
+// DEEPSEEK_API_KEY once surfaced the env var name verbatim.
+const failed = new UpstreamError({
+  status: 500,
+  message: "Could not generate suggestions. Please try again.",
+});
 
-export async function POST(event: APIEvent) {
-  try {
-    const body = await event.request.json();
-
-    const { reviewId, draftText, starRating, keywords, businessName } = body;
+export const POST = handler(
+  "ai.suggest-review",
+  Effect.gen(function* () {
+    const { reviewId, draftText, starRating, keywords, businessName } =
+      yield* readJsonObject(() => failed);
 
     if (reviewId !== undefined && typeof reviewId !== "string") {
-      return Response.json(
-        { error: "reviewId must be a string" },
-        { status: 400 },
-      );
+      return yield* new BadRequest({ message: "reviewId must be a string" });
     }
-
     if (draftText !== undefined && typeof draftText !== "string") {
-      return Response.json(
-        { error: "draftText must be a string" },
-        { status: 400 },
-      );
+      return yield* new BadRequest({ message: "draftText must be a string" });
     }
-
-    if (starRating === undefined || typeof starRating !== "number") {
-      return Response.json(
-        { error: "Missing required field: starRating (number)" },
-        { status: 400 },
-      );
+    if (typeof starRating !== "number") {
+      return yield* new BadRequest({
+        message: "Missing required field: starRating (number)",
+      });
     }
-
     if (starRating < 1 || starRating > 5) {
-      return Response.json(
-        { error: "starRating must be between 1 and 5" },
-        { status: 400 },
-      );
+      return yield* new BadRequest({
+        message: "starRating must be between 1 and 5",
+      });
     }
 
-    const ip = getClientIp(event.request);
+    const ip = yield* clientIp;
 
     if (reviewId) {
-      const reviewLimit = checkRateLimit(
+      yield* rateLimit(
         `review:${reviewId}`,
         REVIEW_RATE_LIMIT,
         RATE_WINDOW_MS,
-      );
-
-      if (!reviewLimit.allowed) {
-        return Response.json(
-          {
-            error:
-              "Rate limit exceeded for this review. Please try again later.",
-          },
-          { status: 429 },
-        );
-      }
-    }
-
-    const ipLimit = checkRateLimit(`ip:${ip}`, IP_RATE_LIMIT, RATE_WINDOW_MS);
-
-    if (!ipLimit.allowed) {
-      return Response.json(
-        { error: "Rate limit exceeded. Please try again later." },
-        { status: 429 },
+        {
+          message:
+            "Rate limit exceeded for this review. Please try again later.",
+        },
       );
     }
+    yield* rateLimit(`ip:${ip}`, IP_RATE_LIMIT, RATE_WINDOW_MS, {
+      message: "Rate limit exceeded. Please try again later.",
+    });
 
-    if (await isDailyBudgetExhausted()) {
-      return Response.json(
-        { error: "Suggestions are unavailable right now. Please try later." },
-        { status: 503 },
-      );
+    if (yield* isDailyBudgetExhausted) {
+      return yield* new UpstreamError({
+        status: 503,
+        message: "Suggestions are unavailable right now. Please try later.",
+      });
     }
-
     reserveDailyBudget();
 
-    const apiKey = getApiKey();
     const start = Date.now();
 
     // Resolved alongside the pipeline, so attribution adds no response time.
-    const attribution = resolveAttribution(event.request.headers, reviewId);
+    const attribution = yield* Effect.forkDetach(resolveAttribution(reviewId));
+    const ledger = {
+      endpoint: "suggest-review" as const,
+      attribution,
+      ip,
+      reviewId: reviewId ?? null,
+    };
 
-    let result: Awaited<ReturnType<typeof runSuggestionPipeline>>;
-    try {
-      result = await runSuggestionPipeline({
-        draftText: capped(draftText, MAX_DRAFT_LENGTH) ?? "",
-        starRating,
-        keywords: capped(keywords, MAX_KEYWORDS_LENGTH),
-        businessName: capped(businessName, MAX_BUSINESS_NAME_LENGTH),
-        apiKey,
-      });
-    } catch (err) {
-      const latencyMs = Date.now() - start;
-      void attribution.then(({ userId, businessId }) =>
-        writeLedger({
-          endpoint: "suggest-review",
-          stage: "pipeline",
-          usage: { promptTokens: 0, completionTokens: 0, model: "unknown" },
-          latencyMs,
-          ok: false,
-          errorKind: err instanceof Error ? err.constructor.name : "unknown",
-          userId,
-          businessId,
-          reviewId: reviewId ?? null,
-          ip,
-        }),
-      );
-      throw err;
-    }
+    const result = yield* runSuggestionPipeline({
+      draftText: capped(draftText, MAX_DRAFT_LENGTH) ?? "",
+      starRating,
+      keywords: capped(keywords, MAX_KEYWORDS_LENGTH),
+      businessName: capped(businessName, MAX_BUSINESS_NAME_LENGTH),
+    }).pipe(
+      Effect.tapCause((cause) =>
+        recordFailure({ ...ledger, latencyMs: Date.now() - start, cause }),
+      ),
+    );
 
-    // Write ledger rows off the critical path (fire-and-forget)
-    const latencyMs = Date.now() - start;
-    const usage = result.usage;
-    void attribution.then(({ userId, businessId }) => {
-      for (const u of usage) {
-        void writeLedger({
-          endpoint: "suggest-review",
-          stage: u.model === "none" ? "sentiment" : "suggest",
-          usage: u,
-          latencyMs: Math.round(latencyMs / usage.length),
-          ok: true,
-          userId,
-          businessId,
-          reviewId: reviewId ?? null,
-          ip,
-        });
-      }
+    yield* recordSuccess({
+      ...ledger,
+      latencyMs: Date.now() - start,
+      usage: result.usage,
+      stageFor: (u) => (u.model === "none" ? "sentiment" : "suggest"),
     });
 
-    return Response.json({
+    return {
       sentiment: result.sentiment,
       suggestedReviews: result.suggestedReviews,
-    });
-  } catch (err) {
-    // Returning err.message leaked internals to this public endpoint -- a
-    // missing DEEPSEEK_API_KEY surfaced the env var name verbatim.
-    console.error("[ai/suggest-review] pipeline failed:", err);
-    return Response.json(
-      { error: "Could not generate suggestions. Please try again." },
-      { status: 500 },
-    );
-  }
-}
+    };
+  }).pipe(recoverUnexpected(failed, "[ai/suggest-review] pipeline failed:")),
+);

@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "@/db/prisma";
-import { checkRateLimit, getClientIp } from "~/lib/rate-limit";
+import { Cause, Effect } from "effect";
+import type { DbError } from "~/server/effect/errors";
+import { clientIp, orElseAll } from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
+import { Db } from "~/server/effect/services/db";
+import { RateLimiter } from "~/server/effect/services/rate-limiter";
 
 /**
  * QR redirect: the address printed on counter stands, table tents and the QR
@@ -45,20 +49,25 @@ type Target =
  * request that exists but is hidden or flagged is inactive, and the business is
  * named so the customer knows who to ask.
  */
-async function resolveTarget(id: string): Promise<Target> {
+const resolveTarget = Effect.fn("qr.resolveTarget")(function* (
+  id: string,
+): Effect.fn.Return<Target, DbError, Db> {
   if (!ID_PATTERN.test(id)) return { kind: "inactive", businessName: null };
 
-  const review = await prisma.sharedReview.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      status: true,
-      business: { select: { name: true, status: true } },
-      user: {
-        select: { business: { select: { name: true, status: true } } },
+  const db = yield* Db;
+  const review = yield* db.use((p) =>
+    p.sharedReview.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        business: { select: { name: true, status: true } },
+        user: {
+          select: { business: { select: { name: true, status: true } } },
+        },
       },
-    },
-  });
+    }),
+  );
 
   if (review) {
     const business = review.business ?? review.user.business ?? null;
@@ -75,10 +84,12 @@ async function resolveTarget(id: string): Promise<Target> {
 
   // A business's own code, printed once and never reissued. Businesses that
   // have not claimed a username yet are reachable by id.
-  const business = await prisma.business.findFirst({
-    where: { OR: [{ username: id }, { id }] },
-    select: { id: true, name: true, username: true, status: true },
-  });
+  const business = yield* db.use((p) =>
+    p.business.findFirst({
+      where: { OR: [{ username: id }, { id }] },
+      select: { id: true, name: true, username: true, status: true },
+    }),
+  );
 
   if (!business) return { kind: "inactive", businessName: null };
   // A suspended business's standing code stays printed; it just goes quiet.
@@ -91,23 +102,28 @@ async function resolveTarget(id: string): Promise<Target> {
     id: business.id,
     destination: `/company/${encodeURIComponent(business.username || business.id)}/review`,
   };
-}
+});
 
 /**
  * One statement, so two people scanning the same stand at once cannot overwrite
  * each other's increment the way a read-modify-write would.
  */
-async function countScan(target: Target): Promise<void> {
-  if (target.kind === "business") {
-    await prisma.business.update({
-      where: { id: target.id },
-      data: { qrScanCount: { increment: 1 } },
-    });
-    return;
-  }
-  if (target.kind !== "review") return;
-
-  await prisma.$executeRaw`
+const countScan = (target: Target): Effect.Effect<void, DbError, Db> =>
+  Db.use((db) => {
+    if (target.kind === "business") {
+      return db
+        .use((p) =>
+          p.business.update({
+            where: { id: target.id },
+            data: { qrScanCount: { increment: 1 } },
+          }),
+        )
+        .pipe(Effect.asVoid);
+    }
+    if (target.kind !== "review") return Effect.void;
+    return db
+      .use(
+        (p) => p.$executeRaw`
     INSERT INTO review_analytics
       (id, "reviewId", "visitCount", "reviewCount", "qrScanCount", "redirectCount", "aiCopyCount", "platformRedirects", "createdAt", "updatedAt")
     VALUES
@@ -115,8 +131,10 @@ async function countScan(target: Target): Promise<void> {
     ON CONFLICT ("reviewId") DO UPDATE SET
       "qrScanCount" = review_analytics."qrScanCount" + 1,
       "updatedAt" = now()
-  `;
-}
+  `,
+      )
+      .pipe(Effect.asVoid);
+  });
 
 function escapeHtml(value: string): string {
   return value
@@ -239,25 +257,30 @@ function errorPage(reference: string): Response {
   });
 }
 
-async function handleScan(event: APIEvent, count: boolean): Promise<Response> {
-  try {
-    const target = await resolveTarget(String(event.params.id ?? ""));
+const scan = (count: boolean) =>
+  Effect.gen(function* () {
+    const { params, request } = yield* RequestContext;
+    const target = yield* resolveTarget(String(params.id ?? ""));
     if (target.kind === "inactive") return inactivePage(target.businessName);
 
-    const userAgent = event.request.headers.get("user-agent") ?? "";
+    const userAgent = request.headers.get("user-agent") ?? "";
     if (count && !PREVIEW_FETCHER.test(userAgent)) {
-      const limit = checkRateLimit(
-        `qr:${target.id}:${getClientIp(event.request)}`,
+      const limiter = yield* RateLimiter;
+      const limit = yield* limiter.check(
+        `qr:${target.id}:${yield* clientIp}`,
         SCAN_LIMIT,
         SCAN_WINDOW_MS,
       );
       if (limit.allowed) {
         // A counter that fails is worth less than a customer who gets through.
-        try {
-          await countScan(target);
-        } catch (error) {
-          console.error("[qr/redirect] count failed:", error);
-        }
+        yield* countScan(target).pipe(
+          Effect.tapCause((cause) =>
+            Effect.sync(() =>
+              console.error("[qr/redirect] count failed:", cause),
+            ),
+          ),
+          orElseAll(() => undefined),
+        );
       }
     }
 
@@ -272,18 +295,21 @@ async function handleScan(event: APIEvent, count: boolean): Promise<Response> {
         "X-Robots-Tag": "noindex",
       },
     });
-  } catch (error) {
-    const reference = randomUUID();
-    console.error(`[qr/redirect] ${reference}:`, error);
-    return errorPage(reference);
-  }
-}
+  }).pipe(
+    // Anything unexpected still gets the customer a page, with a reference
+    // that matches the log line.
+    Effect.catchCause((cause) =>
+      Cause.hasInterruptsOnly(cause)
+        ? Effect.failCause(cause as Cause.Cause<never>)
+        : Effect.sync(() => {
+            const reference = randomUUID();
+            console.error(`[qr/redirect] ${reference}:`, Cause.pretty(cause));
+            return errorPage(reference);
+          }),
+    ),
+  );
 
-export async function GET(event: APIEvent) {
-  return handleScan(event, true);
-}
+export const GET = handler("qr.scan", scan(true));
 
 /** Preflight fetches (link previews, uptime checks) get the destination, not a scan. */
-export async function HEAD(event: APIEvent) {
-  return handleScan(event, false);
-}
+export const HEAD = handler("qr.preview", scan(false));

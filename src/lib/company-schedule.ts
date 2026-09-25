@@ -1,4 +1,6 @@
-import { prisma } from "~/db/prisma";
+import { Effect } from "effect";
+import type { DbError } from "~/server/effect/errors";
+import { Db } from "~/server/effect/services/db";
 
 /**
  * Public booking-schedule reads.
@@ -44,13 +46,15 @@ export interface CompanySchedule {
 }
 
 /** Looks a business up by its vanity username, falling back to its id. */
-export async function getCompanySchedule(
+export const getCompanySchedule = Effect.fn("getCompanySchedule")(function* (
   identifier: string,
   startDate: Date,
   endDate: Date,
-): Promise<CompanySchedule | null> {
+): Effect.fn.Return<CompanySchedule | null, DbError, Db> {
   const key = identifier.trim();
   if (!key) return null;
+
+  const db = yield* Db;
 
   const select = {
     id: true,
@@ -70,66 +74,79 @@ export async function getCompanySchedule(
 
   // A suspended business takes no bookings: it reads as not found.
   const business =
-    (await prisma.business.findUnique({
-      where: { username: key, status: "active" },
-      select,
-    })) ||
-    (await prisma.business.findUnique({
-      where: { id: key, status: "active" },
-      select,
-    }));
+    (yield* db.use((p) =>
+      p.business.findUnique({
+        where: { username: key, status: "active" },
+        select,
+      }),
+    )) ||
+    (yield* db.use((p) =>
+      p.business.findUnique({
+        where: { id: key, status: "active" },
+        select,
+      }),
+    ));
 
   if (!business) return null;
 
-  const [slots, meetings, teamMeetings] = await Promise.all([
-    prisma.availabilitySlot.findMany({
-      where: {
-        businessId: business.id,
-        date: { gte: startDate, lte: endDate },
-      },
-      orderBy: [{ date: "asc" }, { startTime: "asc" }],
-      select: {
-        id: true,
-        date: true,
-        startTime: true,
-        endTime: true,
-        isBooked: true,
-        title: true,
-        meetingRequest: {
+  const [slots, meetings, teamMeetings] = yield* Effect.all(
+    [
+      db.use((p) =>
+        p.availabilitySlot.findMany({
+          where: {
+            businessId: business.id,
+            date: { gte: startDate, lte: endDate },
+          },
+          orderBy: [{ date: "asc" }, { startTime: "asc" }],
           select: {
             id: true,
-            status: true,
+            date: true,
+            startTime: true,
+            endTime: true,
+            isBooked: true,
+            title: true,
+            meetingRequest: {
+              select: {
+                id: true,
+                status: true,
+              },
+            },
           },
-        },
-      },
-    }),
-    prisma.meetingRequest.findMany({
-      where: {
-        businessId: business.id,
-        status: "accepted",
-        slot: {
-          date: { gte: startDate, lte: endDate },
-        },
-      },
-      select: {
-        id: true,
-        slotId: true,
-      },
-    }),
-    prisma.teamMeeting.findMany({
-      where: {
-        businessId: business.id,
-        date: { gte: startDate, lte: endDate },
-      },
-      orderBy: [{ date: "asc" }, { startTime: "asc" }],
-      select: {
-        id: true,
-        date: true,
-        startTime: true,
-        endTime: true,
-      },
-    }),
-  ]);
+        }),
+      ),
+      db.use((p) =>
+        p.meetingRequest.findMany({
+          where: {
+            businessId: business.id,
+            status: "accepted",
+            slot: {
+              date: { gte: startDate, lte: endDate },
+            },
+          },
+          select: {
+            id: true,
+            slotId: true,
+          },
+        }),
+      ),
+      db.use((p) =>
+        p.teamMeeting.findMany({
+          where: {
+            businessId: business.id,
+            date: { gte: startDate, lte: endDate },
+          },
+          orderBy: [{ date: "asc" }, { startTime: "asc" }],
+          select: {
+            id: true,
+            date: true,
+            startTime: true,
+            endTime: true,
+          },
+        }),
+      ),
+    ],
+    { concurrency: "unbounded" },
+  );
 
   const slotIdsWithMeeting = new Set(meetings.map((m) => m.slotId));
 
@@ -171,4 +188,4 @@ export async function getCompanySchedule(
   const { id: _id, ...publicBusiness } = business;
 
   return { business: publicBusiness, events };
-}
+});

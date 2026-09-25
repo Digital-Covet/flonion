@@ -1,4 +1,20 @@
+import {
+  Cause,
+  Config,
+  Duration,
+  Effect,
+  Exit,
+  Redacted,
+  Schema,
+} from "effect";
 import { SendMailClient } from "zeptomail";
+
+/*
+ * Server-only. `sendMail` is the implementation; the `Mailer` service
+ * (`src/server/effect/services/mailer.ts`) exposes it to route programs and
+ * `sendEmail` to Promise code, better-auth's hooks included. It deliberately
+ * needs no services, so better-auth can use it without the app runtime.
+ */
 
 /**
  * ZeptoMail's SDK is untyped and answers both success and rejection with plain
@@ -15,7 +31,7 @@ interface ZeptoMailError {
   response?: { status?: unknown; data?: unknown };
 }
 
-interface SendEmailOptions {
+export interface SendEmailOptions {
   to: string;
   toName?: string;
   subject: string;
@@ -25,22 +41,71 @@ interface SendEmailOptions {
   attachments?: Array<{ name: string; content: string; mime_type: string }>;
 }
 
-function createClient(): SendMailClient {
-  const url = process.env.ZEPTOMAIL_URL;
-  const token = process.env.ZEPTOMAIL_TOKEN;
+export class MailError extends Schema.TaggedError<MailError>()("MailError", {
+  message: Schema.String,
+}) {}
 
-  if (!url || !token) {
-    throw new Error(
-      "[ZeptoMail] Configuration missing: ZEPTOMAIL_URL or ZEPTOMAIL_TOKEN",
-    );
-  }
+/**
+ * Stop waiting after this. The SDK can't cancel, so a very late send may
+ * still go out; every caller already treats mail as best-effort.
+ */
+const SEND_TIMEOUT = Duration.seconds(15);
 
+const MailConfig = Config.all({
+  url: Config.String("ZEPTOMAIL_URL"),
+  token: Config.Redacted("ZEPTOMAIL_TOKEN"),
+  sender: Config.String("ZEPTOMAIL_SENDER_ADDRESS"),
+});
+
+/** One client per process, rebuilt only if the configuration changes. */
+let cached: { key: string; client: SendMailClient } | undefined;
+
+function clientFor(url: string, token: string): SendMailClient {
   const cleanToken = token.replace(/^(Zoho-enczapikey\s+)/i, "");
-  const authToken = `Zoho-enczapikey ${cleanToken}`;
-  return new SendMailClient({ url, token: authToken });
+  const key = `${url}\n${cleanToken}`;
+  if (cached?.key !== key) {
+    cached = {
+      key,
+      client: new SendMailClient({
+        url,
+        token: `Zoho-enczapikey ${cleanToken}`,
+      }),
+    };
+  }
+  return cached.client;
 }
 
-export async function sendEmail({
+/** Pulls a readable message out of whatever the SDK threw. */
+function describe(error: unknown): string {
+  const err = (error ?? {}) as ZeptoMailError;
+  let message = "Failed to send email via ZeptoMail.";
+
+  if (error instanceof Error && error.message) message = error.message;
+  else if (err.error) {
+    message =
+      typeof err.error === "string" ? err.error : JSON.stringify(err.error);
+  } else if (typeof err.message === "string" && err.message) {
+    message = err.message;
+  } else if (error && typeof error === "object") {
+    message = `ZeptoMail Error: ${JSON.stringify(error)}`;
+  }
+
+  if (err.response) {
+    const { status, data } = err.response;
+    console.error("🚨 [ZeptoMail] Response Status:", status);
+    if (data) {
+      const apiMsg =
+        typeof data === "string"
+          ? data
+          : (data as { message?: string }).message || JSON.stringify(data);
+      message += ` (Status ${status}): ${apiMsg}`;
+    }
+  }
+  return message;
+}
+
+/** Sends one email. A single attempt: a retry could deliver it twice. */
+export const sendMail = Effect.fn("Mailer.send")(function* ({
   to,
   toName,
   subject,
@@ -48,108 +113,81 @@ export async function sendEmail({
   html,
   fromName = "Flonion",
   attachments,
-}: SendEmailOptions): Promise<void> {
-  const senderAddress = process.env.ZEPTOMAIL_SENDER_ADDRESS;
-  if (!senderAddress)
-    throw new Error("[ZeptoMail] ZEPTOMAIL_SENDER_ADDRESS is not set.");
+}: SendEmailOptions) {
+  const config = yield* MailConfig.pipe(
+    Effect.mapError(
+      () =>
+        new MailError({
+          message:
+            "[ZeptoMail] Configuration missing: ZEPTOMAIL_URL, ZEPTOMAIL_TOKEN or ZEPTOMAIL_SENDER_ADDRESS",
+        }),
+    ),
+  );
+  const client = clientFor(config.url, Redacted.value(config.token));
 
-  const client = createClient();
-
-  try {
-    const response = (await client.sendMail({
-      from: { address: senderAddress, name: fromName },
-      to: [
-        {
-          email_address: {
-            address: to,
-            name: toName ?? to.split("@")[0],
+  const response = yield* Effect.tryPromise({
+    try: () =>
+      client.sendMail({
+        from: { address: config.sender, name: fromName },
+        to: [
+          {
+            email_address: {
+              address: to,
+              name: toName ?? to.split("@")[0],
+            },
           },
-        },
-      ],
-      subject,
-      textbody: text,
-      htmlbody: html ?? text,
-      ...(attachments && attachments.length > 0
-        ? {
-            attachment: attachments.map((a) => ({
-              name: a.name,
-              content: a.content,
-              mime_type: a.mime_type,
-            })),
-          }
-        : {}),
-    })) as ZeptoMailResponse;
-
-    if (response?.data && response.data.length > 0) {
-      console.log(
-        `✅ [ZeptoMail] Sent to <${to}>. ID: ${response.data[0].email_id}`,
-      );
-    } else {
+        ],
+        subject,
+        textbody: text,
+        htmlbody: html ?? text,
+        ...(attachments && attachments.length > 0
+          ? {
+              attachment: attachments.map((a) => ({
+                name: a.name,
+                content: a.content,
+                mime_type: a.mime_type,
+              })),
+            }
+          : {}),
+      }) as Promise<ZeptoMailResponse>,
+    catch: (error) => {
       console.error(
-        "❌ [ZeptoMail] Rejected Payload:",
-        JSON.stringify(response, null, 2),
+        "🚨 [ZeptoMail] Raw Error Object:",
+        JSON.stringify(error, null, 2),
       );
-      throw new Error(
-        response.message ||
-          JSON.stringify(response) ||
-          "ZeptoMail rejected the email request.",
-      );
-    }
-  } catch (error) {
-    const err = (error ?? {}) as ZeptoMailError;
-    // ---------------------------------------------------------
-    // 1. LOG THE ENTIRE ERROR OBJECT
-    // ---------------------------------------------------------
-    // This helps us see what properties the error actually has
+      return new MailError({ message: describe(error) });
+    },
+  }).pipe(
+    Effect.timeoutOrElse({
+      duration: SEND_TIMEOUT,
+      orElse: () =>
+        Effect.fail(new MailError({ message: "[ZeptoMail] Timed out" })),
+    }),
+  );
+
+  if (!response?.data || response.data.length === 0) {
     console.error(
-      "🚨 [ZeptoMail] Raw Error Object:",
-      JSON.stringify(error, null, 2),
+      "❌ [ZeptoMail] Rejected Payload:",
+      JSON.stringify(response, null, 2),
     );
-
-    let finalMessage = "Failed to send email via ZeptoMail.";
-
-    // ---------------------------------------------------------
-    // 2. EXTRACT MESSAGE DEFENSIVELY
-    // ---------------------------------------------------------
-
-    // Case A: Standard Error object
-    if (error instanceof Error && error.message) {
-      finalMessage = error.message;
-    }
-    // Case B: SDK/Library throws a plain object with 'error' property
-    else if (err.error) {
-      finalMessage =
-        typeof err.error === "string" ? err.error : JSON.stringify(err.error);
-    }
-    // Case C: SDK/Library throws a plain object with 'message' property (but not instanceof Error)
-    else if (typeof err.message === "string" && err.message) {
-      finalMessage = err.message;
-    }
-    // Case D: Fallback to stringifying the whole object if it looks useful
-    else if (error && typeof error === "object") {
-      finalMessage = `ZeptoMail Error: ${JSON.stringify(error)}`;
-    }
-
-    // ---------------------------------------------------------
-    // 3. CHECK FOR HTTP RESPONSE DETAILS (Axios/Request style)
-    // ---------------------------------------------------------
-    if (err.response) {
-      const status = err.response.status;
-      const data = err.response.data;
-      console.error("🚨 [ZeptoMail] Response Status:", status);
-
-      if (data) {
-        const apiMsg =
-          typeof data === "string"
-            ? data
-            : (data as { message?: string }).message || JSON.stringify(data);
-        finalMessage += ` (Status ${status}): ${apiMsg}`;
-      }
-    }
-
-    // ---------------------------------------------------------
-    // 4. THROW STANDARDIZED ERROR
-    // ---------------------------------------------------------
-    throw new Error(finalMessage);
+    return yield* new MailError({
+      message:
+        response?.message ||
+        JSON.stringify(response) ||
+        "ZeptoMail rejected the email request.",
+    });
   }
+
+  console.log(
+    `✅ [ZeptoMail] Sent to <${to}>. ID: ${response.data[0].email_id}`,
+  );
+});
+
+/**
+ * Promise form for code not on Effect. Rejects with the `MailError` itself,
+ * an `Error` whose message says what went wrong, as before.
+ */
+export async function sendEmail(options: SendEmailOptions): Promise<void> {
+  const exit = await Effect.runPromiseExit(sendMail(options));
+  if (Exit.isFailure(exit)) throw Cause.squash(exit.cause);
 }

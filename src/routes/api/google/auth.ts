@@ -1,51 +1,46 @@
-import type { APIEvent } from "@solidjs/start/server";
+import { Effect } from "effect";
 import { createOAuthState } from "~/lib/oauth-state";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { requiredEnv } from "~/server/effect/config";
+import { requireSession } from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
 
-function getEnv(key: string): string {
-  const value = process.env[key];
-  if (!value) throw new Error(`Missing environment variable: ${key}`);
-  return value;
-}
+const SCOPES = [
+  "https://www.googleapis.com/auth/business.manage",
+  "https://www.googleapis.com/auth/userinfo.email",
+  "https://www.googleapis.com/auth/userinfo.profile",
+  "https://www.googleapis.com/auth/meetings.space.created",
+];
 
-export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const GET = handler(
+  "google.auth",
+  Effect.gen(function* () {
+    yield* requireSession();
 
-  const clientId = getEnv("GOOGLE_CLIENT_ID");
-  const redirectUri = getEnv("GOOGLE_REDIRECT_URI");
+    const clientId = yield* requiredEnv("GOOGLE_CLIENT_ID");
+    const redirectUri = yield* requiredEnv("GOOGLE_REDIRECT_URI");
 
-  const url = new URL(event.request.url);
-  const { state, cookie } = createOAuthState(
-    url.searchParams.get("returnTo") ?? "",
-  );
+    const { url } = yield* RequestContext;
+    const { state, cookie } = createOAuthState(
+      url.searchParams.get("returnTo") ?? "",
+    );
 
-  const scopes = [
-    "https://www.googleapis.com/auth/business.manage",
-    "https://www.googleapis.com/auth/userinfo.email",
-    "https://www.googleapis.com/auth/userinfo.profile",
-    "https://www.googleapis.com/auth/meetings.space.created",
-  ];
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: SCOPES.join(" "),
+      access_type: "offline",
+      prompt: "consent",
+      state,
+    });
 
-  const params = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    response_type: "code",
-    scope: scopes.join(" "),
-    access_type: "offline",
-    prompt: "consent",
-    state,
-  });
-
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: authUrl,
-      "Set-Cookie": cookie,
-    },
-  });
-}
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
+        "Set-Cookie": cookie,
+      },
+    });
+  }),
+);

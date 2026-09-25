@@ -47,8 +47,8 @@ import {
   TONES,
   type Tone,
 } from "~/components/reviews/data";
-import type { SentimentAnalysis } from "~/lib/agents/sentiment-analyzer";
 import { cn } from "~/lib/cn";
+import type { SentimentAnalysis } from "~/types/ai";
 import type { GoogleReview } from "~/types/google";
 
 export const panelClass = "rounded-lg border border-border bg-surface";

@@ -1,154 +1,122 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
-import { canManageTeam, getBusinessContext } from "~/lib/business-context";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { Effect, Schema } from "effect";
+import { canManageTeam } from "~/lib/business-context";
+import { BadRequest, Forbidden, NotFound } from "~/server/effect/errors";
+import {
+  readJsonObject,
+  recoverUnexpected,
+  requireBusinessContext,
+  requireSession,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { RequestContext } from "~/server/effect/request-context";
+import { Db } from "~/server/effect/services/db";
+import {
+  assigneeInclude,
+  requireTeamAssignee,
+  TaskColumn,
+  TaskPriority,
+} from "~/server/task-rules";
+
+const taskId = RequestContext.use(({ params }) => Effect.succeed(params.id));
 
 /** Owner/admins may modify any task; members only tasks assigned to them. */
-async function getEditableTask(event: APIEvent, taskId: string) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return { error: Response.json({ error: "Unauthorized" }, { status: 401 }) };
-  }
+const requireEditableTask = Effect.fn("requireEditableTask")(function* (
+  id: string,
+) {
+  const session = yield* requireSession();
+  const ctx = yield* requireBusinessContext(session.user.id);
 
-  const ctx = await getBusinessContext(session.user.id);
-  if (!ctx) {
-    return {
-      error: Response.json({ error: "No business found" }, { status: 404 }),
-    };
-  }
-
-  const task = await prisma.task.findUnique({
-    where: { id: taskId },
-    select: { businessId: true, assigneeId: true },
-  });
-
+  const db = yield* Db;
+  const task = yield* db.use((p) =>
+    p.task.findUnique({
+      where: { id },
+      select: { businessId: true, assigneeId: true },
+    }),
+  );
   if (!task || task.businessId !== ctx.businessId) {
-    return {
-      error: Response.json({ error: "Task not found" }, { status: 404 }),
-    };
+    return yield* new NotFound({ message: "Task not found" });
   }
-
   if (!canManageTeam(ctx) && task.assigneeId !== ctx.userId) {
-    return {
-      error: Response.json(
-        {
-          error:
-            "Only the assignee, an admin, or the owner can modify this task",
-        },
-        { status: 403 },
-      ),
-    };
-  }
-
-  return { ctx };
-}
-
-export async function GET(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const taskId = event.params.id;
-
-  const task = await prisma.task.findUnique({
-    where: { id: taskId },
-    include: {
-      assignee: {
-        select: { id: true, name: true, email: true, image: true },
-      },
-    },
-  });
-
-  if (!task) {
-    return Response.json({ error: "Task not found" }, { status: 404 });
-  }
-
-  // getBusinessContext also resolves businesses for owners whose `businessId`
-  // column is stale/NULL -- see the note in lib/business-context.ts.
-  const ctx = await getBusinessContext(session.user.id);
-
-  if (!ctx || task.businessId !== ctx.businessId) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  return Response.json(task);
-}
-
-export async function PATCH(event: APIEvent) {
-  const taskId = event.params.id;
-
-  const guard = await getEditableTask(event, taskId);
-  if (guard.error) return guard.error;
-  const ctx = guard.ctx;
-
-  try {
-    const body = await event.request.json();
-    const { title, description, column, priority, dueDate, assigneeId } = body;
-
-    const data: Record<string, unknown> = {};
-
-    if (typeof title === "string" && title.trim()) {
-      data.title = title.trim();
-    }
-    if (description !== undefined) {
-      data.description = description?.trim() || null;
-    }
-    if (typeof column === "string") {
-      const validColumns = ["todo", "in_progress", "waiting", "done"];
-      if (validColumns.includes(column)) {
-        data.column = column;
-      }
-    }
-    if (typeof priority === "string") {
-      const validPriorities = ["low", "medium", "high"];
-      if (validPriorities.includes(priority)) {
-        data.priority = priority;
-      }
-    }
-    if (dueDate !== undefined) {
-      data.dueDate = dueDate ? new Date(dueDate) : null;
-    }
-    if (typeof assigneeId === "string") {
-      // Must be a member of this business -- see the note in tasks/index.ts.
-      const assignee = await prisma.user.findFirst({
-        where: { id: assigneeId, businessId: ctx.businessId },
-        select: { id: true },
-      });
-
-      if (!assignee) {
-        return Response.json(
-          { error: "Assignee is not a member of this team" },
-          { status: 400 },
-        );
-      }
-
-      data.assigneeId = assigneeId;
-    }
-
-    const task = await prisma.task.update({
-      where: { id: taskId },
-      data,
-      include: {
-        assignee: {
-          select: { id: true, name: true, email: true, image: true },
-        },
-      },
+    return yield* new Forbidden({
+      message: "Only the assignee, an admin, or the owner can modify this task",
     });
-
-    return Response.json(task);
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
-}
+  return ctx;
+});
 
-export async function DELETE(event: APIEvent) {
-  const taskId = event.params.id;
+export const GET = handler(
+  "tasks.get",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const id = yield* taskId;
 
-  const guard = await getEditableTask(event, taskId);
-  if (guard.error) return guard.error;
+    const db = yield* Db;
+    const task = yield* db.use((p) =>
+      p.task.findUnique({ where: { id }, include: assigneeInclude }),
+    );
+    if (!task) return yield* new NotFound({ message: "Task not found" });
 
-  await prisma.task.delete({ where: { id: taskId } });
+    // Also resolves businesses for owners whose `businessId` column is
+    // stale/NULL -- see the note in lib/business-context.ts.
+    const ctx = yield* requireBusinessContext(session.user.id).pipe(
+      Effect.catchTag("NotFound", () =>
+        Effect.fail(new Forbidden({ message: "Forbidden" })),
+      ),
+    );
+    if (task.businessId !== ctx.businessId) {
+      return yield* new Forbidden({ message: "Forbidden" });
+    }
+    return task;
+  }),
+);
 
-  return Response.json({ success: true });
-}
+export const PATCH = handler(
+  "tasks.update",
+  Effect.gen(function* () {
+    const id = yield* taskId;
+    const ctx = yield* requireEditableTask(id);
+
+    return yield* Effect.gen(function* () {
+      const { title, description, column, priority, dueDate, assigneeId } =
+        yield* readJsonObject(
+          () => new BadRequest({ message: "Invalid request body" }),
+        );
+
+      const data: Record<string, unknown> = {};
+      if (typeof title === "string" && title.trim()) {
+        data.title = title.trim();
+      }
+      if (description !== undefined) {
+        data.description = (description as string | null)?.trim() || null;
+      }
+      if (Schema.is(TaskColumn)(column)) data.column = column;
+      if (Schema.is(TaskPriority)(priority)) data.priority = priority;
+      if (dueDate !== undefined) {
+        data.dueDate = dueDate ? new Date(dueDate as string) : null;
+      }
+      if (typeof assigneeId === "string") {
+        yield* requireTeamAssignee(assigneeId, ctx.businessId);
+        data.assigneeId = assigneeId;
+      }
+
+      const db = yield* Db;
+      return yield* db.use((p) =>
+        p.task.update({ where: { id }, data, include: assigneeInclude }),
+      );
+    }).pipe(
+      recoverUnexpected(new BadRequest({ message: "Invalid request body" })),
+    );
+  }),
+);
+
+export const DELETE = handler(
+  "tasks.delete",
+  Effect.gen(function* () {
+    const id = yield* taskId;
+    yield* requireEditableTask(id);
+
+    const db = yield* Db;
+    yield* db.use((p) => p.task.delete({ where: { id } }));
+    return { success: true };
+  }),
+);

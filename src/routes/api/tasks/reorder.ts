@@ -1,117 +1,115 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { prisma } from "~/db/prisma";
-import { canManageTeam, getBusinessContext } from "~/lib/business-context";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { Effect, Schema } from "effect";
+import { canManageTeam } from "~/lib/business-context";
+import { BadRequest, Forbidden, NotFound } from "~/server/effect/errors";
+import {
+  readJsonObject,
+  recoverUnexpected,
+  requireBusinessContext,
+  requireSession,
+} from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { Db } from "~/server/effect/services/db";
+import { TaskColumn } from "~/server/task-rules";
 
-export async function PATCH(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const PATCH = handler(
+  "tasks.reorder",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    // Also resolves businesses for owners whose `businessId` column is
+    // stale/NULL -- see the note in lib/business-context.ts.
+    const ctx = yield* requireBusinessContext(session.user.id);
+    const businessId = ctx.businessId;
 
-  // getBusinessContext also resolves businesses for owners whose `businessId`
-  // column is stale/NULL -- see the note in lib/business-context.ts.
-  const ctx = await getBusinessContext(session.user.id);
-
-  if (!ctx) {
-    return Response.json({ error: "No business found" }, { status: 404 });
-  }
-
-  const businessId = ctx.businessId;
-
-  try {
-    const body = await event.request.json();
-    const { taskId, targetColumn, newPosition } = body;
-
-    if (
-      typeof taskId !== "string" ||
-      typeof targetColumn !== "string" ||
-      typeof newPosition !== "number"
-    ) {
-      return Response.json({ error: "Invalid parameters" }, { status: 400 });
-    }
-
-    const validColumns = ["todo", "in_progress", "waiting", "done"];
-    if (!validColumns.includes(targetColumn)) {
-      return Response.json({ error: "Invalid column" }, { status: 400 });
-    }
-
-    const existing = await prisma.task.findUnique({
-      where: { id: taskId },
-      select: {
-        businessId: true,
-        column: true,
-        position: true,
-        assigneeId: true,
-      },
-    });
-
-    if (!existing || existing.businessId !== businessId) {
-      return Response.json({ error: "Task not found" }, { status: 404 });
-    }
-
-    // A move is an edit: owner/admins may move any task, members only their own.
-    if (!canManageTeam(ctx) && existing.assigneeId !== ctx.userId) {
-      return Response.json(
-        {
-          error: "Only the assignee, an admin, or the owner can move this task",
-        },
-        { status: 403 },
+    return yield* Effect.gen(function* () {
+      const { taskId, targetColumn, newPosition } = yield* readJsonObject(
+        () => new BadRequest({ message: "Invalid request body" }),
       );
-    }
 
-    const oldColumn = existing.column;
-    const oldPosition = existing.position;
+      if (
+        typeof taskId !== "string" ||
+        typeof targetColumn !== "string" ||
+        typeof newPosition !== "number"
+      ) {
+        return yield* new BadRequest({ message: "Invalid parameters" });
+      }
+      if (!Schema.is(TaskColumn)(targetColumn)) {
+        return yield* new BadRequest({ message: "Invalid column" });
+      }
 
-    await prisma.$transaction(async (tx) => {
-      if (oldColumn === targetColumn) {
-        if (oldPosition < newPosition) {
-          await tx.task.updateMany({
-            where: {
-              businessId,
-              column: targetColumn,
-              position: { gt: oldPosition, lte: newPosition },
-            },
-            data: { position: { decrement: 1 } },
-          });
-        } else if (oldPosition > newPosition) {
-          await tx.task.updateMany({
-            where: {
-              businessId,
-              column: targetColumn,
-              position: { gte: newPosition, lt: oldPosition },
-            },
-            data: { position: { increment: 1 } },
-          });
-        }
-      } else {
-        await tx.task.updateMany({
-          where: {
-            businessId,
-            column: oldColumn,
-            position: { gt: oldPosition },
+      const db = yield* Db;
+      const existing = yield* db.use((p) =>
+        p.task.findUnique({
+          where: { id: taskId },
+          select: {
+            businessId: true,
+            column: true,
+            position: true,
+            assigneeId: true,
           },
-          data: { position: { decrement: 1 } },
-        });
+        }),
+      );
+      if (!existing || existing.businessId !== businessId) {
+        return yield* new NotFound({ message: "Task not found" });
+      }
 
-        await tx.task.updateMany({
-          where: {
-            businessId,
-            column: targetColumn,
-            position: { gte: newPosition },
-          },
-          data: { position: { increment: 1 } },
+      // A move is an edit: owner/admins may move any task, members only
+      // their own.
+      if (!canManageTeam(ctx) && existing.assigneeId !== ctx.userId) {
+        return yield* new Forbidden({
+          message:
+            "Only the assignee, an admin, or the owner can move this task",
         });
       }
 
-      await tx.task.update({
-        where: { id: taskId },
-        data: { column: targetColumn, position: newPosition },
-      });
-    });
+      const oldColumn = existing.column;
+      const oldPosition = existing.position;
 
-    return Response.json({ success: true });
-  } catch {
-    return Response.json({ error: "Invalid request body" }, { status: 400 });
-  }
-}
+      yield* db.transaction(
+        Effect.gen(function* () {
+          const tx = yield* Db;
+          const shift = (
+            column: string,
+            position: Record<string, number>,
+            by: "increment" | "decrement",
+          ) =>
+            tx.use((p) =>
+              p.task.updateMany({
+                where: { businessId, column, position },
+                data: { position: { [by]: 1 } },
+              }),
+            );
+
+          if (oldColumn === targetColumn) {
+            if (oldPosition < newPosition) {
+              yield* shift(
+                targetColumn,
+                { gt: oldPosition, lte: newPosition },
+                "decrement",
+              );
+            } else if (oldPosition > newPosition) {
+              yield* shift(
+                targetColumn,
+                { gte: newPosition, lt: oldPosition },
+                "increment",
+              );
+            }
+          } else {
+            yield* shift(oldColumn, { gt: oldPosition }, "decrement");
+            yield* shift(targetColumn, { gte: newPosition }, "increment");
+          }
+
+          yield* tx.use((p) =>
+            p.task.update({
+              where: { id: taskId },
+              data: { column: targetColumn, position: newPosition },
+            }),
+          );
+        }),
+      );
+
+      return { success: true };
+    }).pipe(
+      recoverUnexpected(new BadRequest({ message: "Invalid request body" })),
+    );
+  }),
+);

@@ -1,28 +1,34 @@
-import type { APIEvent } from "@solidjs/start/server";
-import { clearTokens } from "~/lib/google-tokens";
-import { getSessionFromHeaders } from "~/lib/server-auth";
+import { Effect } from "effect";
+import { UpstreamError } from "~/server/effect/errors";
+import { recoverAll, requireSession } from "~/server/effect/guards";
+import { handler } from "~/server/effect/http";
+import { Google } from "~/server/effect/services/google";
 
-export async function POST(event: APIEvent) {
-  const session = await getSessionFromHeaders(event.request.headers);
-  if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export const POST = handler(
+  "google.disconnect",
+  Effect.gen(function* () {
+    const session = yield* requireSession();
+    const google = yield* Google;
 
-  try {
-    await clearTokens(session.user.id);
-    return Response.json({
+    yield* google.clearTokens(session.user.id).pipe(
+      Effect.tapCause((cause) =>
+        Effect.sync(() =>
+          console.error("[google/disconnect] failed to clear tokens:", cause),
+        ),
+      ),
+      recoverAll(
+        new UpstreamError({
+          status: 500,
+          message: "Failed to disconnect Google account",
+        }),
+      ),
+    );
+
+    return {
       success: true,
       message: "Google account disconnected successfully",
-    });
-  } catch (err) {
-    console.error("[google/disconnect] failed to clear tokens:", err);
-    return Response.json(
-      { error: "Failed to disconnect Google account" },
-      { status: 500 },
-    );
-  }
-}
+    };
+  }),
+);
 
-export async function DELETE(event: APIEvent) {
-  return POST(event);
-}
+export const DELETE = POST;

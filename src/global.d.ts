@@ -17,7 +17,7 @@ declare namespace App {
    * What `src/middleware.ts` stashes on the request for server functions to
    * read. `@solidjs/start` declares this interface with an `any` index
    * signature, so these fields buy inference but no typo safety: read them
-   * only through `src/server/session.ts`.
+   * only through `currentSession` in `src/server/effect/guards.ts`.
    */
   interface RequestEventLocals {
     /** `undefined` means middleware never ran for this path; `null` means it ran and found no session. */
