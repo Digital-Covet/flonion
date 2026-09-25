@@ -161,14 +161,16 @@ function makeBilling() {
         .call("create plan", (cf) =>
           cf.SubsCreatePlan({
             plan_id: cfPlanId,
-            plan_name: `Flonion ${plan.name} (${billing})`,
+            // Cashfree allows only alphanumerics and a few special
+            // characters here; parentheses get a 400.
+            plan_name: `Flonion ${plan.name} ${billing === "yearly" ? "Yearly" : "Monthly"}`,
             plan_type: "PERIODIC",
             plan_currency: "INR",
             plan_recurring_amount: charge.total,
             plan_max_amount: charge.total,
             plan_interval_type: billing === "yearly" ? "YEAR" : "MONTH",
             plan_intervals: 1,
-            plan_note: "Includes 18% GST",
+            plan_note: "Includes 18 percent GST",
           }),
         )
         .pipe(
