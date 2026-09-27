@@ -74,6 +74,9 @@ importers:
       deepagents:
         specifier: ^1.12.1
         version: 1.13.4(9cb4a76883eb9b116a3cd7ed62d7db2b)
+      disposable-email-domains-js:
+        specifier: ^1.26.0
+        version: 1.26.0
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -2260,6 +2263,9 @@ packages:
 
   dijkstrajs@1.0.3:
     resolution: {integrity: sha512-qiSlmBq9+BCdCA/L46dw8Uy93mloxsPSbwnm5yrKn2vMPiy8KyAskTF6zuV/j5BMsmOGZDPs7KjU+mjb670kfA==}
+
+  disposable-email-domains-js@1.26.0:
+    resolution: {integrity: sha512-pSqALZAiuw6HDC1HqhhtvShRnniUNObQ6kzwa5N280XbyxxCPBZnQQ7fO6Uk/CNTi4cAaKE1UZl3Mc30Zfj4UA==}
 
   dotenv@17.4.2:
     resolution: {integrity: sha512-nI4U3TottKAcAD9LLud4Cb7b2QztQMUEfHbvhTH09bqXTxnSie8WnjPALV/WMCrJZ6UV/qHJ6L03OqO3LcdYZw==}
@@ -6256,6 +6262,8 @@ snapshots:
       dequal: 2.0.3
 
   dijkstrajs@1.0.3: {}
+
+  disposable-email-domains-js@1.26.0: {}
 
   dotenv@17.4.2: {}
 

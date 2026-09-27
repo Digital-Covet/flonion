@@ -21,6 +21,7 @@ import {
 } from "@/services/email-templates";
 
 import { COMPANY_NAME } from "./constants";
+import { validateAuthEmail } from "./email-validation";
 import { CLIENT_IP_HEADER } from "./rate-limit";
 import { PLATFORM_ADMIN_ROLE } from "./roles";
 import { getTrustedOrigins } from "./trusted-origins";
@@ -139,10 +140,12 @@ export const auth = betterAuth({
   plugins: [
     // Normalizes emails into User.normalizedEmail (unique) and rejects
     // malformed and disposable addresses on sign-up, sign-in, password reset,
-    // OTP and change-email routes. The normalizer is the plugin's default,
-    // passed explicitly so scripts/backfill-normalized-email.ts provably
-    // computes the same value.
-    emailHarmony({ normalizer: normalizeEmail }),
+    // OTP and change-email routes. The plugin's own disposable list misses the
+    // rotating domains temp-mail services keep adding, so validateAuthEmail
+    // adds a second list and an MX lookup (see email-validation.ts). The
+    // normalizer is the plugin's default, passed explicitly so
+    // scripts/backfill-normalized-email.ts provably computes the same value.
+    emailHarmony({ normalizer: normalizeEmail, validator: validateAuthEmail }),
 
     // Team roles ("admin", "member", ...) live in the same User.role column the
     // admin plugin reads. Left at its defaults, the plugin treats a team "admin"
