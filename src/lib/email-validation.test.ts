@@ -1,6 +1,6 @@
 import type { MxRecord } from "node:dns";
 import { describe, expect, it, vi } from "vitest";
-import { createEmailValidator } from "./email-validation";
+import { createEmailValidator, parseBlocklist } from "./email-validation";
 
 const mx = (...hosts: string[]): MxRecord[] =>
   hosts.map((exchange, priority) => ({ exchange, priority }));
@@ -8,13 +8,29 @@ const mx = (...hosts: string[]): MxRecord[] =>
 const dnsError = (code: string) =>
   Object.assign(new Error(`queryMx ${code}`), { code });
 
-function setup(answer: (domain: string) => Promise<MxRecord[]>) {
+function setup(
+  answer: (domain: string) => Promise<MxRecord[]>,
+  {
+    resolve4 = async () => ["203.0.113.10"],
+    fetchBlocklist,
+  }: {
+    resolve4?: (host: string) => Promise<string[]>;
+    fetchBlocklist?: () => Promise<Set<string>>;
+  } = {},
+) {
   let clock = 1_000_000;
   const resolveMx = vi.fn(answer);
-  const validate = createEmailValidator({ resolveMx, now: () => clock });
+  const fetchSpy = fetchBlocklist ? vi.fn(fetchBlocklist) : undefined;
+  const validate = createEmailValidator({
+    resolveMx,
+    resolve4,
+    fetchBlocklist: fetchSpy,
+    now: () => clock,
+  });
   return {
     validate,
     resolveMx,
+    fetchBlocklist: fetchSpy,
     advance: (ms: number) => {
       clock += ms;
     },
@@ -96,5 +112,77 @@ describe("createEmailValidator", () => {
     advance(5 * 60 * 1000 + 1);
     await validate("a@example-business.com");
     expect(resolveMx).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects an MX host on a known disposable mail server IP", async () => {
+    // temp-mail.org: every rotating domain gets its own mail.<domain> host.
+    const { validate } = setup(async () => mx("mail.ncleap.com"), {
+      resolve4: async () => ["134.199.178.234"],
+    });
+    expect(await validate("pixivan341@ncleap.com")).toBe(false);
+  });
+
+  it("ignores MX hosts whose address lookup fails", async () => {
+    const { validate } = setup(async () => mx("mx.example-business.com"), {
+      resolve4: async () => {
+        throw dnsError("ETIMEOUT");
+      },
+    });
+    expect(await validate("a@example-business.com")).toBe(true);
+  });
+});
+
+describe("live blocklist", () => {
+  const live = new Set(["fresh-temp.com"]);
+
+  it("rejects domains only the live list carries", async () => {
+    const { validate, resolveMx } = setup(async () => mx("mx.example.com"), {
+      fetchBlocklist: async () => live,
+    });
+    expect(await validate("a@fresh-temp.com")).toBe(false);
+    expect(await validate("a@sub.fresh-temp.com")).toBe(false);
+    expect(resolveMx).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the bundled list and retries when the fetch fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { validate, fetchBlocklist, advance } = setup(
+      async () => mx("mx.example.com"),
+      {
+        fetchBlocklist: async () => {
+          throw new Error("offline");
+        },
+      },
+    );
+    expect(await validate("a@10minemail.com")).toBe(false);
+    await validate("a@10minemail.com");
+    expect(fetchBlocklist).toHaveBeenCalledTimes(1);
+
+    advance(15 * 60 * 1000 + 1);
+    await validate("a@10minemail.com");
+    expect(fetchBlocklist).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+
+  it("refetches the list after it goes stale", async () => {
+    const { validate, fetchBlocklist, advance } = setup(
+      async () => mx("mx.example.com"),
+      { fetchBlocklist: async () => live },
+    );
+    await validate("a@example-business.com");
+    await validate("a@example-business.com");
+    expect(fetchBlocklist).toHaveBeenCalledTimes(1);
+
+    advance(12 * 60 * 60 * 1000 + 1);
+    await validate("a@example-business.com");
+    expect(fetchBlocklist).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("parseBlocklist", () => {
+  it("skips comments and blank lines and handles CRLF", () => {
+    expect(parseBlocklist("# header\r\nA.com\r\n\r\nb.com\n")).toEqual(
+      new Set(["a.com", "b.com"]),
+    );
   });
 });
