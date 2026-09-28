@@ -140,7 +140,7 @@ export function ProfilePanel(props: PanelProps) {
               inputmode="tel"
               autocomplete="tel"
               disabled={props.readOnly}
-              placeholder="+91 98765 43210"
+              placeholder="+91 00000 00000"
               value={props.form.phone}
               onInput={(e) => {
                 props.setForm("phone", e.currentTarget.value);
@@ -298,9 +298,9 @@ export function ReviewLinkPanel(
         data.available
           ? { kind: "available" }
           : {
-              kind: "unavailable",
-              message: data.error ?? "That name isn't available.",
-            },
+            kind: "unavailable",
+            message: data.error ?? "That name isn't available.",
+          },
       );
     } catch {
       if (mine === seq) setState({ kind: "error" });

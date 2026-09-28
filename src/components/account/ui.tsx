@@ -10,8 +10,8 @@ import { cn } from "~/lib/cn";
  * (spec §6: "Sections for email change, password, 2FA setup with QR and backup
  * codes"). It borrows the settings shell — left nav on md+, list-then-detail on
  * phones — so the two feel like one place, but each panel saves on its own:
- * these three actions hit three different endpoints and none of them is a draft
- * worth a shared save bar.
+ * these actions hit different endpoints and none of them is a draft worth a
+ * shared save bar.
  */
 export const ACCOUNT_SECTIONS = [
   {
@@ -28,6 +28,11 @@ export const ACCOUNT_SECTIONS = [
     id: "two-factor",
     label: "Two-step verification",
     summary: "Ask for a code as well as a password",
+  },
+  {
+    id: "devices",
+    label: "Devices",
+    summary: "Where you're logged in",
   },
 ] as const satisfies readonly NavSection[];
 

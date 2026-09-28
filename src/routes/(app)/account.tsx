@@ -1,6 +1,7 @@
 import { Title } from "@solidjs/meta";
 import { useSearchParams } from "@solidjs/router";
 import { createSignal, Match, Show, Switch } from "solid-js";
+import { DevicesPanel } from "~/components/account/devices";
 import { EmailPanel, PasswordPanel } from "~/components/account/panels";
 import { TwoFactorPanel } from "~/components/account/two-factor";
 import {
@@ -15,8 +16,8 @@ import { authClient } from "~/lib/auth-client";
 import { cn } from "~/lib/cn";
 
 /**
- * Personal account settings (spec §6, Account): email, password and two-step
- * verification. Everything here reads and writes the better-auth session
+ * Personal account settings (spec §6, Account): email, password, two-step
+ * verification and signed-in devices. Everything here reads and writes the better-auth session
  * rather than the business, which is why it sits beside `/settings` instead of
  * inside it — the business can be shared with a team, this cannot.
  */
@@ -131,6 +132,9 @@ export default function AccountPage() {
                       onChanged={() => session().refetch()}
                       focusHeading={focusHeading("two-factor")}
                     />
+                  </Match>
+                  <Match when={shown() === "devices"}>
+                    <DevicesPanel focusHeading={focusHeading("devices")} />
                   </Match>
                 </Switch>
               )}
