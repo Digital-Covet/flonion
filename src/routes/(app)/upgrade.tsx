@@ -43,10 +43,6 @@ const PHONE_RE = /^[6-9]\d{9}$/;
 const normalizePhone = (value: string) =>
   value.replace(/[\s()-]/g, "").replace(/^(\+91|0091|0)/, "");
 
-const rupees = new Intl.NumberFormat("en-IN", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
 const longDate = new Intl.DateTimeFormat("en-IN", {
   dateStyle: "medium",
   timeZone: "Asia/Kolkata",
@@ -278,25 +274,6 @@ function ReturnNotice(props: { state: ReturnState }) {
 }
 
 /** "₹999.00 + ₹179.82 GST = ₹1,178.82 a month, auto-renews" */
-function GstLine(props: { plan: Plan; billing: Billing }) {
-  const charge = () => chargeFor(props.plan, props.billing);
-  return (
-    <Show when={charge()}>
-      {(c) => (
-        <p class="mt-2 text-xs text-text-muted">
-          <span class="font-mono tabular-nums">₹{rupees.format(c().base)}</span>{" "}
-          +{" "}
-          <span class="font-mono tabular-nums">₹{rupees.format(c().gst)}</span>{" "}
-          GST ={" "}
-          <span class="font-mono font-medium text-text tabular-nums">
-            ₹{rupees.format(c().total)}
-          </span>{" "}
-          {props.billing === "yearly" ? "a year" : "a month"}, auto-renews
-        </p>
-      )}
-    </Show>
-  );
-}
 
 function PlanCard(props: {
   plan: Plan;
@@ -352,9 +329,6 @@ function PlanCard(props: {
       <p class="mt-1 text-sm text-text-muted">{props.plan.tagline}</p>
 
       <PlanPrice plan={props.plan} billing={props.billing} />
-      <Show when={upgradable()}>
-        <GstLine plan={props.plan} billing={props.billing} />
-      </Show>
 
       <div class="mt-6">
         <Show
