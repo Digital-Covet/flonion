@@ -232,9 +232,12 @@ export default function LoginPage() {
                           </span>{" "}
                           We sent a link when you signed up.{" "}
                           <A
-                            href={`/verify-email?email=${encodeURIComponent(
-                              (u() as { email: string }).email,
-                            )}`}
+                            href={`/verify-email?${new URLSearchParams({
+                              email: (u() as { email: string }).email,
+                              ...(invite()
+                                ? { invite: invite() as string }
+                                : {}),
+                            })}`}
                             class={textLink}
                           >
                             Send a new link

@@ -1,6 +1,11 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { APIError } from "better-auth/api";
+import {
+  APIError,
+  createAuthMiddleware,
+  isAPIError,
+  sendVerificationEmailFn,
+} from "better-auth/api";
 import { admin } from "better-auth/plugins";
 import { adminAc, userAc } from "better-auth/plugins/admin/access";
 import { emailOTP } from "better-auth/plugins/email-otp";
@@ -135,6 +140,48 @@ export const auth = betterAuth({
         },
       },
     },
+  },
+
+  hooks: {
+    // Sign-up answers an address that already has an account (exact or an
+    // alias, see the create hook above) with the same fake success as a new
+    // account, so it can't probe for accounts, and sends nothing. An account
+    // that never verified is then stuck: every retry says "check your email"
+    // and no email comes. Send its link again, to the account's own address,
+    // so retrying sign-up works like "Resend link". The fake response carries
+    // a generated id, which is how it is told apart from a real creation.
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-up/email") return;
+      const returned = ctx.context.returned as
+        | { user?: { id?: unknown } }
+        | undefined;
+      const email: unknown = ctx.body?.email;
+      if (!returned || isAPIError(returned) || typeof email !== "string") {
+        return;
+      }
+
+      const normalizedEmail = normalizeEmail(email) || undefined;
+      const existing = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: email.toLowerCase() },
+            ...(normalizedEmail ? [{ normalizedEmail }] : []),
+          ],
+        },
+      });
+      if (
+        !existing ||
+        existing.emailVerified ||
+        existing.id === returned.user?.id
+      ) {
+        return;
+      }
+
+      // Logs and swallows a failed send, like the send for a new account.
+      await ctx.context.runInBackgroundOrAwait(
+        sendVerificationEmailFn(ctx, existing),
+      );
+    }),
   },
 
   plugins: [
