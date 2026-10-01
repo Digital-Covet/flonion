@@ -25,6 +25,10 @@ export type Task = {
   /** ISO timestamp, or null when the task has no deadline. */
   dueDate: string | null;
   position: number;
+  /** ISO timestamp of the move into Done; null while the task is open. */
+  completedAt: string | null;
+  /** The task this is a subtask of; null for a top-level task. */
+  parentId: string | null;
   assigneeId: string;
   assignee: {
     id: string;
@@ -130,6 +134,7 @@ export const GROUP_OPTIONS = [
   { value: "due", label: "Due date" },
   { value: "status", label: "Status" },
   { value: "assignee", label: "Assignee" },
+  { value: "custom", label: "Custom" },
 ] as const satisfies ReadonlyArray<{ value: string; label: string }>;
 
 export type GroupKey = (typeof GROUP_OPTIONS)[number]["value"];
@@ -406,6 +411,11 @@ export type TaskGroup = {
    * added straight into "Overdue".
    */
   defaults: Partial<TaskDraft> | null;
+  /**
+   * Set for groups in custom mode: the local section id, or `null` for the
+   * "No section" catch-all. `undefined` means "not a custom group".
+   */
+  customSectionId?: string | null;
 };
 
 function endOfWeek(today: Date): Date {
@@ -586,6 +596,220 @@ export function groupTasks(
     .map((g) => ({ ...g, tasks: sortTasks(g.tasks, sort) }));
 }
 
+// ─── Custom sections (local only) ──────────────────────────────────────
+
+/**
+ * A user-created section for `Group by > Custom`. Sections and the
+ * task-to-section map live in localStorage (per business), so no migration
+ * or API change is needed — but teammates each see their own layout.
+ */
+export type CustomSection = {
+  id: string;
+  title: string;
+};
+
+const customSectionsKey = (businessId: string) =>
+  `tasks.custom-sections.${businessId}`;
+const customAssignKey = (businessId: string) =>
+  `tasks.custom-assign.${businessId}`;
+
+function readStorage(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(key: string, value: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Private mode / quota: custom layout simply doesn't persist.
+  }
+}
+
+function isValidSection(value: unknown): value is CustomSection {
+  if (typeof value !== "object" || value === null) return false;
+  const s = value as Record<string, unknown>;
+  return typeof s.id === "string" && !!s.id && typeof s.title === "string";
+}
+
+export function loadCustomSections(
+  businessId: string | undefined,
+): CustomSection[] {
+  if (!businessId) return [];
+  const raw = readStorage(customSectionsKey(businessId));
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const seen = new Set<string>();
+    const sections: CustomSection[] = [];
+    for (const item of parsed) {
+      if (!isValidSection(item) || seen.has(item.id)) continue;
+      seen.add(item.id);
+      const title = item.title.trim().slice(0, 80) || "Untitled section";
+      sections.push({ id: item.id, title });
+      if (sections.length >= 50) break;
+    }
+    return sections;
+  } catch {
+    return [];
+  }
+}
+
+export function saveCustomSections(
+  businessId: string | undefined,
+  sections: CustomSection[],
+): void {
+  if (!businessId) return;
+  writeStorage(customSectionsKey(businessId), JSON.stringify(sections));
+}
+
+/** Task id → section id. Entries pointing at deleted tasks/sections are ignored. */
+export function loadCustomAssign(
+  businessId: string | undefined,
+): Record<string, string> {
+  if (!businessId) return {};
+  const raw = readStorage(customAssignKey(businessId));
+  if (!raw) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return {};
+    const assign: Record<string, string> = {};
+    for (const [taskId, sectionId] of Object.entries(
+      parsed as Record<string, unknown>,
+    )) {
+      if (typeof sectionId === "string" && sectionId)
+        assign[taskId] = sectionId;
+    }
+    return assign;
+  } catch {
+    return {};
+  }
+}
+
+export function saveCustomAssign(
+  businessId: string | undefined,
+  assign: Record<string, string>,
+): void {
+  if (!businessId) return;
+  writeStorage(customAssignKey(businessId), JSON.stringify(assign));
+}
+
+export const DEFAULT_NONE_TITLE = "No section";
+
+const customNoneTitleKey = (businessId: string) =>
+  `tasks.custom-none-title.${businessId}`;
+
+/** The user's name for the catch-all group; the default when never renamed. */
+export function loadNoneTitle(businessId: string | undefined): string {
+  if (!businessId) return DEFAULT_NONE_TITLE;
+  const raw = readStorage(customNoneTitleKey(businessId));
+  return raw?.trim().slice(0, 80) || DEFAULT_NONE_TITLE;
+}
+
+export function saveNoneTitle(
+  businessId: string | undefined,
+  title: string,
+): void {
+  if (!businessId) return;
+  writeStorage(customNoneTitleKey(businessId), title.trim().slice(0, 80));
+}
+
+/**
+ * The assignment map without entries for tasks missing from `tasks` or
+ * sections missing from `sections`; `null` when nothing was stale, so callers
+ * can skip a pointless write.
+ */
+export function pruneCustomAssign(
+  assign: Record<string, string>,
+  tasks: Task[],
+  sections: CustomSection[],
+): Record<string, string> | null {
+  const taskIds = new Set(tasks.map((t) => t.id));
+  const sectionIds = new Set(sections.map((s) => s.id));
+  const next: Record<string, string> = {};
+  let changed = false;
+  for (const [taskId, sectionId] of Object.entries(assign)) {
+    if (taskIds.has(taskId) && sectionIds.has(sectionId))
+      next[taskId] = sectionId;
+    else changed = true;
+  }
+  return changed ? next : null;
+}
+
+export function newCustomSectionId(): string {
+  try {
+    if (
+      typeof crypto !== "undefined" &&
+      typeof crypto.randomUUID === "function"
+    ) {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // Fall through to the counter below.
+  }
+  return `s-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
+}
+
+const CUSTOM_TONES: GroupTone[] = [
+  "primary",
+  "info",
+  "accent",
+  "secondary",
+  "success",
+];
+
+/**
+ * Groups visible rows into the user's local sections plus a "No section"
+ * catch-all for anything unassigned, so new tasks never disappear. Empty
+ * custom sections are kept (unlike due-date buckets): a section created
+ * just before adding its first task must not vanish.
+ */
+export function groupByCustom(
+  tasks: Task[],
+  sections: CustomSection[],
+  assign: Record<string, string>,
+  sort: SortKey,
+  noneTitle: string = DEFAULT_NONE_TITLE,
+): TaskGroup[] {
+  const known = new Set(sections.map((s) => s.id));
+  const groups: TaskGroup[] = sections.map((section, i) => ({
+    key: `custom-${section.id}`,
+    label: section.title,
+    tone: CUSTOM_TONES[i % CUSTOM_TONES.length],
+    tasks: sortTasks(
+      tasks.filter((t) => assign[t.id] === section.id),
+      sort,
+    ),
+    defaults: {},
+    customSectionId: section.id,
+  }));
+
+  const rest = sortTasks(
+    tasks.filter((t) => {
+      const sectionId = assign[t.id];
+      return !sectionId || !known.has(sectionId);
+    }),
+    sort,
+  );
+  // Always present, even empty: it is where new and filtered-out tasks land
+  // and where "Add task" works before any section exists.
+  groups.push({
+    key: "custom-none",
+    label: noneTitle.trim() || DEFAULT_NONE_TITLE,
+    tone: "muted",
+    tasks: rest,
+    defaults: {},
+    customSectionId: null,
+  });
+  return groups;
+}
+
 export type Timeline = {
   /** "9 Sep – 15 Sep", or null when there is no due date to draw to. */
   label: string | null;
@@ -712,6 +936,141 @@ export function loadLabel(row: WorkloadRow): string {
   return "Light";
 }
 
+// ─── Finished work, month by month ───────────────────────────────────────
+
+/** `YYYY-MM`, the unit the kanban's done calendar pages through. */
+export function monthKey(date: Date): string {
+  return dayKey(date).slice(0, 7);
+}
+
+export function shiftMonth(key: string, by: number): string {
+  const [y, m] = key.split("-").map(Number);
+  return monthKey(new Date(y, m - 1 + by, 1));
+}
+
+/** "September 2026", or "Sep" for the month strip. */
+export function monthLabel(key: string, short = false): string {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString(
+    undefined,
+    short ? { month: "short" } : { month: "long", year: "numeric" },
+  );
+}
+
+const finishedTime = (task: Task) =>
+  Date.parse(task.completedAt ?? task.updatedAt);
+
+/**
+ * The day a task was finished, or null while it is open. Unlike a due date
+ * this is a real moment, so it is read in the viewer's own time zone. A task
+ * without `completedAt` falls back to its last update.
+ */
+export function finishedDayKey(task: Task): string | null {
+  return isOpen(task) ? null : dayKey(new Date(finishedTime(task)));
+}
+
+/** Tasks finished in one month, latest first. */
+export function finishedIn(tasks: Task[], month: string): Task[] {
+  return tasks
+    .filter((t) => finishedDayKey(t)?.slice(0, 7) === month)
+    .sort((a, b) => finishedTime(b) - finishedTime(a));
+}
+
+export type CalendarDay = {
+  /** `YYYY-MM-DD`. */
+  key: string;
+  day: number;
+  /** False for the neighbouring months' days that pad out the first and last week. */
+  inMonth: boolean;
+  /** Finished that day; always empty outside the month. */
+  tasks: Task[];
+};
+
+/** One month as Monday-first weeks, like the meeting scheduler's. */
+export function monthGrid(tasks: Task[], month: string): CalendarDay[][] {
+  const [y, m] = month.split("-").map(Number);
+  const lead = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+  const last = new Date(y, m, 0);
+  const trail = 6 - ((last.getDay() + 6) % 7);
+
+  const byDay = new Map<string, Task[]>();
+  for (const task of finishedIn(tasks, month)) {
+    const key = finishedDayKey(task) as string;
+    byDay.set(key, [...(byDay.get(key) ?? []), task]);
+  }
+
+  const weeks: CalendarDay[][] = [];
+  for (let i = 0; i < lead + last.getDate() + trail; i++) {
+    const date = new Date(y, m - 1, 1 - lead + i);
+    const key = dayKey(date);
+    const inMonth = date.getMonth() === m - 1;
+    if (i % 7 === 0) weeks.push([]);
+    weeks[weeks.length - 1].push({
+      key,
+      day: date.getDate(),
+      inMonth,
+      tasks: inMonth ? (byDay.get(key) ?? []) : [],
+    });
+  }
+  return weeks;
+}
+
+export type MonthTally = { key: string; count: number };
+
+/** Finished counts for the `count` months ending with `last`, oldest first. */
+export function monthTallies(
+  tasks: Task[],
+  last: string,
+  count = 12,
+): MonthTally[] {
+  const counts = new Map<string, number>();
+  for (const task of tasks) {
+    const key = finishedDayKey(task)?.slice(0, 7);
+    if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return Array.from({ length: count }, (_, i) => {
+    const key = shiftMonth(last, i - count + 1);
+    return { key, count: counts.get(key) ?? 0 };
+  });
+}
+
+export type Finisher = {
+  id: string;
+  name: string;
+  image: string | null;
+  count: number;
+};
+
+/**
+ * Who finished how much in a month, most first. The assignee is the one
+ * credited — the board has no separate "done by". Anyone who finished
+ * nothing is left out: this is a record, not the workload view.
+ */
+export function finishersIn(
+  tasks: Task[],
+  month: string,
+  members: TeamMember[],
+): Finisher[] {
+  const people = new Map<string, Finisher>();
+  for (const task of finishedIn(tasks, month)) {
+    const known = people.get(task.assigneeId);
+    if (known) {
+      known.count++;
+      continue;
+    }
+    const member = members.find((m) => m.id === task.assigneeId);
+    people.set(task.assigneeId, {
+      id: task.assigneeId,
+      name: member?.name ?? task.assignee?.name ?? "Former team member",
+      image: member?.image ?? task.assignee?.image ?? null,
+      count: 1,
+    });
+  }
+  return [...people.values()].sort(
+    (a, b) => b.count - a.count || a.name.localeCompare(b.name),
+  );
+}
+
 // ─── Dates ───────────────────────────────────────────────────────────────
 
 export function dayKey(date: Date): string {
@@ -802,6 +1161,33 @@ export function sortMeetings(meetings: TeamMeeting[]): TeamMeeting[] {
 
 export const taskCountLabel = (n: number) => (n === 1 ? "task" : "tasks");
 
+// ─── Subtasks ────────────────────────────────────────────────────────────
+
+/** Subtasks by parent id, in the order they were added. */
+export function subtasksByParent(tasks: Task[]): Map<string, Task[]> {
+  const map = new Map<string, Task[]>();
+  for (const t of tasks) {
+    if (!t.parentId) continue;
+    const list = map.get(t.parentId);
+    if (list) list.push(t);
+    else map.set(t.parentId, [t]);
+  }
+  for (const list of map.values()) {
+    list.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+  }
+  return map;
+}
+
+/**
+ * The rows of the main table: top-level tasks, plus any subtask whose parent
+ * is filtered out, so a search for a subtask still finds it. The rest nest
+ * under their parent.
+ */
+export function tableRows(visible: Task[]): Task[] {
+  const ids = new Set(visible.map((t) => t.id));
+  return visible.filter((t) => !t.parentId || !ids.has(t.parentId));
+}
+
 export const meetingCountLabel = (n: number) =>
   n === 1 ? "meeting" : "meetings";
 
@@ -858,10 +1244,14 @@ export async function loadTeamMeetings(): Promise<TeamMeeting[]> {
   return (res.data as TeamMeeting[]) ?? [];
 }
 
-export async function createTask(draft: TaskDraft): Promise<Task> {
+export async function createTask(
+  draft: TaskDraft,
+  parentId?: string,
+): Promise<Task> {
   const res = await api<Task>("/api/tasks", {
     method: "POST",
     body: {
+      ...(parentId ? { parentId } : {}),
       title: draft.title.trim(),
       description: draft.description.trim() || null,
       column: draft.column,
@@ -967,6 +1357,7 @@ export function moveTask(
   taskId: string,
   targetColumn: TaskColumn,
   targetIndex: number,
+  now = new Date(),
 ): Task[] {
   const moving = tasks.find((t) => t.id === taskId);
   if (!moving) return tasks;
@@ -977,8 +1368,17 @@ export function moveTask(
       ? source
       : tasksIn(tasks, targetColumn).filter((t) => t.id !== taskId);
 
+  // Mirrors the server's `completedAtFor`, so the calendar updates with the
+  // drop rather than on the next refetch.
+  const completedAt =
+    moving.column === targetColumn
+      ? moving.completedAt
+      : targetColumn === "done"
+        ? now.toISOString()
+        : null;
+
   const index = Math.max(0, Math.min(targetIndex, target.length));
-  target.splice(index, 0, { ...moving, column: targetColumn });
+  target.splice(index, 0, { ...moving, column: targetColumn, completedAt });
 
   const renumbered = new Map<string, Task>();
   if (moving.column !== targetColumn) {

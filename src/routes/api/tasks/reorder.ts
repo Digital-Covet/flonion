@@ -9,7 +9,7 @@ import {
 } from "~/server/effect/guards";
 import { handler } from "~/server/effect/http";
 import { Db } from "~/server/effect/services/db";
-import { TaskColumn } from "~/server/task-rules";
+import { completedAtFor, TaskColumn } from "~/server/task-rules";
 
 export const PATCH = handler(
   "tasks.reorder",
@@ -98,10 +98,15 @@ export const PATCH = handler(
             yield* shift(targetColumn, { gte: newPosition }, "increment");
           }
 
+          const completedAt = completedAtFor(oldColumn, targetColumn);
           yield* tx.use((p) =>
             p.task.update({
               where: { id: taskId },
-              data: { column: targetColumn, position: newPosition },
+              data: {
+                column: targetColumn,
+                position: newPosition,
+                ...(completedAt !== undefined && { completedAt }),
+              },
             }),
           );
         }),

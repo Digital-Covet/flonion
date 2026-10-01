@@ -1,4 +1,5 @@
 import { Collapsible } from "@ark-ui/solid/collapsible";
+import { Field } from "@ark-ui/solid/field";
 import { Menu } from "@ark-ui/solid/menu";
 import {
   IconArrowsSort,
@@ -9,7 +10,15 @@ import {
   IconSearch,
   IconX,
 } from "@tabler/icons-solidjs";
-import { createEffect, createSignal, For, on, onCleanup, Show } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  For,
+  type JSX,
+  on,
+  onCleanup,
+  Show,
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import type { TeamMember } from "~/components/app/context";
 import { focusRing } from "~/components/auth/AuthShell";
@@ -100,6 +109,8 @@ export function TasksToolbar(props: {
   viewerId: string;
   /** Sort and group only mean something in the table. */
   tableTools: boolean;
+  /** Table-only actions (New section, Columns), pushed to the row's far end. */
+  actions?: JSX.Element;
   canCreate: boolean;
   onNew: () => void;
   onUpdate: (next: Partial<TasksView>) => void;
@@ -151,20 +162,22 @@ export function TasksToolbar(props: {
           New task
         </button>
 
-        <label class="relative flex w-full items-center sm:w-56">
-          <span class="sr-only">Search tasks</span>
-          <IconSearch
-            aria-hidden="true"
-            class="pointer-events-none absolute left-3 size-4.5 text-text-muted"
-          />
-          <input
-            type="search"
-            value={text()}
-            placeholder="Search"
-            onInput={(e) => search(e.currentTarget.value)}
-            class="h-11 w-full rounded-md border border-transparent bg-transparent pr-3 pl-9 text-base text-text placeholder:text-text-muted transition-colors duration-[var(--duration-fast)] hover:bg-primary-soft focus:border-primary focus:bg-surface focus:outline-2 focus:outline-offset-0 focus:outline-primary md:text-sm"
-          />
-        </label>
+        <Field.Root class="w-full sm:max-w-56 sm:min-w-32 sm:flex-1">
+          <Field.Label class="sr-only">Search tasks</Field.Label>
+          <div class="relative flex w-full items-center">
+            <IconSearch
+              aria-hidden="true"
+              class="pointer-events-none absolute left-3 size-4.5 text-text-muted"
+            />
+            <Field.Input
+              type="search"
+              value={text()}
+              placeholder="Search"
+              onInput={(e) => search(e.currentTarget.value)}
+              class="h-11 w-full rounded-md border border-transparent bg-transparent pr-3 pl-9 text-base text-text placeholder:text-text-muted transition-colors duration-[var(--duration-fast)] hover:bg-primary-soft focus:border-primary focus:bg-surface focus:outline-2 focus:outline-offset-0 focus:outline-primary md:text-sm"
+            />
+          </div>
+        </Field.Root>
 
         <Collapsible.Trigger
           class={cn(
@@ -215,6 +228,10 @@ export function TasksToolbar(props: {
             <IconX aria-hidden="true" class="size-4.5" />
             Clear
           </button>
+        </Show>
+
+        <Show when={props.actions}>
+          <div class="flex items-center md:ml-auto">{props.actions}</div>
         </Show>
       </div>
 

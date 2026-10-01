@@ -11,6 +11,7 @@ import { RequestContext } from "~/server/effect/request-context";
 import { Db } from "~/server/effect/services/db";
 import {
   assigneeInclude,
+  completedAtFor,
   requireTeamAssignee,
   TaskColumn,
   TaskPriority,
@@ -48,10 +49,17 @@ export const POST = handler(
     const ctx = yield* requireBusinessContext(session.user.id);
 
     return yield* Effect.gen(function* () {
-      const { title, description, column, priority, dueDate, assigneeId } =
-        yield* readJsonObject(
-          () => new BadRequest({ message: "Invalid request body" }),
-        );
+      const {
+        title,
+        description,
+        column,
+        priority,
+        dueDate,
+        assigneeId,
+        parentId,
+      } = yield* readJsonObject(
+        () => new BadRequest({ message: "Invalid request body" }),
+      );
 
       if (typeof title !== "string" || !title.trim()) {
         return yield* new BadRequest({ message: "Title is required" });
@@ -67,6 +75,29 @@ export const POST = handler(
         : "medium";
 
       const db = yield* Db;
+
+      let parent: string | null = null;
+      if (parentId !== undefined && parentId !== null) {
+        if (typeof parentId !== "string") {
+          return yield* new BadRequest({ message: "Invalid parent task" });
+        }
+        const found = yield* db.use((p) =>
+          p.task.findUnique({
+            where: { id: parentId },
+            select: { businessId: true, parentId: true },
+          }),
+        );
+        if (!found || found.businessId !== ctx.businessId) {
+          return yield* new BadRequest({ message: "Invalid parent task" });
+        }
+        if (found.parentId) {
+          return yield* new BadRequest({
+            message: "Subtasks can't have subtasks of their own",
+          });
+        }
+        parent = parentId;
+      }
+
       const maxPosition = yield* db.use((p) =>
         p.task.aggregate({
           where: { businessId: ctx.businessId, column: taskColumn },
@@ -84,7 +115,9 @@ export const POST = handler(
             priority: taskPriority,
             dueDate: dueDate ? new Date(dueDate as string) : null,
             position: (maxPosition._max.position ?? -1) + 1,
+            completedAt: completedAtFor(null, taskColumn),
             assigneeId,
+            parentId: parent,
             businessId: ctx.businessId,
           },
           include: assigneeInclude,

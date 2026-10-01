@@ -30,34 +30,47 @@ import { isLoading, settled } from "~/components/dashboard/data";
 import { WidgetError } from "~/components/dashboard/ui";
 import { btnPrimary, Notice } from "~/components/onboarding/ui";
 import { EmptyState } from "~/components/reviews/inbox";
+import { DoneCalendar } from "~/components/tasks/calendar";
 import {
   ASSIGNEE_ALL,
   ASSIGNEE_ME,
   byColumn,
   COLUMN_LABEL,
+  type CustomSection,
   canEditTask,
   createTask,
   createTeamMeeting,
+  DEFAULT_NONE_TITLE,
   deleteTask,
   deleteTeamMeeting,
   draftFrom,
   emptyDraft,
   emptyMeetingDraft,
   filtersActive,
+  groupByCustom,
   groupTasks,
   isOpen,
   isOverdue,
   isTaskListTab,
   isUpcoming,
+  loadCustomAssign,
+  loadCustomSections,
+  loadNoneTitle,
   loadTasks,
   loadTeamMeetings,
   type MeetingDraft,
   matchesView,
   meetingCountLabel,
   moveTask,
+  newCustomSectionId,
+  pruneCustomAssign,
   reorderTask,
   resolveIndex,
+  saveCustomAssign,
+  saveCustomSections,
+  saveNoneTitle,
   sortMeetings,
+  subtasksByParent,
   TASK_TABS,
   type Task,
   type TaskColumn,
@@ -66,6 +79,7 @@ import {
   type TasksView,
   type TaskTab,
   type TeamMeeting,
+  tableRows,
   taskCountLabel,
   tasksIn,
   updateTask,
@@ -74,7 +88,14 @@ import {
   viewParams,
   workload,
 } from "~/components/tasks/data";
-import { TableSkeleton, TaskTable } from "~/components/tasks/table";
+import {
+  DEFAULT_COLUMNS,
+  TableActions,
+  type TableColumns,
+  TableSkeleton,
+  type TaskPatch,
+  TaskTable,
+} from "~/components/tasks/table";
 import { TasksToolbar } from "~/components/tasks/toolbar";
 import {
   Board,
@@ -88,6 +109,8 @@ import {
   SectionHeading,
   TabCount,
   TaskDialog,
+  TasksToaster,
+  tasksToaster,
   WorkloadPanel,
   WorkloadSkeleton,
 } from "~/components/tasks/widgets";
@@ -118,8 +141,6 @@ export default function TasksPage() {
     createResource(ready, loadTeamMeetings);
 
   const [message, setMessage] = createSignal("");
-  /** Page-level news: copy failures and the like. */
-  const [actionError, setActionError] = createSignal("");
   /** A failed move belongs on the column it failed in (spec §4.4). */
   const [moveErrors, setMoveErrors] = createSignal<
     Partial<Record<TaskColumn, string>>
@@ -166,10 +187,78 @@ export default function TasksPage() {
 
   const visible = () =>
     all().filter((t) => matchesView(t, view(), viewer()?.userId ?? "", now));
-  const columns = createMemo(() => byColumn(visible()));
-  const groups = createMemo(() =>
-    groupTasks(visible(), view().group, view().sort, members(), now),
+  /**
+   * The done calendar follows the board's person, priority and search, but
+   * not its due-date filter — "overdue" or "due today" would hide every
+   * finished task.
+   */
+  const finishedScope = createMemo(() =>
+    all().filter((t) =>
+      matchesView(t, { ...view(), due: "all" }, viewer()?.userId ?? "", now),
+    ),
   );
+  const columns = createMemo(() => byColumn(visible()));
+  /** Local custom sections (per business, localStorage) for Group by > Custom. */
+  const businessId = () => info()?.businessId;
+  const [customSections, setCustomSections] = createSignal<CustomSection[]>([]);
+  const [customAssign, setCustomAssign] = createSignal<Record<string, string>>(
+    {},
+  );
+  const [noneTitle, setNoneTitle] = createSignal(DEFAULT_NONE_TITLE);
+  const [tableColumns, setTableColumns] =
+    createSignal<TableColumns>(DEFAULT_COLUMNS);
+
+  // Load the local layout whenever the team changes; nothing fetches during
+  // SSR, and localStorage is browser-only.
+  createEffect(
+    on(businessId, (id) => {
+      setCustomSections(loadCustomSections(id));
+      setCustomAssign(loadCustomAssign(id));
+      setNoneTitle(loadNoneTitle(id));
+    }),
+  );
+
+  function persistCustom(
+    sections: CustomSection[],
+    assign: Record<string, string>,
+  ) {
+    const id = businessId();
+    saveCustomSections(id, sections);
+    saveCustomAssign(id, assign);
+  }
+
+  // Once the fetched list has settled, drop assignments for tasks that no
+  // longer exist (deleted elsewhere) or sections that were removed. Declared
+  // after the load effect above so it sees this team's freshly loaded layout.
+  createEffect(
+    on([() => settled(tasks), businessId], ([list]) => {
+      if (!list) return;
+      const pruned = pruneCustomAssign(customAssign(), list, customSections());
+      if (pruned) {
+        setCustomAssign(pruned);
+        persistCustom(customSections(), pruned);
+      }
+    }),
+  );
+
+  const groups = createMemo(() =>
+    view().group === "custom"
+      ? groupByCustom(
+          tableRows(visible()),
+          customSections(),
+          customAssign(),
+          view().sort,
+          noneTitle(),
+        )
+      : groupTasks(
+          tableRows(visible()),
+          view().group,
+          view().sort,
+          members(),
+          now,
+        ),
+  );
+  const subtasks = createMemo(() => subtasksByParent(all()));
 
   const openCount = () => all().filter(isOpen).length;
   const overdueCount = () => all().filter((t) => isOverdue(t, now)).length;
@@ -188,6 +277,15 @@ export default function TasksPage() {
   function announce(text: string) {
     setMessage("");
     queueMicrotask(() => setMessage(text));
+  }
+
+  /** Visual toast to go with the screen-reader announcement. */
+  function notifySuccess(title: string, description?: string) {
+    tasksToaster.success({ title, description });
+  }
+
+  function notifyError(title: string, description?: string) {
+    tasksToaster.error({ title, description });
   }
 
   // One announcement per settled load: what is waiting on the team.
@@ -229,6 +327,7 @@ export default function TasksPage() {
   function clearFilters() {
     update({ assignee: ASSIGNEE_ALL, priority: "all", due: "all", q: "" });
     announce("Filters cleared");
+    notifySuccess("Filters cleared");
   }
 
   // ── Moving a card ───────────────────────────────────────────────────────
@@ -259,7 +358,6 @@ export default function TasksPage() {
 
     batch(() => {
       setMoveErrors((errors) => ({ ...errors, [column]: undefined }));
-      setActionError("");
       setRevertedId(null);
       setMovingId(taskId);
       mutateTasks(after);
@@ -268,6 +366,7 @@ export default function TasksPage() {
     try {
       await reorderTask(taskId, column, index);
       announce(`${task.title} moved to ${COLUMN_LABEL[column]}`);
+      notifySuccess(`${task.title} moved to ${COLUMN_LABEL[column]}`);
     } catch (error) {
       const reason =
         error instanceof Error
@@ -277,14 +376,17 @@ export default function TasksPage() {
         mutateTasks(before);
         setRevertedId(taskId);
         // The board says it on the column; the table has no columns, so it
-        // says it at the top of the page.
+        // toasts at the top of the page.
         if (view().tab === "board") {
           setMoveErrors((errors) => ({ ...errors, [column]: reason }));
         } else {
-          setActionError(`${task.title}: ${reason}`);
+          notifyError(`${task.title} could not be moved`, reason);
         }
       });
       announce(`${task.title} could not be moved and stayed where it was`);
+      if (view().tab === "board") {
+        notifyError(`${task.title} could not be moved`, reason);
+      }
     } finally {
       setMovingId(null);
     }
@@ -346,6 +448,10 @@ export default function TasksPage() {
         const created = await createTask(values);
         mutateTasks([...all(), created]);
         announce(`${created.title} added to ${COLUMN_LABEL[created.column]}`);
+        notifySuccess(
+          `${created.title} added`,
+          `Now in ${COLUMN_LABEL[created.column]}.`,
+        );
         closeDialog();
         return;
       }
@@ -374,6 +480,10 @@ export default function TasksPage() {
         movedColumn
           ? `${saved.title} saved and moved to ${COLUMN_LABEL[values.column]}`
           : `${saved.title} saved`,
+      );
+      notifySuccess(
+        movedColumn ? `${saved.title} saved and moved` : `${saved.title} saved`,
+        movedColumn ? `Now in ${COLUMN_LABEL[values.column]}.` : undefined,
       );
       closeDialog();
     } catch (error) {
@@ -405,18 +515,151 @@ export default function TasksPage() {
 
     try {
       const created = await createTask(values);
-      batch(() => {
-        setActionError("");
-        mutateTasks([...all(), created]);
-      });
+      mutateTasks([...all(), created]);
+      // In custom mode the new task takes the section it was typed in, so it
+      // appears where it was added rather than in No section.
+      if (
+        view().group === "custom" &&
+        typeof group.customSectionId === "string"
+      ) {
+        setCustomAssign((assign) => {
+          const next = {
+            ...assign,
+            [created.id]: group.customSectionId as string,
+          };
+          persistCustom(customSections(), next);
+          return next;
+        });
+      }
       announce(`${created.title} added to ${group.label}`);
+      notifySuccess(`${created.title} added`, `Now in ${group.label}.`);
       return true;
     } catch (error) {
-      setActionError(
+      const reason =
         error instanceof Error
           ? error.message
-          : "We couldn't add that task. Try again.",
-      );
+          : "We couldn't add that task. Try again.";
+      notifyError("We couldn't add that task", reason);
+      return false;
+    }
+  }
+
+  // ── Custom sections (local only) ────────────────────────────────────
+
+  function createSection() {
+    const sections = customSections();
+    const n = sections.length + 1;
+    const base = `New section${n > 1 ? ` ${n}` : ""}`;
+    const section: CustomSection = { id: newCustomSectionId(), title: base };
+    const next = [...sections, section];
+    setCustomSections(next);
+    persistCustom(next, customAssign());
+    announce(`${base} added`);
+    notifySuccess(`${base} added`, "Rename it by double-clicking its title.");
+  }
+
+  function renameSection(group: TaskGroup, title: string) {
+    const sectionId = group.customSectionId;
+    if (sectionId === null) {
+      // The catch-all isn't a stored section; only its display name is.
+      setNoneTitle(title);
+      saveNoneTitle(businessId(), title);
+      announce(`Section renamed to ${title || DEFAULT_NONE_TITLE}`);
+      return;
+    }
+    if (typeof sectionId !== "string") return;
+    const next = customSections().map((s) =>
+      s.id === sectionId ? { ...s, title } : s,
+    );
+    setCustomSections(next);
+    persistCustom(next, customAssign());
+    announce(`Section renamed to ${title}`);
+  }
+
+  function deleteSection(group: TaskGroup) {
+    const sectionId = group.customSectionId;
+    if (typeof sectionId !== "string") return;
+    const section = customSections().find((s) => s.id === sectionId);
+    const next = customSections().filter((s) => s.id !== sectionId);
+    setCustomAssign((assign) => {
+      const rest: Record<string, string> = {};
+      for (const [taskId, assigned] of Object.entries(assign)) {
+        if (assigned !== sectionId) rest[taskId] = assigned;
+      }
+      persistCustom(next, rest);
+      return rest;
+    });
+    setCustomSections(next);
+    announce(
+      section ? `${section.title} deleted` : "Section deleted",
+      // Its tasks move to No section rather than disappearing.
+    );
+    notifySuccess(
+      section ? `${section.title} deleted` : "Section deleted",
+      "Its tasks moved to No section.",
+    );
+  }
+
+  function moveToSection(task: Task, sectionId: string | null) {
+    setCustomAssign((assign) => {
+      const next = { ...assign };
+      if (sectionId) next[task.id] = sectionId;
+      else delete next[task.id];
+      persistCustom(customSections(), next);
+      return next;
+    });
+    const label =
+      sectionId === null
+        ? "No section"
+        : (customSections().find((s) => s.id === sectionId)?.title ??
+          "section");
+    announce(`${task.title} moved to ${label}`);
+    notifySuccess(`${task.title} moved`, `Now in ${label}.`);
+  }
+
+  /** A change made by double-clicking a cell in the main table. */
+  async function editCell(task: Task, patch: TaskPatch): Promise<boolean> {
+    try {
+      // The column travels through the reorder endpoint (see saveTask), so
+      // PATCH keeps the task where it is.
+      const saved = await updateTask(task.id, {
+        ...draftFrom(task),
+        ...patch,
+        column: task.column,
+      });
+      mutateTasks(all().map((t) => (t.id === saved.id ? saved : t)));
+      announce(`${saved.title} saved`);
+      notifySuccess(`${saved.title} saved`);
+      return true;
+    } catch (error) {
+      const reason =
+        error instanceof Error
+          ? error.message
+          : "We couldn't save that change. Try again.";
+      notifyError("We couldn't save that change", reason);
+      return false;
+    }
+  }
+
+  /** A subtask typed under a task: it starts in To do with the parent's person. */
+  async function addSubtask(parent: Task, title: string): Promise<boolean> {
+    const values: TaskDraft = {
+      ...emptyDraft(parent.assigneeId),
+      title,
+    };
+
+    try {
+      const created = await createTask(values, parent.id);
+      mutateTasks([...all(), created]);
+      announce(`${created.title} added under ${parent.title}`);
+      notifySuccess(`${created.title} added`, `Under ${parent.title}.`);
+      return true;
+    } catch (error) {
+      const reason =
+        error instanceof Error
+          ? error.message
+          : "We couldn't add that subtask. Try again.";
+      notifyError("We couldn't add that subtask", reason);
       return false;
     }
   }
@@ -431,11 +674,26 @@ export default function TasksPage() {
     try {
       await deleteTask(task.id);
       batch(() => {
-        mutateTasks(all().filter((t) => t.id !== task.id));
+        // Subtasks go with their parent, as they do in the database.
+        mutateTasks(
+          all().filter((t) => t.id !== task.id && t.parentId !== task.id),
+        );
+        // Drop stale local section assignments for the deleted rows.
+        setCustomAssign((assign) => {
+          if (!(task.id in assign)) return assign;
+          const next = { ...assign };
+          delete next[task.id];
+          for (const t of all()) {
+            if (t.parentId === task.id) delete next[t.id];
+          }
+          persistCustom(customSections(), next);
+          return next;
+        });
         setDeleting(null);
         closeDialog();
       });
       announce(`${task.title} deleted`);
+      notifySuccess(`${task.title} deleted`);
     } catch (error) {
       setDeleteError(
         error instanceof Error
@@ -469,6 +727,7 @@ export default function TasksPage() {
         setMeetingOpen(false);
       });
       announce(`${created.title} added to your team's meetings`);
+      notifySuccess(`${created.title} scheduled`);
     } catch (error) {
       setMeetingError(
         error instanceof Error
@@ -495,6 +754,7 @@ export default function TasksPage() {
         setCancelling(null);
       });
       announce(`${meeting.title} cancelled`);
+      notifySuccess(`${meeting.title} cancelled`);
     } catch (error) {
       setCancelError(
         error instanceof Error
@@ -643,6 +903,24 @@ export default function TasksPage() {
               members={members()}
               viewerId={viewer()?.userId ?? ""}
               tableTools={view().tab === "table"}
+              actions={
+                view().tab === "table" &&
+                tasks.state === "ready" &&
+                all().length > 0 ? (
+                  <TableActions
+                    columns={tableColumns()}
+                    onChange={(key, shown) =>
+                      setTableColumns((current) => ({
+                        ...current,
+                        [key]: shown,
+                      }))
+                    }
+                    isCustom={view().group === "custom"}
+                    canCreateSection={canCreate()}
+                    onCreateSection={createSection}
+                  />
+                ) : undefined
+              }
               canCreate={canCreate()}
               onNew={() => openNew("todo")}
               onUpdate={update}
@@ -657,10 +935,6 @@ export default function TasksPage() {
                 filtered={filtersActive(view())}
               />
             </Show>
-          </Show>
-
-          <Show when={actionError()}>
-            {(error) => <Notice tone="error">{error()}</Notice>}
           </Show>
 
           {/* ── Main table ─────────────────────────────────────────────── */}
@@ -686,6 +960,8 @@ export default function TasksPage() {
               <Match when={true}>
                 <TaskTable
                   groups={groups()}
+                  columns={tableColumns()}
+                  subtasks={subtasks()}
                   now={now}
                   movingId={movingId()}
                   canCreate={canCreate()}
@@ -697,6 +973,14 @@ export default function TasksPage() {
                     setDeleting(task);
                   }}
                   onQuickAdd={quickAdd}
+                  onAddSubtask={addSubtask}
+                  members={members()}
+                  onEdit={editCell}
+                  isCustom={view().group === "custom"}
+                  onCreateSection={createSection}
+                  onRenameSection={renameSection}
+                  onDeleteSection={deleteSection}
+                  onMoveToSection={moveToSection}
                 />
               </Match>
             </Switch>
@@ -744,6 +1028,16 @@ export default function TasksPage() {
                 />
               </Match>
             </Switch>
+
+            <Show when={settled(tasks) && all().length > 0}>
+              <DoneCalendar
+                tasks={finishedScope()}
+                members={members()}
+                now={now}
+                filtered={filtersActive(view())}
+                onOpen={openTask}
+              />
+            </Show>
           </Tabs.Content>
 
           {/* ── Workload ───────────────────────────────────────────────── */}
@@ -881,8 +1175,9 @@ export default function TasksPage() {
                               announce={announce}
                               onCancel={setCancelling}
                               onCopyFailed={() =>
-                                setActionError(
-                                  "We couldn't copy the link. Open it with Join and copy it from there instead.",
+                                notifyError(
+                                  "We couldn't copy the link",
+                                  "Open it with Join and copy it from there instead.",
                                 )
                               }
                             />
@@ -910,8 +1205,9 @@ export default function TasksPage() {
                               announce={announce}
                               onCancel={setCancelling}
                               onCopyFailed={() =>
-                                setActionError(
-                                  "We couldn't copy the link. Open it with Join and copy it from there instead.",
+                                notifyError(
+                                  "We couldn't copy the link",
+                                  "Open it with Join and copy it from there instead.",
                                 )
                               }
                             />
@@ -977,6 +1273,8 @@ export default function TasksPage() {
           setCancelError("");
         }}
       />
+
+      <TasksToaster />
     </>
   );
 }

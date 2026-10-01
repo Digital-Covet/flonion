@@ -12,6 +12,7 @@ import { RequestContext } from "~/server/effect/request-context";
 import { Db } from "~/server/effect/services/db";
 import {
   assigneeInclude,
+  completedAtFor,
   requireTeamAssignee,
   TaskColumn,
   TaskPriority,
@@ -30,7 +31,7 @@ const requireEditableTask = Effect.fn("requireEditableTask")(function* (
   const task = yield* db.use((p) =>
     p.task.findUnique({
       where: { id },
-      select: { businessId: true, assigneeId: true },
+      select: { businessId: true, assigneeId: true, column: true },
     }),
   );
   if (!task || task.businessId !== ctx.businessId) {
@@ -41,7 +42,7 @@ const requireEditableTask = Effect.fn("requireEditableTask")(function* (
       message: "Only the assignee, an admin, or the owner can modify this task",
     });
   }
-  return ctx;
+  return { ctx, task };
 });
 
 export const GET = handler(
@@ -74,7 +75,7 @@ export const PATCH = handler(
   "tasks.update",
   Effect.gen(function* () {
     const id = yield* taskId;
-    const ctx = yield* requireEditableTask(id);
+    const { ctx, task } = yield* requireEditableTask(id);
 
     return yield* Effect.gen(function* () {
       const { title, description, column, priority, dueDate, assigneeId } =
@@ -89,7 +90,11 @@ export const PATCH = handler(
       if (description !== undefined) {
         data.description = (description as string | null)?.trim() || null;
       }
-      if (Schema.is(TaskColumn)(column)) data.column = column;
+      if (Schema.is(TaskColumn)(column)) {
+        data.column = column;
+        const completedAt = completedAtFor(task.column, column);
+        if (completedAt !== undefined) data.completedAt = completedAt;
+      }
       if (Schema.is(TaskPriority)(priority)) data.priority = priority;
       if (dueDate !== undefined) {
         data.dueDate = dueDate ? new Date(dueDate as string) : null;

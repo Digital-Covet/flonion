@@ -14,6 +14,21 @@ export const TaskColumn = Schema.Literals([
 ]);
 export const TaskPriority = Schema.Literals(["low", "medium", "high"]);
 
+/**
+ * `completedAt` for a task going from `from` to `to` (`from` is null for a new
+ * task): stamped when it lands in Done, cleared when it leaves, and left alone
+ * (`undefined`) otherwise — so reordering inside Done keeps the original date.
+ */
+export function completedAtFor(
+  from: string | null,
+  to: string,
+  now = new Date(),
+): Date | null | undefined {
+  if (from === to) return undefined;
+  if (to === "done") return now;
+  return from === "done" ? null : undefined;
+}
+
 export const assigneeInclude = {
   assignee: { select: { id: true, name: true, email: true, image: true } },
 } as const;

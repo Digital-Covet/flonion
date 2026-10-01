@@ -1,21 +1,27 @@
 import { Avatar } from "@ark-ui/solid/avatar";
 import { Clipboard } from "@ark-ui/solid/clipboard";
+import { DatePicker } from "@ark-ui/solid/date-picker";
 import { Dialog } from "@ark-ui/solid/dialog";
 import { Field } from "@ark-ui/solid/field";
 import { Progress } from "@ark-ui/solid/progress";
 import { SegmentGroup } from "@ark-ui/solid/segment-group";
+import { createToaster, Toast, Toaster } from "@ark-ui/solid/toast";
 import { Tooltip } from "@ark-ui/solid/tooltip";
+import { parseDate } from "@internationalized/date";
 import {
   IconAlertTriangle,
   IconCalendarDue,
   IconCalendarEvent,
   IconCheck,
+  IconChevronLeft,
+  IconChevronRight,
   IconCircleCheck,
   IconCopy,
   IconEqual,
   IconExternalLink,
   IconFlag,
   IconGripVertical,
+  IconInfoCircle,
   IconLock,
   IconMapPin,
   IconPlayerPause,
@@ -33,6 +39,7 @@ import {
   createSignal,
   createUniqueId,
   For,
+  Index,
   type JSX,
   Match,
   on,
@@ -935,6 +942,230 @@ function FieldBlock(props: {
   );
 }
 
+export function parseDayValue(value: string) {
+  if (!value) return [];
+  try {
+    return [parseDate(value.slice(0, 10))];
+  } catch {
+    return [];
+  }
+}
+
+const dateContent =
+  "rounded-md border border-border bg-surface p-3 text-text shadow-[0_8px_24px_rgb(0_0_0/0.12)] outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:duration-[var(--duration-fast)]";
+
+/** Shared calendar popup used by every Ark DatePicker on this page. */
+export function DatePickerCalendar() {
+  const navButton =
+    "grid size-9 place-items-center rounded-sm text-text-muted hover:bg-primary-soft hover:text-text";
+  const cellTrigger =
+    "grid size-9 place-items-center rounded-sm text-sm text-text transition-colors hover:bg-primary-soft data-[selected]:bg-primary data-[selected]:text-primary-foreground data-[outside-range]:opacity-40 data-[today]:underline data-[today]:underline-offset-4";
+  return (
+    <>
+      <DatePicker.View view="day">
+        <DatePicker.Context>
+          {(api) => (
+            <>
+              <DatePicker.ViewControl class="mb-2 flex items-center justify-between gap-1">
+                <DatePicker.PrevTrigger
+                  aria-label="Previous month"
+                  class={navButton}
+                >
+                  <IconChevronLeft aria-hidden="true" class="size-4" />
+                </DatePicker.PrevTrigger>
+                <DatePicker.ViewTrigger class="rounded-sm px-2 py-1 text-sm font-medium text-text hover:bg-primary-soft">
+                  <DatePicker.RangeText />
+                </DatePicker.ViewTrigger>
+                <DatePicker.NextTrigger
+                  aria-label="Next month"
+                  class={navButton}
+                >
+                  <IconChevronRight aria-hidden="true" class="size-4" />
+                </DatePicker.NextTrigger>
+              </DatePicker.ViewControl>
+              <DatePicker.Table class="border-collapse">
+                <DatePicker.TableHead>
+                  <DatePicker.TableRow>
+                    <Index each={api().weekDays}>
+                      {(day) => (
+                        <DatePicker.TableHeader class="size-9 text-center text-xs font-medium text-text-muted">
+                          {day().narrow}
+                        </DatePicker.TableHeader>
+                      )}
+                    </Index>
+                  </DatePicker.TableRow>
+                </DatePicker.TableHead>
+                <DatePicker.TableBody>
+                  <Index each={api().weeks}>
+                    {(week) => (
+                      <DatePicker.TableRow>
+                        <Index each={week()}>
+                          {(day) => (
+                            <DatePicker.TableCell value={day()}>
+                              <DatePicker.TableCellTrigger class={cellTrigger}>
+                                {day().day}
+                              </DatePicker.TableCellTrigger>
+                            </DatePicker.TableCell>
+                          )}
+                        </Index>
+                      </DatePicker.TableRow>
+                    )}
+                  </Index>
+                </DatePicker.TableBody>
+              </DatePicker.Table>
+            </>
+          )}
+        </DatePicker.Context>
+      </DatePicker.View>
+      <DatePicker.View view="month">
+        <DatePicker.Context>
+          {(api) => (
+            <>
+              <DatePicker.ViewControl class="mb-2 flex items-center justify-between gap-1">
+                <DatePicker.PrevTrigger
+                  aria-label="Previous year"
+                  class={navButton}
+                >
+                  <IconChevronLeft aria-hidden="true" class="size-4" />
+                </DatePicker.PrevTrigger>
+                <DatePicker.ViewTrigger class="rounded-sm px-2 py-1 text-sm font-medium text-text hover:bg-primary-soft">
+                  <DatePicker.RangeText />
+                </DatePicker.ViewTrigger>
+                <DatePicker.NextTrigger
+                  aria-label="Next year"
+                  class={navButton}
+                >
+                  <IconChevronRight aria-hidden="true" class="size-4" />
+                </DatePicker.NextTrigger>
+              </DatePicker.ViewControl>
+              <DatePicker.Table class="border-collapse">
+                <DatePicker.TableBody>
+                  <Index
+                    each={api().getMonthsGrid({ columns: 4, format: "short" })}
+                  >
+                    {(months) => (
+                      <DatePicker.TableRow>
+                        <Index each={months()}>
+                          {(month) => (
+                            <DatePicker.TableCell value={month().value}>
+                              <DatePicker.TableCellTrigger class="m-0.5 grid h-9 w-14 place-items-center rounded-sm text-sm text-text transition-colors hover:bg-primary-soft data-[selected]:bg-primary data-[selected]:text-primary-foreground">
+                                {month().label}
+                              </DatePicker.TableCellTrigger>
+                            </DatePicker.TableCell>
+                          )}
+                        </Index>
+                      </DatePicker.TableRow>
+                    )}
+                  </Index>
+                </DatePicker.TableBody>
+              </DatePicker.Table>
+            </>
+          )}
+        </DatePicker.Context>
+      </DatePicker.View>
+      <DatePicker.View view="year">
+        <DatePicker.Context>
+          {(api) => (
+            <>
+              <DatePicker.ViewControl class="mb-2 flex items-center justify-between gap-1">
+                <DatePicker.PrevTrigger
+                  aria-label="Previous years"
+                  class={navButton}
+                >
+                  <IconChevronLeft aria-hidden="true" class="size-4" />
+                </DatePicker.PrevTrigger>
+                <DatePicker.ViewTrigger class="rounded-sm px-2 py-1 text-sm font-medium text-text hover:bg-primary-soft">
+                  <DatePicker.RangeText />
+                </DatePicker.ViewTrigger>
+                <DatePicker.NextTrigger
+                  aria-label="Next years"
+                  class={navButton}
+                >
+                  <IconChevronRight aria-hidden="true" class="size-4" />
+                </DatePicker.NextTrigger>
+              </DatePicker.ViewControl>
+              <DatePicker.Table class="border-collapse">
+                <DatePicker.TableBody>
+                  <Index each={api().getYearsGrid({ columns: 4 })}>
+                    {(years) => (
+                      <DatePicker.TableRow>
+                        <Index each={years()}>
+                          {(year) => (
+                            <DatePicker.TableCell value={year().value}>
+                              <DatePicker.TableCellTrigger class="m-0.5 grid h-9 w-14 place-items-center rounded-sm text-sm text-text transition-colors hover:bg-primary-soft data-[selected]:bg-primary data-[selected]:text-primary-foreground">
+                                {year().label}
+                              </DatePicker.TableCellTrigger>
+                            </DatePicker.TableCell>
+                          )}
+                        </Index>
+                      </DatePicker.TableRow>
+                    )}
+                  </Index>
+                </DatePicker.TableBody>
+              </DatePicker.Table>
+            </>
+          )}
+        </DatePicker.Context>
+      </DatePicker.View>
+    </>
+  );
+}
+
+/**
+ * Date field backed by Ark DatePicker: typed YYYY-MM-DD input plus a
+ * calendar popup. Value stays a `YYYY-MM-DD` string (or "") so drafts
+ * and the API payloads don't change shape.
+ */
+export function DateField(props: {
+  label: string;
+  hint?: string;
+  value: string;
+  required?: boolean;
+  onChange: (next: string) => void;
+}) {
+  return (
+    <DatePicker.Root
+      value={parseDayValue(props.value)}
+      onValueChange={(e) => props.onChange(e.value[0]?.toString() ?? "")}
+      positioning={{ placement: "bottom-start", gutter: 4 }}
+      class="flex flex-col gap-1.5"
+    >
+      <DatePicker.Label class={labelClass}>
+        {props.label}
+        <Show when={props.required}>
+          <span aria-hidden="true"> *</span>
+        </Show>
+      </DatePicker.Label>
+      <DatePicker.Control class="flex items-center gap-2">
+        <DatePicker.Input
+          placeholder="YYYY-MM-DD"
+          class={cn(inputBase, "min-w-0 flex-1")}
+        />
+        <DatePicker.Trigger
+          aria-label={`Choose ${props.label.toLowerCase()}`}
+          class={cn(
+            "grid size-11 shrink-0 place-items-center rounded-sm text-text-muted",
+            "transition-colors duration-[var(--duration-fast)] hover:bg-primary-soft hover:text-primary",
+            focusRing,
+          )}
+        >
+          <IconCalendarDue aria-hidden="true" class="size-5" />
+        </DatePicker.Trigger>
+      </DatePicker.Control>
+      <Show when={props.hint}>
+        <p class="text-sm text-text-muted">{props.hint}</p>
+      </Show>
+      <Portal>
+        <DatePicker.Positioner class="z-50!">
+          <DatePicker.Content class={dateContent}>
+            <DatePickerCalendar />
+          </DatePicker.Content>
+        </DatePicker.Positioner>
+      </Portal>
+    </DatePicker.Root>
+  );
+}
+
 /**
  * Create and edit share one form: the fields are the same, and an owner
  * moving a task from a phone does it here rather than by dragging.
@@ -1058,19 +1289,12 @@ export function TaskDialog(props: {
                   />
                 </div>
 
-                <FieldBlock
+                <DateField
                   label="Due date"
                   hint="Leave empty if there is no deadline."
-                >
-                  <Field.Input
-                    type="date"
-                    value={props.draft.dueDate}
-                    onInput={(e) =>
-                      props.onChange({ dueDate: e.currentTarget.value })
-                    }
-                    class={inputBase}
-                  />
-                </FieldBlock>
+                  value={props.draft.dueDate}
+                  onChange={(dueDate) => props.onChange({ dueDate })}
+                />
               </fieldset>
 
               <Show when={props.error}>
@@ -1526,17 +1750,12 @@ export function MeetingDialog(props: {
                 />
               </FieldBlock>
 
-              <FieldBlock label="Date" required>
-                <Field.Input
-                  type="date"
-                  required
-                  value={props.draft.date}
-                  onInput={(e) =>
-                    props.onChange({ date: e.currentTarget.value })
-                  }
-                  class={inputBase}
-                />
-              </FieldBlock>
+              <DateField
+                label="Date"
+                value={props.draft.date}
+                required
+                onChange={(date) => props.onChange({ date })}
+              />
 
               <div class="grid gap-4 sm:grid-cols-2">
                 <FieldBlock label="Starts" required>
@@ -1727,6 +1946,88 @@ export function TabCount(props: { value: number }) {
     <span class="rounded-full bg-primary-soft px-1.5 py-0.5 font-mono text-xs tabular-nums text-primary">
       {props.value}
     </span>
+  );
+}
+
+/**
+ * Page-level feedback for the task board: success confirmations and action
+ * errors arrive as toasts, while the sr-only live region keeps announcing
+ * for screen readers. Dialogs keep their inline Notices for field errors.
+ */
+export const tasksToaster = createToaster({
+  placement: "bottom-end",
+  overlap: true,
+  gap: 12,
+  max: 4,
+});
+
+const toastIcon = (type: string | undefined) => {
+  switch (type) {
+    case "success":
+      return IconCircleCheck;
+    case "error":
+    case "warning":
+      return IconAlertTriangle;
+    default:
+      return IconInfoCircle;
+  }
+};
+
+const toastTone = (type: string | undefined) =>
+  type === "error"
+    ? "border-error/40 bg-surface"
+    : type === "success"
+      ? "border-success/40 bg-surface"
+      : "border-border bg-surface";
+
+export function TasksToaster() {
+  return (
+    <Portal>
+      <Toaster toaster={tasksToaster}>
+        {(toast) => {
+          const Icon = toastIcon(toast().type);
+          return (
+            <Toast.Root
+              class={cn(
+                "flex w-[min(22rem,calc(100vw-2rem))] items-start gap-2.5 rounded-lg border p-4 text-text shadow-[0_8px_24px_rgb(0_0_0/0.12)]",
+                toastTone(toast().type),
+              )}
+            >
+              <Icon
+                aria-hidden="true"
+                class={cn(
+                  "mt-0.5 size-5 shrink-0",
+                  toast().type === "error"
+                    ? "text-error"
+                    : toast().type === "success"
+                      ? "text-success"
+                      : "text-primary",
+                )}
+              />
+              <div class="min-w-0 flex-1">
+                <Toast.Title class="text-sm font-semibold">
+                  {toast().title}
+                </Toast.Title>
+                <Show when={toast().description}>
+                  <Toast.Description class="mt-0.5 text-sm text-text-muted">
+                    {toast().description}
+                  </Toast.Description>
+                </Show>
+              </div>
+              <Toast.CloseTrigger
+                aria-label="Dismiss"
+                class={cn(
+                  "grid size-8 shrink-0 place-items-center rounded-sm text-text-muted hover:text-text",
+                  focusRing,
+                )}
+              >
+                <IconX aria-hidden="true" class="size-4" />
+              </Toast.CloseTrigger>
+            </Toast.Root>
+          );
+        }}
+      </Toaster>
+    </Portal>
   );
 }
 
