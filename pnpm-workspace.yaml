@@ -2,3 +2,15 @@ allowBuilds:
   '@prisma/engines': true
   prisma: true
   protobufjs: true
+
+# Security overrides for transitive dependencies that upstream pins to
+# vulnerable versions. See `pnpm audit`.
+overrides:
+  # @prisma/config pins this to 7.1.5 exactly; patched in 8.0.0.
+  # Remove once prisma/prisma#30054 ships in a 7.x release.
+  deepmerge-ts: 8.0.2
+  # Pinned exactly by the prisma CLI; patched in 3.22.0 / 3.23.1.
+  mysql2: 3.24.5
+  # Bumped from 1.14.4 by google-gax's ^1.12.6 range; patched in 1.14.5.
+  '@grpc/grpc-js': 1.14.5
+
