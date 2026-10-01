@@ -4,6 +4,7 @@ import { inviteCallbackUrl, pickInviteToken } from "~/lib/invite-redirect";
 import { safeRedirectPath } from "~/lib/post-login-redirect";
 import { getSessionFromHeaders } from "~/lib/server-auth";
 import { isTrustedRequestOrigin } from "~/lib/trusted-origins";
+import { verificationErrorRedirect } from "~/lib/verification-redirect";
 
 /**
  * A net, not a fix: Node has defaulted to `--unhandled-rejections=throw` since
@@ -237,6 +238,18 @@ export default createMiddleware({
           pickInviteToken(params.get("invite") ?? undefined),
           safeRedirectPath(params.get("callbackURL")),
         );
+        return secured(
+          new Response(null, { status: 302, headers: { Location: target } }),
+        );
+      }
+    }
+
+    // A failed sign-up confirmation link comes back to its callbackURL with
+    // `?error=`. Signed out, that page can't help them; /verify-email can. A
+    // signed-in visitor is already verified, so they carry on as normal.
+    if (event.request.method === "GET") {
+      const target = verificationErrorRedirect(new URL(event.request.url));
+      if (target && !(await getSessionFromHeaders(event.request.headers))) {
         return secured(
           new Response(null, { status: 302, headers: { Location: target } }),
         );

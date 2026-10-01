@@ -36,6 +36,7 @@ import {
   pickInviteToken,
   withInvite,
 } from "~/lib/invite-redirect";
+import { pickVerifyLinkError } from "~/lib/verification-redirect";
 
 const RESEND_COOLDOWN = 60;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,7 +45,8 @@ type Notice = { kind: "error"; message: string } | { kind: "rate-limit" };
 
 /**
  * Resend a sign-up confirmation link. /login sends unverified accounts here
- * with `?email=` pre-filled; nothing is sent until the visitor asks, so a link
+ * with `?email=` pre-filled, and the middleware sends failed confirmation
+ * links here with `?error=`; nothing is sent until the visitor asks, so a link
  * prefetch can never trigger an email.
  */
 export default function VerifyEmailPage() {
@@ -53,6 +55,9 @@ export default function VerifyEmailPage() {
   const invite = () => pickInviteToken(params.invite);
   // Verification signs the user in and lands them here, same as /signup.
   const afterVerify = () => inviteCallbackUrl(invite(), "/onboarding");
+
+  // The middleware sends failed confirmation links here with `?error=`.
+  const linkError = () => pickVerifyLinkError(params.error);
 
   const initialEmail = () => {
     const raw = Array.isArray(params.email) ? params.email[0] : params.email;
@@ -209,6 +214,25 @@ export default function VerifyEmailPage() {
                 You need to confirm your email address before you can log in.
                 We'll send you a new link.
               </p>
+
+              <Show when={linkError()}>
+                {(code) => (
+                  <p class="mt-5 flex items-start gap-2 rounded-md border border-warning/40 bg-accent-soft px-3 py-2.5 text-sm text-text">
+                    <IconAlertTriangle
+                      aria-hidden="true"
+                      class="mt-0.5 size-4 shrink-0 text-warning"
+                    />
+                    <span>
+                      <span class="font-medium">
+                        {code() === "TOKEN_EXPIRED"
+                          ? "That confirmation link has expired."
+                          : "That confirmation link didn't work."}
+                      </span>{" "}
+                      Enter your email to get a new one.
+                    </span>
+                  </p>
+                )}
+              </Show>
 
               <div
                 ref={noticeRef}
