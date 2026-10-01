@@ -298,9 +298,9 @@ export function ReviewLinkPanel(
         data.available
           ? { kind: "available" }
           : {
-            kind: "unavailable",
-            message: data.error ?? "That name isn't available.",
-          },
+              kind: "unavailable",
+              message: data.error ?? "That name isn't available.",
+            },
       );
     } catch {
       if (mine === seq) setState({ kind: "error" });
