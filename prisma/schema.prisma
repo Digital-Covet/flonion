@@ -43,6 +43,7 @@ model User {
   googleToken          GoogleToken?
   meetingRequests      MeetingRequest[]
   assignedTasks        Task[]
+  coAssignedTasks      TaskAssignee[]
   sentInvitations      Invitation[]     @relation("InvitationSender")
   joinRequests         JoinRequest[]    @relation("JoinRequestRequester")
   reviewedJoinRequests JoinRequest[]    @relation("JoinRequestReviewer")
@@ -130,6 +131,7 @@ model Business {
   meetingRequests   MeetingRequest[]
   teamMembers       User[]             @relation("BusinessMember")
   tasks             Task[]
+  taskFields        TaskField[]
   teamMeetings      TeamMeeting[]
   invitations       Invitation[]
   joinRequests      JoinRequest[]
@@ -361,6 +363,9 @@ model Task {
   parentId    String?
   parent      Task?     @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
   subtasks    Task[]    @relation("Subtasks")
+  fieldValues TaskFieldValue[]
+  /// Everyone besides `assignee` (the lead) who is also on this task.
+  coAssignees TaskAssignee[]
   assigneeId  String
   assignee    User      @relation(fields: [assigneeId], references: [id], onDelete: Cascade)
   businessId  String
@@ -372,6 +377,51 @@ model Task {
   @@index([assigneeId])
   @@index([parentId])
   @@map("task")
+}
+
+/// An additional assignee of a task. The lead stays `Task.assigneeId`, so a
+/// task always has one person responsible and may have more beside them.
+model TaskAssignee {
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([taskId, userId])
+  @@index([userId])
+  @@map("task_assignee")
+}
+
+/// A column a team added to its task table (Group by > Custom).
+model TaskField {
+  id         String           @id @default(cuid())
+  businessId String
+  business   Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  title      String
+  /// text | richtext | number | link | tags | checkbox | date
+  type       String
+  position   Int              @default(0)
+  values     TaskFieldValue[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([businessId, position])
+  @@map("task_field")
+}
+
+/// One task's value in one added column; the shape depends on the column's type.
+model TaskFieldValue {
+  taskId    String
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  fieldId   String
+  field     TaskField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  value     Json
+  updatedAt DateTime  @updatedAt
+
+  @@id([taskId, fieldId])
+  @@index([fieldId])
+  @@map("task_field_value")
 }
 
 model TeamMeeting {

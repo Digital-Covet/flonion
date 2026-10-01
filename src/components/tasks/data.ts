@@ -1,5 +1,6 @@
 import type { TeamMember } from "~/components/app/context";
 import { api } from "~/components/onboarding/ui";
+import { type FieldType, type FieldValue, safeHref } from "~/lib/task-fields";
 
 /**
  * Task board state and fetching (spec §6, `/collaborations/tasks`: kanban,
@@ -29,16 +30,45 @@ export type Task = {
   completedAt: string | null;
   /** The task this is a subtask of; null for a top-level task. */
   parentId: string | null;
+  /** The lead: the person responsible, who is also first in `assignees`. */
   assigneeId: string;
-  assignee: {
-    id: string;
-    name: string;
-    email: string;
-    image: string | null;
-  } | null;
+  assignee: TaskPerson | null;
+  /** Everyone on the task, lead first. */
+  assignees: TaskPerson[];
   createdAt: string;
   updatedAt: string;
 };
+
+export type TaskPerson = {
+  id: string;
+  name: string;
+  email: string;
+  image: string | null;
+};
+
+/** Everyone on a task, lead first; just the lead for a task without a list. */
+export function assigneesOf(task: Task): TaskPerson[] {
+  if (task.assignees?.length) return task.assignees;
+  return task.assignee ? [task.assignee] : [];
+}
+
+/** Whether `userId` is the task's lead or one of its other assignees. */
+export function isAssignee(task: Task, userId: string): boolean {
+  return (
+    task.assigneeId === userId ||
+    assigneesOf(task).some((person) => person.id === userId)
+  );
+}
+
+/** "Priya", "Priya and Sam", "Priya, Sam and 2 others". */
+export function assigneeNames(task: Task): string {
+  const names = assigneesOf(task).map((p) => p.name);
+  if (names.length === 0) return "Unassigned";
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  const rest = names.length - 2;
+  return `${names[0]}, ${names[1]} and ${rest} ${rest === 1 ? "other" : "others"}`;
+}
 
 /** One row of `GET /api/team-meetings`. */
 export type TeamMeeting = {
@@ -270,7 +300,7 @@ export function matchesView(
 ): boolean {
   if (view.assignee !== ASSIGNEE_ALL) {
     const wanted = view.assignee === ASSIGNEE_ME ? viewerId : view.assignee;
-    if (task.assigneeId !== wanted) return false;
+    if (!isAssignee(task, wanted)) return false;
   }
   if (view.priority !== "all" && task.priority !== view.priority) return false;
 
@@ -279,7 +309,7 @@ export function matchesView(
     q &&
     !task.title.toLocaleLowerCase().includes(q) &&
     !(task.description ?? "").toLocaleLowerCase().includes(q) &&
-    !(task.assignee?.name ?? "").toLocaleLowerCase().includes(q)
+    !assigneesOf(task).some((p) => p.name.toLocaleLowerCase().includes(q))
   ) {
     return false;
   }
@@ -308,13 +338,14 @@ export function canManage(viewer: Viewer | undefined): boolean {
 }
 
 /**
- * Members may only touch tasks assigned to them — the same rule the API
- * enforces, mirrored here so the board shows a lock instead of failing a
- * request the person was never allowed to make (spec §6).
+ * Members may only touch tasks they are on, as the lead or as one of the
+ * other assignees — the same rule the API enforces, mirrored here so the board
+ * shows a lock instead of failing a request the person was never allowed to
+ * make (spec §6).
  */
 export function canEditTask(task: Task, viewer: Viewer | undefined): boolean {
   if (!viewer) return false;
-  return canManage(viewer) || task.assigneeId === viewer.userId;
+  return canManage(viewer) || isAssignee(task, viewer.userId);
 }
 
 // ─── Grouping ────────────────────────────────────────────────────────────
@@ -571,19 +602,25 @@ export function groupTasks(
   } else if (group === "assignee") {
     const people = new Map(members.map((m) => [m.id, m.name]));
     for (const t of tasks) {
+      for (const person of assigneesOf(t)) {
+        if (!people.has(person.id)) people.set(person.id, person.name);
+      }
       if (!people.has(t.assigneeId)) {
-        people.set(t.assigneeId, t.assignee?.name ?? "Former team member");
+        people.set(t.assigneeId, "Former team member");
       }
     }
+    // A task with several assignees shows up under each of them.
     groups = [...people.entries()]
       .sort((a, b) => a[1].localeCompare(b[1]))
       .map(([id, name]) => ({
         key: id,
         label: name,
         tone: "primary" as const,
-        tasks: tasks.filter((t) => t.assigneeId === id),
+        tasks: tasks.filter((t) => isAssignee(t, id)),
         // Only current members can be assigned new work.
-        defaults: members.some((m) => m.id === id) ? { assigneeId: id } : null,
+        defaults: members.some((m) => m.id === id)
+          ? { assigneeIds: [id] }
+          : null,
       }));
   } else {
     return groupByDue(tasks, now)
@@ -700,6 +737,61 @@ export function saveCustomAssign(
   writeStorage(customAssignKey(businessId), JSON.stringify(assign));
 }
 
+/** Column headings of the main table, renamable per team (local only). */
+export type HeadingKey =
+  | "description"
+  | "status"
+  | "date"
+  | "assignee"
+  | "priority";
+
+export const DEFAULT_HEADINGS: Record<HeadingKey, string> = {
+  description: "Description",
+  status: "Status",
+  date: "Date",
+  assignee: "Assignee",
+  priority: "Priority",
+};
+
+const headingsKey = (businessId: string) =>
+  `tasks.column-headings.${businessId}`;
+
+/** Saved overrides merged over the defaults; blank or odd entries are ignored. */
+export function loadHeadings(
+  businessId: string | undefined,
+): Record<HeadingKey, string> {
+  const headings = { ...DEFAULT_HEADINGS };
+  if (!businessId) return headings;
+  const raw = readStorage(headingsKey(businessId));
+  if (!raw) return headings;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return headings;
+    for (const key of Object.keys(headings) as HeadingKey[]) {
+      const value = (parsed as Record<string, unknown>)[key];
+      if (typeof value === "string" && value.trim()) {
+        headings[key] = value.trim().slice(0, 40);
+      }
+    }
+  } catch {
+    // Corrupt entry: fall back to the defaults.
+  }
+  return headings;
+}
+
+/** Only names that differ from the default are stored. */
+export function saveHeadings(
+  businessId: string | undefined,
+  headings: Record<HeadingKey, string>,
+): void {
+  if (!businessId) return;
+  const overrides: Partial<Record<HeadingKey, string>> = {};
+  for (const key of Object.keys(DEFAULT_HEADINGS) as HeadingKey[]) {
+    if (headings[key] !== DEFAULT_HEADINGS[key]) overrides[key] = headings[key];
+  }
+  writeStorage(headingsKey(businessId), JSON.stringify(overrides));
+}
+
 export const DEFAULT_NONE_TITLE = "No section";
 
 const customNoneTitleKey = (businessId: string) =>
@@ -810,6 +902,268 @@ export function groupByCustom(
   return groups;
 }
 
+// ─── Added columns (stored on the server, shared by the team) ────────────
+
+/** A column the team added to the main table. */
+export type CustomColumn = { id: string; title: string; type: FieldType };
+
+/** Task id → column id → value. Empty values are not stored. */
+export type FieldValues = Record<string, Record<string, FieldValue>>;
+
+/** The text an editor starts from. */
+export function fieldInputText(value: FieldValue | undefined): string {
+  if (value === undefined || typeof value === "boolean") return "";
+  return Array.isArray(value) ? value.join(", ") : String(value);
+}
+
+export type RichToken =
+  | { kind: "text" | "bold" | "italic"; text: string }
+  | { kind: "link"; text: string; href: string };
+
+const RICH_PATTERN =
+  /\*\*(.+?)\*\*|\*(.+?)\*|\[([^\]]+)\]\(([^\s)]+)\)|(https?:\/\/[^\s<]+)/g;
+
+/**
+ * Rich text is plain text with a few conventions, split into lines of tokens.
+ * Nothing is ever inserted as HTML; links pass through `safeHref`.
+ */
+export function richTextLines(text: string): RichToken[][] {
+  return text.split("\n").map((line) => {
+    const tokens: RichToken[] = [];
+    let last = 0;
+    for (const m of line.matchAll(RICH_PATTERN)) {
+      const at = m.index ?? 0;
+      if (at > last) tokens.push({ kind: "text", text: line.slice(last, at) });
+      if (m[1]) tokens.push({ kind: "bold", text: m[1] });
+      else if (m[2]) tokens.push({ kind: "italic", text: m[2] });
+      else if (m[3]) {
+        const href = safeHref(m[4]);
+        tokens.push(
+          href
+            ? { kind: "link", text: m[3], href }
+            : { kind: "text", text: m[0] },
+        );
+      } else {
+        const href = safeHref(m[5]);
+        tokens.push(
+          href
+            ? { kind: "link", text: m[5], href }
+            : { kind: "text", text: m[5] },
+        );
+      }
+      last = at + m[0].length;
+    }
+    if (last < line.length)
+      tokens.push({ kind: "text", text: line.slice(last) });
+    return tokens;
+  });
+}
+
+/** `null` clears the cell; a task with no values left drops out entirely. */
+export function setFieldValue(
+  values: FieldValues,
+  taskId: string,
+  columnId: string,
+  value: FieldValue | null,
+): FieldValues {
+  const { [taskId]: current = {}, ...others } = values;
+  const { [columnId]: _old, ...rest } = current;
+  const cells = value === null ? rest : { ...rest, [columnId]: value };
+  return Object.keys(cells).length > 0
+    ? { ...others, [taskId]: cells }
+    : others;
+}
+
+/** What deleting a column leaves behind: no trace of its values. */
+export function withoutColumnValues(
+  values: FieldValues,
+  columnId: string,
+): FieldValues {
+  const next: FieldValues = {};
+  for (const [taskId, cells] of Object.entries(values)) {
+    const { [columnId]: _removed, ...rest } = cells;
+    if (Object.keys(rest).length > 0) next[taskId] = rest;
+  }
+  return next;
+}
+
+export type TaskFields = { columns: CustomColumn[]; values: FieldValues };
+
+type FieldsResponse = {
+  fields: CustomColumn[];
+  values: { taskId: string; fieldId: string; value: FieldValue }[];
+};
+
+export async function loadTaskFields(): Promise<TaskFields> {
+  const res = await api<FieldsResponse>("/api/task-fields");
+  if (!res.ok) throw new Error(res.data.error ?? "Failed to load the columns");
+  const body = res.data as FieldsResponse;
+  const values: FieldValues = {};
+  for (const v of body.values ?? []) {
+    values[v.taskId] = { ...values[v.taskId], [v.fieldId]: v.value };
+  }
+  return { columns: body.fields ?? [], values };
+}
+
+/** Where a new column goes: next to a named one, or at the end by default. */
+export type FieldPlacement = { beforeId?: string; afterId?: string };
+
+/** A new column of a type, or a copy (values included) of an existing one. */
+export async function createTaskField(
+  source: { type: FieldType } | { duplicateOf: string },
+  placement: FieldPlacement = {},
+): Promise<CustomColumn> {
+  const res = await api<CustomColumn>("/api/task-fields", {
+    method: "POST",
+    body: { ...source, ...placement },
+  });
+  if (!res.ok) throw new Error(res.data.error ?? "Failed to add the column");
+  return res.data as CustomColumn;
+}
+
+export async function updateTaskField(
+  id: string,
+  patch: { title?: string; type?: FieldType; move?: "left" | "right" },
+): Promise<CustomColumn> {
+  const res = await api<CustomColumn>(`/api/task-fields/${id}`, {
+    method: "PATCH",
+    body: patch,
+  });
+  if (!res.ok) throw new Error(res.data.error ?? "Failed to update the column");
+  return res.data as CustomColumn;
+}
+
+/** Empties a column without deleting it. */
+export async function clearTaskFieldValues(fieldId: string): Promise<void> {
+  const res = await api("/api/task-fields/values", {
+    method: "DELETE",
+    body: { fieldId },
+  });
+  if (!res.ok) throw new Error(res.data.error ?? "Failed to clear the column");
+}
+
+// ─── Sorting by columns ──────────────────────────────────────────────────
+
+export type SortDir = "asc" | "desc";
+
+/** `key` is a built-in heading ("status", "date", ...) or `col:<id>` for an added column. */
+export type ColumnSort = { key: string; dir: SortDir };
+
+export const customSortKey = (columnId: string) => `col:${columnId}`;
+
+/** The sorts that still point at a column that exists. */
+export function liveSorts(
+  sorts: ColumnSort[],
+  columns: CustomColumn[],
+): ColumnSort[] {
+  const ids = new Set(columns.map((c) => customSortKey(c.id)));
+  return sorts.filter((s) => !s.key.startsWith("col:") || ids.has(s.key));
+}
+
+/** "Sort" starts over with one sort; "Add sort" keeps the others as tie-breakers. */
+export function nextSorts(
+  sorts: ColumnSort[],
+  key: string,
+  dir: SortDir,
+  mode: "replace" | "add",
+): ColumnSort[] {
+  if (mode === "replace") return [{ key, dir }];
+  return sorts.some((s) => s.key === key)
+    ? sorts.map((s) => (s.key === key ? { key, dir } : s))
+    : [...sorts, { key, dir }];
+}
+
+type SortCell = number | string | null;
+
+/** A cell as something comparable; `null` means empty, which sorts last. */
+function sortCell(
+  task: Task,
+  key: string,
+  columns: CustomColumn[],
+  values: FieldValues,
+): SortCell {
+  if (key.startsWith("col:")) {
+    const column = columns.find((c) => customSortKey(c.id) === key);
+    if (!column) return null;
+    const value = values[task.id]?.[column.id];
+    if (column.type === "checkbox") return value === true ? 1 : 0;
+    if (value === undefined) return null;
+    if (Array.isArray(value)) return value.join(", ");
+    return typeof value === "boolean" ? null : value;
+  }
+  switch (key) {
+    case "description":
+      return task.description?.trim() || null;
+    case "status":
+      return COLUMN_RANK[task.column];
+    case "date":
+      return task.dueDate ? Date.parse(task.dueDate) : null;
+    case "assignee":
+      return assigneesOf(task).length > 0
+        ? assigneesOf(task)
+            .map((p) => p.name)
+            .join(", ")
+        : null;
+    case "priority":
+      // Ascending runs low to high.
+      return 2 - PRIORITY_RANK[task.priority];
+    default:
+      return null;
+  }
+}
+
+function compareCells(a: SortCell, b: SortCell, dir: SortDir): number {
+  // Empty cells go last whichever way the column is sorted.
+  if (a === null || b === null) return a === b ? 0 : a === null ? 1 : -1;
+  const order =
+    typeof a === "number" && typeof b === "number"
+      ? a - b
+      : String(a).localeCompare(String(b), undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+  return dir === "asc" ? order : -order;
+}
+
+/** Tasks ordered by each sort in turn; ties keep their incoming order. */
+export function sortByColumns(
+  tasks: Task[],
+  sorts: ColumnSort[],
+  columns: CustomColumn[],
+  values: FieldValues,
+): Task[] {
+  if (sorts.length === 0) return tasks;
+  return [...tasks].sort((a, b) => {
+    for (const { key, dir } of sorts) {
+      const order = compareCells(
+        sortCell(a, key, columns, values),
+        sortCell(b, key, columns, values),
+        dir,
+      );
+      if (order !== 0) return order;
+    }
+    return 0;
+  });
+}
+
+export async function deleteTaskField(id: string): Promise<void> {
+  const res = await api(`/api/task-fields/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(res.data.error ?? "Failed to delete the column");
+}
+
+/** Saves one cell; `null` clears it. */
+export async function saveTaskFieldValue(
+  taskId: string,
+  fieldId: string,
+  value: FieldValue | null,
+): Promise<void> {
+  const res = await api("/api/task-fields/values", {
+    method: "PUT",
+    body: { taskId, fieldId, value },
+  });
+  if (!res.ok) throw new Error(res.data.error ?? "Failed to save the value");
+}
+
 export type Timeline = {
   /** "9 Sep – 15 Sep", or null when there is no due date to draw to. */
   label: string | null;
@@ -893,17 +1247,30 @@ export function workload(
   const known = new Set(members.map((m) => m.id));
   const strays = new Map<string, TeamMember>();
   for (const task of tasks) {
-    if (known.has(task.assigneeId) || strays.has(task.assigneeId)) continue;
-    strays.set(task.assigneeId, {
-      id: task.assigneeId,
-      name: task.assignee?.name ?? "Former team member",
-      email: task.assignee?.email ?? "",
-      image: task.assignee?.image ?? null,
-    });
+    const people = assigneesOf(task);
+    // A lead the list doesn't carry still holds the task.
+    if (!people.some((p) => p.id === task.assigneeId)) {
+      people.push({
+        id: task.assigneeId,
+        name: "Former team member",
+        email: "",
+        image: null,
+      });
+    }
+    for (const person of people) {
+      if (known.has(person.id) || strays.has(person.id)) continue;
+      strays.set(person.id, {
+        id: person.id,
+        name: person.name,
+        email: person.email,
+        image: person.image,
+      });
+    }
   }
 
+  // A task shared by several people counts toward each of them.
   const rows = [...members, ...strays.values()].map((member) => {
-    const mine = tasks.filter((t) => t.assigneeId === member.id);
+    const mine = tasks.filter((t) => isAssignee(t, member.id));
     const open = mine.filter(isOpen);
     return {
       member,
@@ -1042,9 +1409,10 @@ export type Finisher = {
 };
 
 /**
- * Who finished how much in a month, most first. The assignee is the one
- * credited — the board has no separate "done by". Anyone who finished
- * nothing is left out: this is a record, not the workload view.
+ * Who finished how much in a month, most first. The assignees are the ones
+ * credited — the board has no separate "done by" — so a shared task counts
+ * for each of them. Anyone who finished nothing is left out: this is a
+ * record, not the workload view.
  */
 export function finishersIn(
   tasks: Task[],
@@ -1053,18 +1421,23 @@ export function finishersIn(
 ): Finisher[] {
   const people = new Map<string, Finisher>();
   for (const task of finishedIn(tasks, month)) {
-    const known = people.get(task.assigneeId);
-    if (known) {
-      known.count++;
-      continue;
+    const onTask = assigneesOf(task);
+    const ids = onTask.length > 0 ? onTask.map((p) => p.id) : [task.assigneeId];
+    for (const id of ids) {
+      const known = people.get(id);
+      if (known) {
+        known.count++;
+        continue;
+      }
+      const member = members.find((m) => m.id === id);
+      const person = onTask.find((p) => p.id === id);
+      people.set(id, {
+        id,
+        name: member?.name ?? person?.name ?? "Former team member",
+        image: member?.image ?? person?.image ?? null,
+        count: 1,
+      });
     }
-    const member = members.find((m) => m.id === task.assigneeId);
-    people.set(task.assigneeId, {
-      id: task.assigneeId,
-      name: member?.name ?? task.assignee?.name ?? "Former team member",
-      image: member?.image ?? task.assignee?.image ?? null,
-      count: 1,
-    });
   }
   return [...people.values()].sort(
     (a, b) => b.count - a.count || a.name.localeCompare(b.name),
@@ -1200,7 +1573,8 @@ export type TaskDraft = {
   priority: TaskPriority;
   /** `YYYY-MM-DD` from a date input, or "" for no deadline. */
   dueDate: string;
-  assigneeId: string;
+  /** Who is on the task; the first is the lead. */
+  assigneeIds: string[];
 };
 
 export function emptyDraft(assigneeId: string): TaskDraft {
@@ -1210,7 +1584,7 @@ export function emptyDraft(assigneeId: string): TaskDraft {
     column: "todo",
     priority: "medium",
     dueDate: "",
-    assigneeId,
+    assigneeIds: assigneeId ? [assigneeId] : [],
   };
 }
 
@@ -1221,7 +1595,9 @@ export function draftFrom(task: Task): TaskDraft {
     column: task.column,
     priority: task.priority,
     dueDate: dueDayKey(task) ?? "",
-    assigneeId: task.assigneeId,
+    assigneeIds: assigneesOf(task).map((p) => p.id).length
+      ? assigneesOf(task).map((p) => p.id)
+      : [task.assigneeId],
   };
 }
 
@@ -1257,7 +1633,7 @@ export async function createTask(
       column: draft.column,
       priority: draft.priority,
       dueDate: dueDatePayload(draft.dueDate),
-      assigneeId: draft.assigneeId,
+      assigneeIds: draft.assigneeIds,
     },
   });
   if (!res.ok) throw new Error(res.data.error ?? "Failed to create the task");
@@ -1273,7 +1649,7 @@ export async function updateTask(id: string, draft: TaskDraft): Promise<Task> {
       column: draft.column,
       priority: draft.priority,
       dueDate: dueDatePayload(draft.dueDate),
-      assigneeId: draft.assigneeId,
+      assigneeIds: draft.assigneeIds,
     },
   });
   if (!res.ok) throw new Error(res.data.error ?? "Failed to save the task");

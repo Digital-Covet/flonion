@@ -36,26 +36,37 @@ import {
   ASSIGNEE_ME,
   byColumn,
   COLUMN_LABEL,
+  type ColumnSort,
+  type CustomColumn,
   type CustomSection,
   canEditTask,
+  clearTaskFieldValues,
   createTask,
+  createTaskField,
   createTeamMeeting,
+  DEFAULT_HEADINGS,
   DEFAULT_NONE_TITLE,
   deleteTask,
+  deleteTaskField,
   deleteTeamMeeting,
   draftFrom,
   emptyDraft,
   emptyMeetingDraft,
+  type FieldPlacement,
   filtersActive,
   groupByCustom,
   groupTasks,
+  type HeadingKey,
   isOpen,
   isOverdue,
   isTaskListTab,
   isUpcoming,
+  liveSorts,
   loadCustomAssign,
   loadCustomSections,
+  loadHeadings,
   loadNoneTitle,
+  loadTaskFields,
   loadTasks,
   loadTeamMeetings,
   type MeetingDraft,
@@ -63,12 +74,18 @@ import {
   meetingCountLabel,
   moveTask,
   newCustomSectionId,
+  nextSorts,
   pruneCustomAssign,
   reorderTask,
   resolveIndex,
+  type SortDir,
   saveCustomAssign,
   saveCustomSections,
+  saveHeadings,
   saveNoneTitle,
+  saveTaskFieldValue,
+  setFieldValue,
+  sortByColumns,
   sortMeetings,
   subtasksByParent,
   TASK_TABS,
@@ -83,13 +100,16 @@ import {
   taskCountLabel,
   tasksIn,
   updateTask,
+  updateTaskField,
   type Viewer,
   viewFrom,
   viewParams,
+  withoutColumnValues,
   workload,
 } from "~/components/tasks/data";
 import {
   DEFAULT_COLUMNS,
+  type OptionalColumn,
   TableActions,
   type TableColumns,
   TableSkeleton,
@@ -114,7 +134,14 @@ import {
   WorkloadPanel,
   WorkloadSkeleton,
 } from "~/components/tasks/widgets";
+import { canManageTeam } from "~/components/team/data";
 import { cn } from "~/lib/cn";
+import {
+  convertFieldValue,
+  type FieldType,
+  type FieldValue,
+  fieldTypeLabel,
+} from "~/lib/task-fields";
 
 /**
  * Task board (spec §6, `/collaborations/tasks`).
@@ -205,9 +232,10 @@ export default function TasksPage() {
     {},
   );
   const [noneTitle, setNoneTitle] = createSignal(DEFAULT_NONE_TITLE);
+  const [headings, setHeadings] =
+    createSignal<Record<HeadingKey, string>>(DEFAULT_HEADINGS);
   const [tableColumns, setTableColumns] =
     createSignal<TableColumns>(DEFAULT_COLUMNS);
-
   // Load the local layout whenever the team changes; nothing fetches during
   // SSR, and localStorage is browser-only.
   createEffect(
@@ -215,8 +243,219 @@ export default function TasksPage() {
       setCustomSections(loadCustomSections(id));
       setCustomAssign(loadCustomAssign(id));
       setNoneTitle(loadNoneTitle(id));
+      setHeadings(loadHeadings(id));
     }),
   );
+
+  // ── Added columns (stored on the server, shared by the team) ────────
+  const [fields, { refetch: refetchFields, mutate: mutateFields }] =
+    createResource(ready, loadTaskFields);
+  const addedColumns = () => settled(fields)?.columns ?? [];
+  const fieldValues = () => settled(fields)?.values ?? {};
+  /** Structure is for the owner and admins; the server checks the same rule. */
+  const canManageColumns = () => canManageTeam(viewer());
+
+  function failureReason(error: unknown, fallback: string) {
+    return error instanceof Error ? error.message : fallback;
+  }
+
+  /** The columns sorted by, first to last; a deleted column's sort drops out. */
+  const [sorts, setSorts] = createSignal<ColumnSort[]>([]);
+  const activeSorts = () => liveSorts(sorts(), addedColumns());
+
+  function sortColumn(key: string, dir: SortDir, mode: "replace" | "add") {
+    setSorts(nextSorts(activeSorts(), key, dir, mode));
+    announce(mode === "add" ? "Sort added" : "Table sorted");
+  }
+
+  function removeSort(key: string) {
+    setSorts(activeSorts().filter((s) => s.key !== key));
+    announce("Sort removed");
+  }
+
+  function clearSorts() {
+    setSorts([]);
+    announce("Sorts cleared");
+  }
+
+  function hideColumn(field: OptionalColumn) {
+    setTableColumns((current) => ({ ...current, [field]: false }));
+    announce(`${DEFAULT_HEADINGS[field]} column hidden`);
+    notifySuccess(
+      `${DEFAULT_HEADINGS[field]} column hidden`,
+      'Bring it back from "Add column".',
+    );
+  }
+
+  /** Runs a structure change, then reloads so order and values match the server. */
+  async function changeStructure(
+    run: () => Promise<unknown>,
+    failure: string,
+    success?: { title: string; description?: string },
+  ) {
+    try {
+      await run();
+      await refetchFields();
+      if (success) {
+        announce(success.title);
+        notifySuccess(success.title, success.description);
+      }
+    } catch (error) {
+      notifyError(failure, failureReason(error, "Try again."));
+    }
+  }
+
+  const hasValues = (column: CustomColumn) =>
+    Object.values(fieldValues()).some((cells) => column.id in cells);
+
+  function addColumn(type: FieldType, placement: FieldPlacement = {}) {
+    return changeStructure(async () => {
+      const column = await createTaskField({ type }, placement);
+      announce(`${column.title} column added`);
+      notifySuccess(
+        `${column.title} column added`,
+        "Rename it by double-clicking its title.",
+      );
+    }, "We couldn't add that column");
+  }
+
+  function duplicateColumn(column: CustomColumn) {
+    return changeStructure(async () => {
+      const copy = await createTaskField(
+        { duplicateOf: column.id },
+        { afterId: column.id },
+      );
+      announce(`${copy.title} column added`);
+      notifySuccess(`${copy.title} column added`, "Values were copied too.");
+    }, "We couldn't duplicate that column");
+  }
+
+  function changeColumnType(column: CustomColumn, type: FieldType) {
+    if (type === column.type) return;
+    const lost = Object.values(fieldValues()).filter((cells) => {
+      const value = cells[column.id];
+      return (
+        value !== undefined &&
+        convertFieldValue(column.type, type, value) === null
+      );
+    }).length;
+    if (
+      lost > 0 &&
+      !window.confirm(
+        `${lost} ${lost === 1 ? "value" : "values"} in "${column.title}" can't be turned into ${fieldTypeLabel(type).toLowerCase()} and will be removed. Change the type anyway?`,
+      )
+    ) {
+      return;
+    }
+    return changeStructure(
+      () => updateTaskField(column.id, { type }),
+      "We couldn't change that column's type",
+      {
+        title: `${column.title} is now a ${fieldTypeLabel(type).toLowerCase()} column`,
+      },
+    );
+  }
+
+  function moveColumn(column: CustomColumn, direction: "left" | "right") {
+    return changeStructure(
+      () => updateTaskField(column.id, { move: direction }),
+      "We couldn't move that column",
+    );
+  }
+
+  function clearColumn(column: CustomColumn) {
+    if (
+      hasValues(column) &&
+      !window.confirm(`Remove every value in the "${column.title}" column?`)
+    ) {
+      return;
+    }
+    return changeStructure(
+      () => clearTaskFieldValues(column.id),
+      "We couldn't clear that column",
+      { title: `${column.title} cleared` },
+    );
+  }
+
+  async function renameColumn(id: string, title: string) {
+    // Show the new name straight away; the server has the final say (a blank
+    // name comes back as the type's own).
+    mutateFields({
+      columns: addedColumns().map((c) => (c.id === id ? { ...c, title } : c)),
+      values: fieldValues(),
+    });
+    try {
+      const saved = await updateTaskField(id, { title });
+      mutateFields({
+        columns: addedColumns().map((c) => (c.id === id ? saved : c)),
+        values: fieldValues(),
+      });
+      announce(`Column renamed to ${saved.title}`);
+    } catch (error) {
+      refetchFields();
+      notifyError(
+        "We couldn't rename that column",
+        failureReason(error, "Try again."),
+      );
+    }
+  }
+
+  async function deleteColumn(column: CustomColumn) {
+    if (
+      hasValues(column) &&
+      !window.confirm(`Delete the "${column.title}" column and all its values?`)
+    ) {
+      return;
+    }
+    try {
+      await deleteTaskField(column.id);
+      mutateFields({
+        columns: addedColumns().filter((c) => c.id !== column.id),
+        values: withoutColumnValues(fieldValues(), column.id),
+      });
+      announce(`${column.title} column deleted`);
+      notifySuccess(
+        `${column.title} column deleted`,
+        "Its values were removed.",
+      );
+    } catch (error) {
+      notifyError(
+        "We couldn't delete that column",
+        failureReason(error, "Try again."),
+      );
+    }
+  }
+
+  async function changeField(
+    task: Task,
+    column: CustomColumn,
+    value: FieldValue | null,
+  ) {
+    // Optimistic: the cell shows what was typed while the save is in flight,
+    // and a refetch puts the truth back if the save fails.
+    mutateFields({
+      columns: addedColumns(),
+      values: setFieldValue(fieldValues(), task.id, column.id, value),
+    });
+    try {
+      await saveTaskFieldValue(task.id, column.id, value);
+      announce(`${column.title} saved for ${task.title}`);
+    } catch (error) {
+      refetchFields();
+      notifyError(
+        "We couldn't save that change",
+        failureReason(error, "Try again."),
+      );
+    }
+  }
+
+  function renameHeading(field: HeadingKey, title: string) {
+    // Blank restores the default name.
+    const next = { ...headings(), [field]: title || DEFAULT_HEADINGS[field] };
+    setHeadings(next);
+    saveHeadings(businessId(), next);
+    announce(`Column renamed to ${next[field]}`);
+  }
 
   function persistCustom(
     sections: CustomSection[],
@@ -249,7 +488,16 @@ export default function TasksPage() {
           customAssign(),
           view().sort,
           noneTitle(),
-        )
+        ).map((group) => ({
+          ...group,
+          // Column sorts order the rows inside each section.
+          tasks: sortByColumns(
+            group.tasks,
+            activeSorts(),
+            addedColumns(),
+            fieldValues(),
+          ),
+        }))
       : groupTasks(
           tableRows(visible()),
           view().group,
@@ -313,6 +561,7 @@ export default function TasksPage() {
       if (document.visibilityState !== "visible") return;
       refetchTasks();
       refetchMeetings();
+      refetchFields();
     };
     document.addEventListener("visibilitychange", onVisible);
     onCleanup(() =>
@@ -434,7 +683,7 @@ export default function TasksPage() {
 
   async function saveTask() {
     const values = draft();
-    if (!values.title.trim() || !values.assigneeId) {
+    if (!values.title.trim() || values.assigneeIds.length === 0) {
       setDialogError("A task needs a title and someone to do it.");
       return;
     }
@@ -511,7 +760,7 @@ export default function TasksPage() {
       ...defaults,
       title,
     };
-    if (!values.assigneeId) return false;
+    if (values.assigneeIds.length === 0) return false;
 
     try {
       const created = await createTask(values);
@@ -918,6 +1167,11 @@ export default function TasksPage() {
                     isCustom={view().group === "custom"}
                     canCreateSection={canCreate()}
                     onCreateSection={createSection}
+                    addedColumns={addedColumns().length}
+                    canManageColumns={canManageColumns()}
+                    onAddColumn={(type) => addColumn(type)}
+                    sortCount={activeSorts().length}
+                    onClearSorts={clearSorts}
                   />
                 ) : undefined
               }
@@ -961,6 +1215,25 @@ export default function TasksPage() {
                 <TaskTable
                   groups={groups()}
                   columns={tableColumns()}
+                  headings={headings()}
+                  onRenameHeading={renameHeading}
+                  customColumns={addedColumns()}
+                  canManageColumns={canManageColumns()}
+                  fieldValues={fieldValues()}
+                  onAddColumn={addColumn}
+                  onRenameColumn={renameColumn}
+                  onDeleteColumn={deleteColumn}
+                  onFieldChange={changeField}
+                  columnSorts={activeSorts()}
+                  onSort={sortColumn}
+                  onRemoveSort={removeSort}
+                  onClearSorts={clearSorts}
+                  onInsertColumn={addColumn}
+                  onDuplicateColumn={duplicateColumn}
+                  onChangeColumnType={changeColumnType}
+                  onMoveColumn={moveColumn}
+                  onClearColumn={clearColumn}
+                  onHideColumn={hideColumn}
                   subtasks={subtasks()}
                   now={now}
                   movingId={movingId()}

@@ -11,16 +11,24 @@ import { handler } from "~/server/effect/http";
 import { RequestContext } from "~/server/effect/request-context";
 import { Db } from "~/server/effect/services/db";
 import {
+  assigneeAccessSelect,
   assigneeInclude,
+  assigneesForUpdate,
   completedAtFor,
-  requireTeamAssignee,
+  isOnTask,
+  readAssigneeIds,
+  requireTeamAssignees,
   TaskColumn,
   TaskPriority,
+  withAssignees,
 } from "~/server/task-rules";
 
 const taskId = RequestContext.use(({ params }) => Effect.succeed(params.id));
 
-/** Owner/admins may modify any task; members only tasks assigned to them. */
+/**
+ * Owner/admins may modify any task; members only tasks they are on, as the
+ * lead or as one of the other assignees.
+ */
 const requireEditableTask = Effect.fn("requireEditableTask")(function* (
   id: string,
 ) {
@@ -31,13 +39,13 @@ const requireEditableTask = Effect.fn("requireEditableTask")(function* (
   const task = yield* db.use((p) =>
     p.task.findUnique({
       where: { id },
-      select: { businessId: true, assigneeId: true, column: true },
+      select: { businessId: true, column: true, ...assigneeAccessSelect },
     }),
   );
   if (!task || task.businessId !== ctx.businessId) {
     return yield* new NotFound({ message: "Task not found" });
   }
-  if (!canManageTeam(ctx) && task.assigneeId !== ctx.userId) {
+  if (!canManageTeam(ctx) && !isOnTask(task, ctx.userId)) {
     return yield* new Forbidden({
       message: "Only the assignee, an admin, or the owner can modify this task",
     });
@@ -67,7 +75,7 @@ export const GET = handler(
     if (task.businessId !== ctx.businessId) {
       return yield* new Forbidden({ message: "Forbidden" });
     }
-    return task;
+    return withAssignees(task);
   }),
 );
 
@@ -78,10 +86,17 @@ export const PATCH = handler(
     const { ctx, task } = yield* requireEditableTask(id);
 
     return yield* Effect.gen(function* () {
-      const { title, description, column, priority, dueDate, assigneeId } =
-        yield* readJsonObject(
-          () => new BadRequest({ message: "Invalid request body" }),
-        );
+      const {
+        title,
+        description,
+        column,
+        priority,
+        dueDate,
+        assigneeId,
+        assigneeIds,
+      } = yield* readJsonObject(
+        () => new BadRequest({ message: "Invalid request body" }),
+      );
 
       const data: Record<string, unknown> = {};
       if (typeof title === "string" && title.trim()) {
@@ -99,15 +114,17 @@ export const PATCH = handler(
       if (dueDate !== undefined) {
         data.dueDate = dueDate ? new Date(dueDate as string) : null;
       }
-      if (typeof assigneeId === "string") {
-        yield* requireTeamAssignee(assigneeId, ctx.businessId);
-        data.assigneeId = assigneeId;
+      const assignees = yield* readAssigneeIds(assigneeIds, assigneeId);
+      if (assignees) {
+        yield* requireTeamAssignees(assignees, ctx.businessId);
+        Object.assign(data, assigneesForUpdate(assignees));
       }
 
       const db = yield* Db;
-      return yield* db.use((p) =>
+      const updated = yield* db.use((p) =>
         p.task.update({ where: { id }, data, include: assigneeInclude }),
       );
+      return withAssignees(updated);
     }).pipe(
       recoverUnexpected(new BadRequest({ message: "Invalid request body" })),
     );

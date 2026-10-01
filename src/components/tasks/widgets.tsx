@@ -59,6 +59,8 @@ import {
   Spinner,
 } from "~/components/onboarding/ui";
 import {
+  assigneeNames,
+  assigneesOf,
   busiest,
   COLUMN_LABEL,
   COLUMNS,
@@ -73,6 +75,7 @@ import {
   type Task,
   type TaskColumn,
   type TaskDraft,
+  type TaskPerson,
   type TaskPriority,
   type TeamMeeting,
   taskCountLabel,
@@ -216,6 +219,54 @@ export function AssigneeMark(props: {
   );
 }
 
+/**
+ * Everyone on a task as overlapping marks, with "+N" for the rest. The
+ * names are for screen readers (and the tooltip); the marks are decoration.
+ */
+export function AssigneeStack(props: {
+  people: TaskPerson[];
+  /** Size of each mark, e.g. "size-8". */
+  class?: string;
+  /** How many marks before "+N"; three by default. */
+  max?: number;
+}) {
+  const shown = () => props.people.slice(0, props.max ?? 3);
+  const extra = () => props.people.length - shown().length;
+  const names = () =>
+    props.people.length > 0
+      ? props.people.map((p) => p.name).join(", ")
+      : "Unassigned";
+  return (
+    <span class="flex items-center -space-x-2" title={names()}>
+      <Show
+        when={props.people.length > 0}
+        fallback={<AssigneeMark member={null} class={props.class} />}
+      >
+        <For each={shown()}>
+          {(person) => (
+            <AssigneeMark
+              member={person}
+              class={cn("ring-2 ring-surface", props.class)}
+            />
+          )}
+        </For>
+      </Show>
+      <Show when={extra() > 0}>
+        <span
+          aria-hidden="true"
+          class={cn(
+            "grid size-7 shrink-0 place-items-center rounded-full bg-background font-mono text-xs font-medium text-text-muted ring-2 ring-surface",
+            props.class,
+          )}
+        >
+          +{extra()}
+        </span>
+      </Show>
+      <span class="sr-only">{names()}</span>
+    </span>
+  );
+}
+
 // ─── Task card ───────────────────────────────────────────────────────────
 
 const HELD_HINT =
@@ -304,10 +355,8 @@ export function TaskCard(props: CardProps) {
         </div>
 
         <p class="mt-2 flex items-center gap-1.5 text-xs text-text-muted">
-          <AssigneeMark member={props.task.assignee} class="size-5" />
-          <span class="truncate">
-            {props.task.assignee?.name ?? "Unassigned"}
-          </span>
+          <AssigneeStack people={assigneesOf(props.task)} class="size-5" />
+          <span class="truncate">{assigneeNames(props.task)}</span>
         </p>
       </div>
     </li>
@@ -942,6 +991,86 @@ function FieldBlock(props: {
   );
 }
 
+/**
+ * "Assigned to": tick everyone who is on the task. The first person ticked is
+ * the lead — the one responsible — and anyone else can be made lead.
+ */
+function AssigneesPicker(props: {
+  members: { value: string; label: string; description?: string }[];
+  value: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const toggle = (id: string, on: boolean) =>
+    props.onChange(
+      on
+        ? [...props.value.filter((v) => v !== id), id]
+        : props.value.filter((v) => v !== id),
+    );
+  const makeLead = (id: string) =>
+    props.onChange([id, ...props.value.filter((v) => v !== id)]);
+
+  return (
+    <fieldset class="flex min-w-0 flex-col gap-1.5">
+      <legend class={labelClass}>Assigned to</legend>
+      <ul class="flex max-h-56 flex-col gap-0.5 overflow-y-auto rounded-md border border-border-strong bg-surface p-1">
+        <For each={props.members}>
+          {(member) => {
+            const checked = () => props.value.includes(member.value);
+            const lead = () => props.value[0] === member.value;
+            return (
+              <li>
+                <label class="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-sm px-2 hover:bg-primary-soft">
+                  <input
+                    type="checkbox"
+                    checked={checked()}
+                    onChange={(e) =>
+                      toggle(member.value, e.currentTarget.checked)
+                    }
+                    class={cn(
+                      "size-4.5 shrink-0 cursor-pointer rounded-sm accent-primary",
+                      focusRing,
+                    )}
+                  />
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-sm text-text">
+                      {member.label}
+                    </span>
+                    <Show when={member.description}>
+                      <span class="block truncate text-xs text-text-muted">
+                        {member.description}
+                      </span>
+                    </Show>
+                  </span>
+                  <Show when={lead()}>
+                    <span class="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary">
+                      Lead
+                    </span>
+                  </Show>
+                  <Show when={checked() && !lead()}>
+                    <button
+                      type="button"
+                      onClick={() => makeLead(member.value)}
+                      class={cn(
+                        "shrink-0 rounded-sm px-2 py-0.5 text-xs font-medium text-text-muted hover:text-primary",
+                        focusRing,
+                      )}
+                    >
+                      Make lead
+                    </button>
+                  </Show>
+                </label>
+              </li>
+            );
+          }}
+        </For>
+      </ul>
+      <p class="text-sm text-text-muted">
+        Choose everyone who is on this task. The first person is the lead.
+      </p>
+    </fieldset>
+  );
+}
+
 export function parseDayValue(value: string) {
   if (!value) return [];
   try {
@@ -1262,12 +1391,10 @@ export function TaskDialog(props: {
                   />
                 </FieldBlock>
 
-                <SelectField
-                  label="Assigned to"
-                  options={memberOptions()}
-                  value={props.draft.assigneeId}
-                  onChange={(assigneeId) => props.onChange({ assigneeId })}
-                  placeholder="Choose a team member"
+                <AssigneesPicker
+                  members={memberOptions()}
+                  value={props.draft.assigneeIds}
+                  onChange={(assigneeIds) => props.onChange({ assigneeIds })}
                 />
 
                 <div class="grid gap-4 sm:grid-cols-2">

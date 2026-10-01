@@ -8,6 +8,7 @@ import { batch, createMemo, createSignal, For, Show } from "solid-js";
 import type { TeamMember } from "~/components/app/context";
 import { focusRing } from "~/components/auth/AuthShell";
 import {
+  assigneeNames,
   type CalendarDay,
   dayKey,
   finishedDayKey,
@@ -354,7 +355,7 @@ export function DoneCalendar(props: {
                       {task.title}
                     </span>
                     <span class="hidden truncate text-sm text-text-muted sm:inline">
-                      {task.assignee?.name ?? "Former team member"}
+                      {assigneeNames(task)}
                     </span>
                     <span class="shrink-0 font-mono text-xs tabular-nums text-text-muted">
                       {dayName(finishedDayKey(task) as string)}

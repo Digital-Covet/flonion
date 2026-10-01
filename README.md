@@ -417,12 +417,18 @@ Returns: `{ sentiment, suggestedReviews: [simple, professional, casual] }`
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/api/tasks` | Yes | Tasks for the caller's business |
-| `POST` | `/api/tasks` | Yes | Create a task with assignee, priority, and due date |
+| `GET` | `/api/tasks` | Yes | Tasks for the caller's business; each has `assignees` (everyone on it, lead first), and `?assigneeId=` matches any of them |
+| `POST` | `/api/tasks` | Yes | Create a task with assignees (`assigneeIds`, first is the lead; a single `assigneeId` still works), priority, and due date |
 | `GET` | `/api/tasks/:id` | Yes | Fetch a single task |
-| `PATCH` | `/api/tasks/:id` | Yes | Update a task; members may only edit tasks assigned to them |
+| `PATCH` | `/api/tasks/:id` | Yes | Update a task, including replacing its assignees; members may only edit tasks they are on |
 | `DELETE` | `/api/tasks/:id` | Yes | Delete a task, subject to the same assignee rule |
 | `PATCH` | `/api/tasks/reorder` | Yes (owner/admin) | Persist column and position after a drag |
+| `GET` | `/api/task-fields` | Yes | The columns the team added to its task table, with every value filled in |
+| `POST` | `/api/task-fields` | Yes (owner/admin) | Add a column (text, rich text, number, link, tags, checkbox, date), or duplicate one with `duplicateOf`; `beforeId` / `afterId` place it next to another column |
+| `PATCH` | `/api/task-fields/:id` | Yes (owner/admin) | Rename, change the type (values are converted where they can be), or `move` a column left or right |
+| `DELETE` | `/api/task-fields/:id` | Yes (owner/admin) | Delete a column and its values |
+| `DELETE` | `/api/task-fields/values` | Yes (owner/admin) | Clear every value in one column (`{ fieldId }`) |
+| `PUT` | `/api/task-fields/values` | Yes | Set or clear one task's value in a column; members may only edit tasks assigned to them |
 | `GET` | `/api/team-meetings` | Yes | Internal meetings for the caller's business |
 | `POST` | `/api/team-meetings` | Yes | Create an internal meeting, optionally with a Meet link |
 | `GET` | `/api/team-meetings/:id` | Yes | Fetch a single internal meeting |

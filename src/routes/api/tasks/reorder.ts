@@ -9,7 +9,12 @@ import {
 } from "~/server/effect/guards";
 import { handler } from "~/server/effect/http";
 import { Db } from "~/server/effect/services/db";
-import { completedAtFor, TaskColumn } from "~/server/task-rules";
+import {
+  assigneeAccessSelect,
+  completedAtFor,
+  isOnTask,
+  TaskColumn,
+} from "~/server/task-rules";
 
 export const PATCH = handler(
   "tasks.reorder",
@@ -44,7 +49,7 @@ export const PATCH = handler(
             businessId: true,
             column: true,
             position: true,
-            assigneeId: true,
+            ...assigneeAccessSelect,
           },
         }),
       );
@@ -53,8 +58,8 @@ export const PATCH = handler(
       }
 
       // A move is an edit: owner/admins may move any task, members only
-      // their own.
-      if (!canManageTeam(ctx) && existing.assigneeId !== ctx.userId) {
+      // tasks they are on.
+      if (!canManageTeam(ctx) && !isOnTask(existing, ctx.userId)) {
         return yield* new Forbidden({
           message:
             "Only the assignee, an admin, or the owner can move this task",

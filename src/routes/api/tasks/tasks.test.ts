@@ -27,8 +27,10 @@ const member = {
       role: "member",
       business: null,
     }),
-    findFirst: async (args: { where: { id: string } }) =>
-      args.where.id === "teammate" ? { id: "teammate" } : null,
+    findMany: async (args: { where: { id: { in: string[] } } }) =>
+      args.where.id.in
+        .filter((id) => id === "teammate" || id === "other_mate")
+        .map((id) => ({ id })),
   },
 };
 
@@ -281,5 +283,172 @@ describe("/api/tasks subtasks", () => {
   it("refuses a subtask of a subtask", async () => {
     const res = await read(await post({ businessId: "b1", parentId: "x" }));
     expect(res.status).toBe(400);
+  });
+});
+
+describe("/api/tasks with several assignees", () => {
+  const post = (body: object, task = {}) => {
+    const create = vi.fn(async (args: { data: object }) => ({
+      ...args.data,
+      assignee: {
+        id: "teammate",
+        name: "Lead",
+        email: "l@x.test",
+        image: null,
+      },
+      coAssignees: [
+        {
+          user: {
+            id: "other_mate",
+            name: "Also",
+            email: "a@x.test",
+            image: null,
+          },
+        },
+      ],
+    }));
+    useRuntime({
+      auth: fakeAuth(fakeSession()),
+      db: fakeDb({
+        ...member,
+        task: {
+          aggregate: async () => ({ _max: { position: 0 } }),
+          create,
+          ...task,
+        },
+      }),
+    });
+    return {
+      create,
+      send: async () =>
+        read(
+          await tasks.POST(
+            fakeEvent({ body: { title: "Team task", ...body } }),
+          ),
+        ),
+    };
+  };
+
+  it("makes the first assignee the lead and the rest co-assignees", async () => {
+    const { create, send } = post({ assigneeIds: ["teammate", "other_mate"] });
+    const res = await send();
+    expect(res.status).toBe(201);
+    expect(create.mock.calls[0][0]).toMatchObject({
+      data: {
+        assigneeId: "teammate",
+        coAssignees: { create: [{ userId: "other_mate" }] },
+      },
+    });
+    // One list for clients, lead first; the raw join rows are not exposed.
+    expect(res.body.assignees.map((a: { id: string }) => a.id)).toEqual([
+      "teammate",
+      "other_mate",
+    ]);
+    expect(res.body).not.toHaveProperty("coAssignees");
+  });
+
+  it("still accepts a single assigneeId", async () => {
+    const { create, send } = post({ assigneeId: "teammate" });
+    expect((await send()).status).toBe(201);
+    expect(create.mock.calls[0][0]).toMatchObject({
+      data: { assigneeId: "teammate", coAssignees: { create: [] } },
+    });
+  });
+
+  it("refuses an empty list, a stranger among them, or too many", async () => {
+    expect((await post({ assigneeIds: [] }).send()).status).toBe(400);
+    const stranger = await post({
+      assigneeIds: ["teammate", "stranger"],
+    }).send();
+    expect(stranger).toEqual({
+      status: 400,
+      body: { error: "Assignee is not a member of this team" },
+    });
+    const many = Array.from({ length: 11 }, (_, i) => `u${i}`);
+    const tooMany = await post({ assigneeIds: many }).send();
+    expect(tooMany.status).toBe(400);
+    expect(tooMany.body.error).toMatch(/up to 10/);
+  });
+
+  it("counts a co-assignee as on the task", async () => {
+    useRuntime({
+      auth: fakeAuth(fakeSession("user_1")),
+      db: fakeDb({
+        ...member,
+        task: {
+          findUnique: async () => ({
+            businessId: "b1",
+            column: "todo",
+            assigneeId: "someone",
+            coAssignees: [{ userId: "user_1" }],
+          }),
+          delete: async () => ({}),
+        },
+      }),
+    });
+    const e = fakeEvent({ method: "DELETE" });
+    (e as { params: Record<string, string> }).params = { id: "t1" };
+    expect(await read(await task.DELETE(e))).toEqual({
+      status: 200,
+      body: { success: true },
+    });
+  });
+
+  it("replaces the assignees on update", async () => {
+    const update = vi.fn(async (args: { data: object }) => args.data);
+    useRuntime({
+      auth: fakeAuth(fakeSession("user_1")),
+      db: fakeDb({
+        ...member,
+        task: {
+          findUnique: async () => ({
+            businessId: "b1",
+            column: "todo",
+            assigneeId: "user_1",
+            coAssignees: [],
+          }),
+          update,
+        },
+      }),
+    });
+    const e = fakeEvent({
+      method: "PATCH",
+      body: { assigneeIds: ["other_mate", "teammate"] },
+    });
+    (e as { params: Record<string, string> }).params = { id: "t1" };
+    const res = await read(await task.PATCH(e));
+    expect(res.status).toBe(200);
+    expect(update.mock.calls[0][0]).toMatchObject({
+      data: {
+        assigneeId: "other_mate",
+        coAssignees: { deleteMany: {}, create: [{ userId: "teammate" }] },
+      },
+    });
+  });
+
+  it("leaves assignees alone when an update doesn't mention them", async () => {
+    const update = vi.fn(async (args: { data: object }) => args.data);
+    useRuntime({
+      auth: fakeAuth(fakeSession("user_1")),
+      db: fakeDb({
+        ...member,
+        task: {
+          findUnique: async () => ({
+            businessId: "b1",
+            column: "todo",
+            assigneeId: "user_1",
+            coAssignees: [],
+          }),
+          update,
+        },
+      }),
+    });
+    const e = fakeEvent({ method: "PATCH", body: { title: "Renamed" } });
+    (e as { params: Record<string, string> }).params = { id: "t1" };
+    await task.PATCH(e);
+    const { data } = update.mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect(data).toEqual({ title: "Renamed" });
   });
 });

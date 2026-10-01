@@ -11,10 +11,13 @@ import { RequestContext } from "~/server/effect/request-context";
 import { Db } from "~/server/effect/services/db";
 import {
   assigneeInclude,
+  assigneesForCreate,
   completedAtFor,
-  requireTeamAssignee,
+  readAssigneeIds,
+  requireTeamAssignees,
   TaskColumn,
   TaskPriority,
+  withAssignees,
 } from "~/server/task-rules";
 
 export const GET = handler(
@@ -29,16 +32,25 @@ export const GET = handler(
     const assigneeId = url.searchParams.get("assigneeId");
 
     const db = yield* Db;
-    return yield* db.use((p) =>
+    const tasks = yield* db.use((p) =>
       p.task.findMany({
         where: {
           businessId: ctx.businessId,
-          ...(assigneeId ? { assigneeId } : {}),
+          // Anyone on the task counts, not only its lead.
+          ...(assigneeId
+            ? {
+                OR: [
+                  { assigneeId },
+                  { coAssignees: { some: { userId: assigneeId } } },
+                ],
+              }
+            : {}),
         },
         include: assigneeInclude,
         orderBy: [{ column: "asc" }, { position: "asc" }],
       }),
     );
+    return tasks.map(withAssignees);
   }),
 );
 
@@ -56,6 +68,7 @@ export const POST = handler(
         priority,
         dueDate,
         assigneeId,
+        assigneeIds,
         parentId,
       } = yield* readJsonObject(
         () => new BadRequest({ message: "Invalid request body" }),
@@ -64,10 +77,11 @@ export const POST = handler(
       if (typeof title !== "string" || !title.trim()) {
         return yield* new BadRequest({ message: "Title is required" });
       }
-      if (typeof assigneeId !== "string" || !assigneeId) {
+      const assignees = yield* readAssigneeIds(assigneeIds, assigneeId);
+      if (!assignees) {
         return yield* new BadRequest({ message: "Assignee is required" });
       }
-      yield* requireTeamAssignee(assigneeId, ctx.businessId);
+      yield* requireTeamAssignees(assignees, ctx.businessId);
 
       const taskColumn = Schema.is(TaskColumn)(column) ? column : "todo";
       const taskPriority = Schema.is(TaskPriority)(priority)
@@ -116,14 +130,14 @@ export const POST = handler(
             dueDate: dueDate ? new Date(dueDate as string) : null,
             position: (maxPosition._max.position ?? -1) + 1,
             completedAt: completedAtFor(null, taskColumn),
-            assigneeId,
+            ...assigneesForCreate(assignees),
             parentId: parent,
             businessId: ctx.businessId,
           },
           include: assigneeInclude,
         }),
       );
-      return Response.json(task, { status: 201 });
+      return Response.json(withAssignees(task), { status: 201 });
     }).pipe(
       recoverUnexpected(new BadRequest({ message: "Invalid request body" })),
     );
