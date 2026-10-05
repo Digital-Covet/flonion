@@ -114,7 +114,7 @@ export function loadDraft(): Draft | null {
 export function clearDraft() {
   try {
     localStorage.removeItem(DRAFT_KEY);
-  } catch {}
+  } catch { }
 }
 
 /* ------------------------------------------------------------ validation */
@@ -161,7 +161,7 @@ export function BusinessWizard(props: {
     });
     try {
       localStorage.setItem(DRAFT_KEY, snapshot);
-    } catch {}
+    } catch { }
   });
 
   function go(next: Phase) {
@@ -204,9 +204,9 @@ export function BusinessWizard(props: {
       const next: UsernameState = data.available
         ? { kind: "available" }
         : {
-            kind: "unavailable",
-            message: data.error ?? "That username isn't available.",
-          };
+          kind: "unavailable",
+          message: data.error ?? "That username isn't available.",
+        };
       if (seq === checkSeq) setUsernameState(next);
       return next;
     } catch {
@@ -460,7 +460,7 @@ function StepBasics(props: {
               type="tel"
               inputmode="tel"
               autocomplete="tel"
-              placeholder="+91 98765 43210"
+              placeholder="+91 00000 00000"
               value={props.draft.phone}
               onInput={(e) => {
                 props.setDraft("phone", e.currentTarget.value);
