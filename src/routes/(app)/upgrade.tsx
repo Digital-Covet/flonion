@@ -493,7 +493,7 @@ function CheckoutButton(props: {
             inputmode="numeric"
             autocomplete="tel-national"
             maxlength={14}
-            placeholder="98765 43210"
+            placeholder="00000 000000"
             value={phone()}
             onInput={(e) => setPhone(e.currentTarget.value)}
             aria-invalid={error() ? true : undefined}

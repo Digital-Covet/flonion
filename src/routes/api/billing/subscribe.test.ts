@@ -28,7 +28,7 @@ function setup(
   const businessId = `biz_sub_${++n}`;
   const {
     plan = "starter",
-    phone = "9876543210",
+    phone = "0000000000",
     existing = null,
     ensureFails = false,
     createFails = false,
@@ -52,10 +52,10 @@ function setup(
         findUnique: async (args: { select: Record<string, unknown> }) =>
           "role" in args.select
             ? {
-                businessId,
-                role: "owner",
-                business: { id: businessId },
-              }
+              businessId,
+              role: "owner",
+              business: { id: businessId },
+            }
             : { name: "Asha", email: "asha@example.com" },
       },
       business: {
