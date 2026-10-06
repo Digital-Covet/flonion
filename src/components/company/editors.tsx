@@ -1,5 +1,5 @@
 import { Dialog } from "@ark-ui/solid/dialog";
-import { IconX } from "@tabler/icons-solidjs";
+import { IconPhotoPlus, IconX } from "@tabler/icons-solidjs";
 import { createSignal, type JSX, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { focusRing, inputBase, labelClass } from "~/components/auth/AuthShell";
@@ -16,6 +16,9 @@ import type {
 import {
   imageUrlError,
   isDataImage,
+  LOGO_UPLOAD_ACCEPT,
+  logoFileError,
+  readFileAsDataUrl,
   SERVICE_ICON_OPTIONS,
 } from "~/components/company/data";
 import {
@@ -200,9 +203,9 @@ export function ProfileDialog(props: {
   onSaved: () => void;
 }) {
   const stored = props.profile.logo ?? "";
-  // A logo uploaded during onboarding is a multi-kilobyte data URI. Showing it
-  // raw in a text field is unusable, so the field starts empty and the upload
-  // is kept unless the owner pastes a link over it.
+  // A stored `data:` URI is a multi-kilobyte string: unusable in a text field,
+  // so the link field starts empty and the upload is kept unless the owner
+  // replaces or removes it.
   const uploaded = isDataImage(stored);
 
   const [draft, setDraft] = createSignal<ProfileDraft>({
@@ -216,26 +219,95 @@ export function ProfileDialog(props: {
   const set = (patch: Partial<ProfileDraft>) =>
     setDraft((d) => ({ ...d, ...patch }));
 
-  const logoToSave = () =>
-    uploaded && !draft().logo.trim() ? stored : draft().logo;
+  const [newLogo, setNewLogo] = createSignal<string | null>(null);
+  const [logoRemoved, setLogoRemoved] = createSignal(false);
+  const [fileError, setFileError] = createSignal<string | undefined>();
+  const [reading, setReading] = createSignal(false);
+  let fileInput: HTMLInputElement | undefined;
+
+  /**
+   * What is saved: a freshly picked file wins, then a pasted link, then the
+   * kept upload. Clearing all three clears the logo on save.
+   */
+  const effectiveLogo = () => {
+    const upload = newLogo();
+    if (upload) return upload;
+    const link = draft().logo.trim();
+    if (link) return link;
+    if (uploaded && !logoRemoved()) return stored;
+    return "";
+  };
+
+  /** Preview only renders a value that passes the same gate as the save. */
+  const preview = () => {
+    const value = effectiveLogo();
+    if (!value) return null;
+    return imageUrlError(value, false) === null ? value : null;
+  };
+
+  async function onLogoFile(
+    event: Event & { currentTarget: HTMLInputElement },
+  ) {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+    setFileError(undefined);
+    if (!file) return;
+    const problem = logoFileError(file);
+    if (problem) {
+      setFileError(problem);
+      return;
+    }
+    setReading(true);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const invalid = imageUrlError(dataUrl, false);
+      if (invalid) {
+        setFileError(invalid);
+        return;
+      }
+      setNewLogo(dataUrl);
+      setLogoRemoved(false);
+    } catch {
+      setFileError("We couldn't read that file. Try another image.");
+    } finally {
+      setReading(false);
+    }
+  }
+
+  function removeLogo() {
+    setFileError(undefined);
+    if (newLogo()) {
+      setNewLogo(null);
+      return;
+    }
+    if (draft().logo.trim()) {
+      set({ logo: "" });
+      return;
+    }
+    if (uploaded) setLogoRemoved(true);
+  }
 
   const { pending, error, run } = useSubmit(props.onSaved);
+  const busy = () => pending() || reading();
 
   return (
     <FormDialog
       title="Edit profile"
       description="This is what partners see when they open your page."
       submitLabel="Save profile"
-      pending={pending()}
+      pending={busy()}
       error={error()}
       onClose={props.onClose}
       onSubmit={() =>
         run(
-          () =>
-            !draft().businessName.trim()
-              ? "Your business needs a name."
-              : imageUrlError(draft().logo, false),
-          () => props.onSave({ ...draft(), logo: logoToSave() }),
+          () => {
+            if (!draft().businessName.trim())
+              return "Your business needs a name.";
+            const uploadProblem = fileError();
+            if (uploadProblem) return uploadProblem;
+            return imageUrlError(effectiveLogo(), false);
+          },
+          () => props.onSave({ ...draft(), logo: effectiveLogo() }),
         )
       }
     >
@@ -274,26 +346,123 @@ export function ProfileDialog(props: {
         value={draft().phone}
         onInput={(phone) => set({ phone })}
       />
-      <div class="flex items-end gap-3">
-        <Show when={uploaded}>
-          <img
-            src={stored}
-            alt=""
-            width="44"
-            height="44"
-            class="size-11 shrink-0 rounded-md border border-border object-cover"
-          />
+      <div class="flex flex-col gap-3">
+        <div>
+          <span id="profile-logo-label" class={labelClass}>
+            Logo
+          </span>
+          <p class="mt-1 text-xs text-text-muted">
+            A square image reads best. Upload one (PNG, JPEG, GIF, WebP or AVIF,
+            under ~1.5 MB), or paste a link instead.
+          </p>
+        </div>
+        <div class="flex items-center gap-3">
+          <Show
+            when={preview()}
+            fallback={
+              <span
+                aria-hidden="true"
+                class="grid size-11 shrink-0 place-items-center rounded-md border border-dashed border-border-strong bg-background font-display text-lg font-semibold text-text-muted"
+              >
+                {draft().businessName.trim().charAt(0).toUpperCase() || "?"}
+              </span>
+            }
+          >
+            {(src) => (
+              <img
+                src={src()}
+                alt=""
+                width="44"
+                height="44"
+                class="size-11 shrink-0 rounded-md border border-border object-cover"
+              />
+            )}
+          </Show>
+          <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={busy()}
+              onClick={() => fileInput?.click()}
+              class={cn(btnSecondary, "min-h-9 px-3 text-sm")}
+            >
+              <Show
+                when={reading()}
+                fallback={
+                  <>
+                    <IconPhotoPlus aria-hidden="true" class="size-4" />
+                    {preview() ? "Replace image" : "Upload image"}
+                  </>
+                }
+              >
+                <Spinner class="size-4" />
+                Reading…
+              </Show>
+            </button>
+            <Show when={preview()}>
+              <button
+                type="button"
+                disabled={busy()}
+                onClick={removeLogo}
+                class={cn(
+                  "min-h-9 rounded-sm px-2 text-sm font-medium text-text-muted underline underline-offset-4 hover:text-text disabled:opacity-60",
+                  focusRing,
+                )}
+              >
+                Remove
+              </button>
+            </Show>
+            <input
+              ref={(el) => {
+                fileInput = el;
+              }}
+              type="file"
+              accept={LOGO_UPLOAD_ACCEPT}
+              aria-label="Upload logo image"
+              class="sr-only"
+              tabindex={-1}
+              onChange={onLogoFile}
+            />
+          </div>
+        </div>
+        <Show when={fileError()}>
+          {(message) => (
+            <p role="alert" class="text-sm text-error">
+              {message()}
+            </p>
+          )}
+        </Show>
+        <Show
+          when={uploaded && logoRemoved() && !newLogo() && !draft().logo.trim()}
+        >
+          <p class="text-sm text-text-muted">
+            Logo removed — it clears when you save.{" "}
+            <button
+              type="button"
+              onClick={() => {
+                setLogoRemoved(false);
+                setFileError(undefined);
+              }}
+              class={cn(
+                "font-medium text-primary underline underline-offset-4",
+                focusRing,
+              )}
+            >
+              Undo
+            </button>
+          </p>
         </Show>
         <div class="min-w-0 flex-1">
           <Field
             id="profile-logo"
-            label="Logo link"
+            label="Logo link (optional)"
             type="url"
             placeholder="https://…"
             hint={
-              uploaded
-                ? "You already have a logo uploaded. Paste a link only to replace it."
-                : "A square image reads best. Leave it blank to show your initial."
+              newLogo()
+                ? "An uploaded image is used instead of this link. Remove the image to use a link."
+                : uploaded && !logoRemoved()
+                  ? "You have an uploaded logo. Upload a new one, or paste a link to replace it."
+                  : "Leave it blank to show your initial."
             }
             value={draft().logo}
             onInput={(logo) => set({ logo })}

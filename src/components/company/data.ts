@@ -1,7 +1,7 @@
 import type { BusinessInfo } from "~/components/app/context";
 import type { SelectOption } from "~/components/onboarding/ui";
 import { api } from "~/components/onboarding/ui";
-import { httpUrl } from "~/lib/safe-url";
+import { httpUrl, MAX_DATA_IMAGE_LENGTH } from "~/lib/safe-url";
 
 /**
  * Company profile state, reads and writes.
@@ -313,12 +313,71 @@ export function isDataImage(value: string): boolean {
  * Images are rendered straight into `src`, and avatars and work shots are
  * pasted from wherever the owner hosts them, so only absolute http(s) URLs (or
  * an inline image the app itself stored) are let through.
+ *
+ * Mirrors `imageSrc` on the server: a `data:` image over
+ * `MAX_DATA_IMAGE_LENGTH` is rejected there, so it is rejected here too
+ * instead of failing only on save.
  */
 export function imageUrlError(value: string, required: boolean): string | null {
   const trimmed = value.trim();
   if (!trimmed) return required ? "An image link is required." : null;
-  if (isDataImage(trimmed)) return null;
+  if (isDataImage(trimmed)) {
+    return trimmed.length > MAX_DATA_IMAGE_LENGTH
+      ? "That image is too large — choose one under ~1.5 MB."
+      : null;
+  }
   return httpUrl(trimmed) ? null : "Enter a full http(s) link to the image.";
+}
+
+/**
+ * File picker gate for the logo upload in the Business details dialog.
+ * Mirrors the server's `DATA_IMAGE_TYPES` (`safe-url.ts`): raster only, no
+ * SVG, plus a pre-read byte ceiling so a 10 MB photo fails fast instead of
+ * after a `FileReader` round-trip. The exact character ceiling is re-checked
+ * after encoding via `imageUrlError`.
+ */
+export const LOGO_UPLOAD_ACCEPT =
+  "image/png,image/jpeg,image/gif,image/webp,image/avif";
+
+/** ~1.5 MB of bytes encodes to just under the 2M-character `data:` ceiling. */
+export const LOGO_MAX_BYTES = 1_500_000;
+
+const LOGO_UPLOAD_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/gif",
+  "image/webp",
+  "image/avif",
+]);
+
+export function logoFileError(file: {
+  type: string;
+  size: number;
+}): string | null {
+  if (!LOGO_UPLOAD_TYPES.has(file.type.toLowerCase())) {
+    return "Choose a PNG, JPEG, GIF, WebP or AVIF image.";
+  }
+  if (file.size === 0) {
+    return "That file looks empty — choose another image.";
+  }
+  if (file.size > LOGO_MAX_BYTES) {
+    return "That image is too large — choose one under ~1.5 MB.";
+  }
+  return null;
+}
+
+/** Reads the picked file as a `data:` URI for inline storage. */
+export function readFileAsDataUrl(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () =>
+      typeof reader.result === "string"
+        ? resolve(reader.result)
+        : reject(new Error("Could not read that image."));
+    reader.onerror = () => reject(new Error("Could not read that image."));
+    reader.readAsDataURL(file);
+  });
 }
 
 // ─── Ordering ────────────────────────────────────────────────────────────
