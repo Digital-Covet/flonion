@@ -1,4 +1,5 @@
 import { Dialog } from "@ark-ui/solid/dialog";
+import { FileUpload, useFileUpload } from "@ark-ui/solid/file-upload";
 import { IconPhotoPlus, IconX } from "@tabler/icons-solidjs";
 import { createSignal, type JSX, Show } from "solid-js";
 import { Portal } from "solid-js/web";
@@ -16,6 +17,7 @@ import type {
 import {
   imageUrlError,
   isDataImage,
+  LOGO_MAX_BYTES,
   LOGO_UPLOAD_ACCEPT,
   logoFileError,
   readFileAsDataUrl,
@@ -223,7 +225,6 @@ export function ProfileDialog(props: {
   const [logoRemoved, setLogoRemoved] = createSignal(false);
   const [fileError, setFileError] = createSignal<string | undefined>();
   const [reading, setReading] = createSignal(false);
-  let fileInput: HTMLInputElement | undefined;
 
   /**
    * What is saved: a freshly picked file wins, then a pasted link, then the
@@ -245,13 +246,46 @@ export function ProfileDialog(props: {
     return imageUrlError(value, false) === null ? value : null;
   };
 
-  async function onLogoFile(
-    event: Event & { currentTarget: HTMLInputElement },
-  ) {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
+  const { pending, error, run } = useSubmit(props.onSaved);
+  const busy = () => pending() || reading();
+
+  /**
+   * Ark UI file picker: `Trigger` opens the dialog and `HiddenInput` carries
+   * the native input (accept/size gates included), so the dialog stays on the
+   * same primitives as the rest of the app. Accepted files are read to a
+   * `data:` URI for inline storage and Ark's list is cleared straight away —
+   * the preview and save run off `newLogo`, which keeps Replace working under
+   * `maxFiles={1}`.
+   */
+  const fileUpload = useFileUpload({
+    maxFiles: 1,
+    accept: LOGO_UPLOAD_ACCEPT,
+    maxFileSize: LOGO_MAX_BYTES,
+    onFileAccept: (details) => {
+      void handleAcceptedFiles(details.files);
+    },
+    onFileReject: (details) => {
+      const code = details.files[0]?.errors[0];
+      if (code === "FILE_INVALID_TYPE") {
+        setFileError("Choose a PNG, JPEG, GIF, WebP or AVIF image.");
+      } else if (code === "FILE_TOO_LARGE") {
+        setFileError("That image is too large — choose one under ~1.5 MB.");
+      } else if (code === "TOO_MANY_FILES") {
+        setFileError("Remove the current image before choosing another.");
+      } else {
+        setFileError("That file couldn't be used. Try another image.");
+      }
+      fileUpload().clearFiles();
+    },
+  });
+
+  async function handleAcceptedFiles(files: File[]) {
+    const file = files[0];
+    fileUpload().clearFiles();
     setFileError(undefined);
     if (!file) return;
+    // Defense in depth: Ark already gated type/size, re-checked here so a
+    // programmatic call can't smuggle anything past the save gate.
     const problem = logoFileError(file);
     if (problem) {
       setFileError(problem);
@@ -276,6 +310,7 @@ export function ProfileDialog(props: {
 
   function removeLogo() {
     setFileError(undefined);
+    fileUpload().clearFiles();
     if (newLogo()) {
       setNewLogo(null);
       return;
@@ -286,9 +321,6 @@ export function ProfileDialog(props: {
     }
     if (uploaded) setLogoRemoved(true);
   }
-
-  const { pending, error, run } = useSubmit(props.onSaved);
-  const busy = () => pending() || reading();
 
   return (
     <FormDialog
@@ -378,51 +410,42 @@ export function ProfileDialog(props: {
               />
             )}
           </Show>
-          <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-            <button
-              type="button"
-              disabled={busy()}
-              onClick={() => fileInput?.click()}
-              class={cn(btnSecondary, "min-h-9 px-3 text-sm")}
-            >
-              <Show
-                when={reading()}
-                fallback={
-                  <>
-                    <IconPhotoPlus aria-hidden="true" class="size-4" />
-                    {preview() ? "Replace image" : "Upload image"}
-                  </>
-                }
-              >
-                <Spinner class="size-4" />
-                Reading…
-              </Show>
-            </button>
-            <Show when={preview()}>
-              <button
+          <FileUpload.RootProvider value={fileUpload}>
+            <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+              <FileUpload.Trigger
                 type="button"
                 disabled={busy()}
-                onClick={removeLogo}
-                class={cn(
-                  "min-h-9 rounded-sm px-2 text-sm font-medium text-text-muted underline underline-offset-4 hover:text-text disabled:opacity-60",
-                  focusRing,
-                )}
+                class={cn(btnSecondary, "min-h-9 px-3 text-sm")}
               >
-                Remove
-              </button>
-            </Show>
-            <input
-              ref={(el) => {
-                fileInput = el;
-              }}
-              type="file"
-              accept={LOGO_UPLOAD_ACCEPT}
-              aria-label="Upload logo image"
-              class="sr-only"
-              tabindex={-1}
-              onChange={onLogoFile}
-            />
-          </div>
+                <Show
+                  when={reading()}
+                  fallback={
+                    <>
+                      <IconPhotoPlus aria-hidden="true" class="size-4" />
+                      {preview() ? "Replace image" : "Upload image"}
+                    </>
+                  }
+                >
+                  <Spinner class="size-4" />
+                  Reading…
+                </Show>
+              </FileUpload.Trigger>
+              <Show when={preview()}>
+                <button
+                  type="button"
+                  disabled={busy()}
+                  onClick={removeLogo}
+                  class={cn(
+                    "min-h-9 rounded-sm px-2 text-sm font-medium text-text-muted underline underline-offset-4 hover:text-text disabled:opacity-60",
+                    focusRing,
+                  )}
+                >
+                  Remove
+                </button>
+              </Show>
+              <FileUpload.HiddenInput />
+            </div>
+          </FileUpload.RootProvider>
         </div>
         <Show when={fileError()}>
           {(message) => (
